@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { ContentItem, Feat, FeatRequirement, Spell } from '@freshmag/one-dndb';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
+import { ChoiceService } from '../choices/service.js';
 import { BenefitAudit } from './benefits.js';
 import { AppError } from '../errors.js';
 
@@ -257,6 +258,7 @@ export class ValidationService {
           : 'Ficha com uma classe',
     });
     findings.push(...new BenefitAudit(this.db).inspect(id).findings);
+    findings.push(...new ChoiceService(this.db).inspect(id).findings);
     for (const code of [
       'BENEFIT_NESTED_CHOICES',
       'ACQUISITION_HISTORY',

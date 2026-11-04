@@ -3,7 +3,7 @@ import type { ContentItem, Feat } from '@freshmag/one-dndb';
 import type { Finding } from './validation.js';
 const fields = ['skillChoices', 'expertise', 'toolChoices', 'languageChoices'] as const;
 type Field = (typeof fields)[number];
-interface Grant {
+export interface Grant {
   id: number;
   origin_kind: string;
   origin_character_class_id: number | null;
@@ -18,6 +18,7 @@ interface Source {
   data: ContentItem;
   level: number;
   identity: string;
+  deprecatedAt: string | null;
 }
 interface Selection {
   id: number;
@@ -35,7 +36,7 @@ interface Selection {
 }
 export class BenefitAudit {
   constructor(private db: Database.Database) {}
-  private source(characterId: number, g: Grant): Source | undefined {
+  source(characterId: number, g: Grant): Source | undefined {
     let table: string, localId: number | null;
     switch (g.origin_kind) {
       case 'class':
@@ -66,8 +67,11 @@ export class BenefitAudit {
       default:
         return;
     }
-    const record = this.db.prepare(`SELECT data FROM lib_${table} WHERE id=?`).get(localId) as
-      { data: string } | undefined;
+    const record = this.db
+      .prepare(
+        `SELECT l.data,e.deprecated_at FROM lib_${table} l JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE l.id=?`
+      )
+      .get(localId) as { data: string; deprecated_at: string | null } | undefined;
     if (!record) return;
     const raw = JSON.parse(record.data) as ContentItem & Feat;
     const level = g.origin_character_class_id
@@ -82,6 +86,7 @@ export class BenefitAudit {
             .get(characterId) as { n: number }
         ).n;
     return {
+      deprecatedAt: record.deprecated_at,
       data: g.origin_kind === 'feat' ? ((raw.effects ?? {}) as ContentItem) : raw,
       level,
       identity: `${g.origin_kind}:${g.origin_character_class_id ?? g.origin_character_ability_id ?? localId}`,

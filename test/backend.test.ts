@@ -143,11 +143,11 @@ describe('Fundação e catálogo real', () => {
   it('executa migrações, saúde e não carrega usuários de exemplo', async () => {
     const response = await app.inject('/health');
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ status: 'ok', schemaVersion: 3, catalogEntries: 1905 });
+    expect(response.json()).toMatchObject({ status: 'ok', schemaVersion: 4, catalogEntries: 1905 });
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(db.pragma('journal_mode', { simple: true })).toBe('wal');
     expect(db.prepare('SELECT count(*) AS n FROM app_user').get()).toEqual({ n: 0 });
-    expect(migrate(db)).toBe(3);
+    expect(migrate(db)).toBe(4);
   });
   it('retorna indisponibilidade quando a versão do banco diverge', async () => {
     db.pragma('user_version = 99');
@@ -202,11 +202,11 @@ describe('Fundação e catálogo real', () => {
     const copy = join(directory, 'migrations');
     cpSync(join(process.cwd(), 'migrations'), copy, { recursive: true });
     writeFileSync(
-      join(copy, '0004_test.sql'),
+      join(copy, '0005_test.sql'),
       'CREATE TABLE should_rollback(id INTEGER);\nINSERT INTO missing_table VALUES(1);\n'
     );
     expect(() => migrate(db, copy)).toThrow();
-    expect(verifyHistory(db)).toBe(3);
+    expect(verifyHistory(db)).toBe(4);
     expect(
       db.prepare("SELECT 1 FROM sqlite_master WHERE name='should_rollback'").get()
     ).toBeUndefined();
@@ -1913,5 +1913,191 @@ describe('Escolhas de benefícios extraídas do pacote', () => {
       );
       expect(matches.map((f: { state: string }) => f.state)).toEqual(['pass', 'fail']);
     }
+  });
+});
+
+describe('Escolhas aninhadas e migração 4', () => {
+  async function setup() {
+    await register();
+    const cookie = cookies(await login());
+    const payload = { ...character(), speciesId: localId('species', 'elf') };
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload,
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'species',
+      originId: payload.speciesId,
+      acquisitionContext: 'species',
+      ruleKey: 'elf.lineage',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    return { id, cookie, post, grantId: grant.json().id, speciesId: payload.speciesId };
+  }
+  it('salva linhagem real, expõe suas magias e impede multiplicar a escolha', async () => {
+    const { id, cookie, post, grantId, speciesId } = await setup();
+    const selected = await post(`/characters/${id}/choices`, {
+      grantId,
+      choiceId: 'lineage',
+      optionId: 'drow',
+    });
+    expect(selected.statusCode).toBe(201);
+    const second = await post(`/characters/${id}/grants`, {
+      originKind: 'species',
+      originId: speciesId,
+      acquisitionContext: 'species',
+      ruleKey: 'elf.lineage.second',
+      acquiredAtLevel: 1,
+    });
+    expect(second.statusCode).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/choices`, {
+          grantId: second.json().id,
+          choiceId: 'lineage',
+          optionId: 'high-elf',
+        })
+      ).statusCode
+    ).toBe(400);
+    const list = await app.inject({ url: `/characters/${id}/choices`, headers: { cookie } });
+    expect(list.statusCode).toBe(200);
+    expect(list.json().selected).toHaveLength(1);
+    const option = list.json().options[0].options.find((x: { id: string }) => x.id === 'drow');
+    expect(option.spellsFixed.map((x: { id: string }) => x.id)).toContain('faerie-fire');
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}/choices/${selected.json().id}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(204);
+    expect(
+      (
+        await post(`/characters/${id}/choices`, {
+          grantId,
+          choiceId: 'lineage',
+          optionId: 'high-elf',
+        })
+      ).statusCode
+    ).toBe(201);
+  });
+  it('audita magia de linhagem prematura e reconhece a liberada sem criar magias automaticamente', async () => {
+    const { id, cookie, post, grantId, speciesId } = await setup();
+    expect(
+      (await post(`/characters/${id}/choices`, { grantId, choiceId: 'lineage', optionId: 'drow' }))
+        .statusCode
+    ).toBe(201);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_spell WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+    for (const [slug, mode] of [
+      ['dancing-lights', 'cantrip'],
+      ['faerie-fire', 'always_prepared'],
+    ])
+      expect(
+        (
+          await post(`/characters/${id}/spells`, {
+            spellId: localId('spell', slug!),
+            originKind: 'species',
+            originId: speciesId,
+            preparationMode: mode,
+          })
+        ).statusCode
+      ).toBe(201);
+    const result = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { spell: string } }) =>
+          f.code === 'NESTED_FIXED_SPELL' && f.evidence?.spell === 'dancing-lights'
+      ).state
+    ).toBe('pass');
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { spell: string } }) =>
+          f.code === 'NESTED_FIXED_SPELL' && f.evidence?.spell === 'faerie-fire'
+      ).state
+    ).toBe('fail');
+    expect(result.rulesVerified).toBe(false);
+  });
+  it('isola origem e instância, recusa ids inventados e reverte falha de auditoria', async () => {
+    const { id, cookie, post, grantId } = await setup();
+    const other = await create(cookie);
+    const payload = { grantId, choiceId: 'lineage', optionId: 'drow' };
+    expect((await post(`/characters/${other.id}/choices`, payload)).statusCode).toBe(400);
+    expect(
+      (await post(`/characters/${id}/choices`, { ...payload, optionId: 'invented' })).statusCode
+    ).toBe(400);
+    expect((await app.inject({ url: `/characters/${id}/choices` })).statusCode).toBe(404);
+    db.exec(
+      "CREATE TRIGGER reject_choice_audit BEFORE INSERT ON audit_log WHEN NEW.action='choice.add' BEGIN SELECT RAISE(ABORT,'audit failed'); END"
+    );
+    expect((await post(`/characters/${id}/choices`, payload)).statusCode).toBe(400);
+    expect(db.prepare('SELECT count(*) AS n FROM character_choice').get()).toEqual({ n: 0 });
+    db.exec('DROP TRIGGER reject_choice_audit');
+    const selected = await post(`/characters/${id}/choices`, payload);
+    expect(selected.statusCode).toBe(201);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${other.id}/choices/${selected.json().id}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(204);
+    expect(db.prepare('SELECT count(*) AS n FROM character_choice').get()).toEqual({ n: 0 });
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+  it('recusa escolha antes do nível e expõe escolhas de magias ainda inconclusivas', async () => {
+    const { id, cookie, post } = await setup();
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(id) as {
+      id: number;
+    };
+    db.prepare('UPDATE character_class SET class_id=? WHERE id=?').run(
+      localId('class', 'ranger'),
+      cc.id
+    );
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'class',
+      originId: cc.id,
+      acquisitionContext: 'initial_class',
+      ruleKey: 'ranger.style',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    const payload = {
+      grantId: grant.json().id,
+      choiceId: 'fighting-style',
+      optionId: 'druidic-warrior',
+    };
+    expect((await post(`/characters/${id}/choices`, payload)).statusCode).toBe(400);
+    db.prepare('UPDATE character_class SET level=2 WHERE id=?').run(cc.id);
+    expect((await post(`/characters/${id}/choices`, payload)).statusCode).toBe(201);
+    const result = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      result.findings.find((f: { code: string }) => f.code === 'NESTED_SPELL_CHOICES').state
+    ).toBe('unknown');
   });
 });

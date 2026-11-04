@@ -736,3 +736,16 @@ login_throttle.scope/key_hash identificam um bucket temporário por e-mail ou re
 session é a família, token_hash é o hash do access atual; refresh_token guarda gerações. Raiz e token não consumido são únicos por família por índices parciais do SQL. schema_migration e user_version=3 identificam a cadeia 0001–0003, diferente de revisão da biblioteca e versão de produto.
 
 Requisitos completos estão em contas-permissoes.md, autenticacao-refresh-token.md, sistemas-e-versoes.md e migracoes-backup-restauracao.md. Os protocolos em tests não são backend de produção.
+
+## character_choice (migração 0004)
+
+| Coluna | Definição SQLite |
+|---|---|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT |
+| character_id | INTEGER NOT NULL; parte da FK composta da concessão |
+| grant_id | INTEGER NOT NULL; origem já vinculada ao personagem |
+| choice_id | TEXT NOT NULL; id ItemChoice, trim não vazio, comprimento 1–200 |
+| option_id | TEXT NOT NULL; id ChoiceOption, trim não vazio, comprimento 1–200 |
+| created_at | TEXT NOT NULL; UTC gerado por strftime |
+
+Tabela STRICT. FK (character_id,grant_id) → character_rule_grant(character_id,id), ON DELETE CASCADE. UNIQUE (grant_id,choice_id,option_id). Índice (character_id,grant_id). Elegibilidade, nível e orçamento compartilhado entre concessões da mesma origem são conferidos pelo serviço. Não armazena JSON nem copia o texto da regra. Excluir a escolha não exclui magias ou itens registrados separadamente.
