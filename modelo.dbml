@@ -1,0 +1,685 @@
+Project Grimorio {
+  database_type: 'SQLite'
+  Note: 'Multiclasse D&D 2024. schema.sql é a definição executável. Total = SUM(character_class.level); subclasse não tem nível próprio.'
+}
+
+Table app_user {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  email text [not null, unique, note: 'email TEXT NOT NULL COLLATE NOCASE UNIQUE']
+  username text [not null, unique, note: 'username TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK (length(username) BETWEEN 3 AND 32)']
+  password_hash text [not null, note: 'password_hash TEXT NOT NULL']
+  role text [not null, note: 'role TEXT NOT NULL DEFAULT \'user\' CHECK (role IN (\'user\',\'admin\'))']
+  is_active integer [not null, note: 'is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1))']
+  email_verified_at text [note: 'email_verified_at TEXT']
+  last_login_at text [note: 'last_login_at TEXT']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  updated_at text [not null, note: 'updated_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+}
+
+Table session {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  user_id integer [not null, note: 'user_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE']
+  token_hash text [not null, unique, note: 'token_hash TEXT NOT NULL UNIQUE']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  expires_at text [not null, note: 'expires_at TEXT NOT NULL']
+  revoked_at text [note: 'revoked_at TEXT']
+  ip_address text [note: 'ip_address TEXT']
+  user_agent text [note: 'user_agent TEXT']
+  access_expires_at text [not null, note: 'access_expires_at TEXT CHECK (revoked_at IS NOT NULL OR access_expires_at IS NOT NULL)']
+}
+
+Table auth_token {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  user_id integer [not null, note: 'user_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE']
+  purpose text [not null, note: 'purpose TEXT NOT NULL CHECK (purpose IN (\'password_reset\',\'email_verification\'))']
+  token_hash text [not null, unique, note: 'token_hash TEXT NOT NULL UNIQUE']
+  expires_at text [not null, note: 'expires_at TEXT NOT NULL']
+  used_at text [note: 'used_at TEXT']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  issued_email_hash text [not null, note: 'issued_email_hash TEXT CHECK (issued_email_hash IS NOT NULL AND length(issued_email_hash)=64)']
+  revoked_at text [note: 'revoked_at TEXT']
+}
+
+Table audit_log {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  actor_user_id integer [note: 'actor_user_id INTEGER REFERENCES app_user(id) ON DELETE SET NULL']
+  action text [not null, note: 'action TEXT NOT NULL']
+  entity_type text [not null, note: 'entity_type TEXT NOT NULL']
+  entity_id integer [note: 'entity_id INTEGER']
+  details text [note: 'details TEXT CHECK (details IS NULL OR json_valid(details))']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+}
+
+Table ruleset_revision {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  revision text [not null, unique, note: 'revision TEXT NOT NULL UNIQUE']
+  library_version text [not null, note: 'library_version TEXT NOT NULL']
+  loaded_at text [not null, note: 'loaded_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+}
+
+Table lib_species {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  setting text [note: 'setting TEXT']
+  creature_type text [note: 'creature_type TEXT']
+  speed integer [note: 'speed INTEGER CHECK (speed >= 0)']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'species\' CHECK (catalog_kind = \'species\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_class {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  hit_die integer [note: 'hit_die INTEGER CHECK (hit_die IN (6,8,10,12))']
+  is_spellcaster integer [not null, note: 'is_spellcaster INTEGER NOT NULL DEFAULT 0 CHECK (is_spellcaster IN (0,1))']
+  subclass_level integer [not null, note: 'subclass_level INTEGER NOT NULL CHECK (subclass_level BETWEEN 1 AND 20)']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'class\' CHECK (catalog_kind = \'class\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_subclass {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  class_id integer [not null, note: 'class_id INTEGER NOT NULL REFERENCES lib_class(id) ON DELETE RESTRICT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'subclass\' CHECK (catalog_kind = \'subclass\')']
+  Note: 'UNIQUE (class_id, id); FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+  indexes {
+    (class_id, id) [unique]
+  }
+}
+
+Table lib_background {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  setting text [note: 'setting TEXT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'background\' CHECK (catalog_kind = \'background\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_fighting_style {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'fighting_style\' CHECK (catalog_kind = \'fighting_style\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_spell {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  level integer [not null, note: 'level INTEGER NOT NULL CHECK (level BETWEEN 0 AND 9)']
+  school text [not null, note: 'school TEXT NOT NULL CHECK (school IN (\'Abjuration\',\'Conjuration\',\'Divination\',\'Enchantment\',\'Evocation\',\'Illusion\',\'Necromancy\',\'Transmutation\'))']
+  is_concentration integer [not null, note: 'is_concentration INTEGER NOT NULL DEFAULT 0 CHECK (is_concentration IN (0,1))']
+  is_ritual integer [not null, note: 'is_ritual INTEGER NOT NULL DEFAULT 0 CHECK (is_ritual IN (0,1))']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'spell\' CHECK (catalog_kind = \'spell\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_feat {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  category text [note: 'category TEXT']
+  setting text [note: 'setting TEXT']
+  is_repeatable integer [not null, note: 'is_repeatable INTEGER NOT NULL DEFAULT 0 CHECK (is_repeatable IN (0,1))']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'feat\' CHECK (catalog_kind = \'feat\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_item {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  kind text [not null, note: 'kind TEXT NOT NULL CHECK (kind IN (\'gear\',\'weapon\',\'armor\',\'tool\',\'mount\',\'poison\',\'potion\',\'scroll\',\'wondrous\',\'ring\',\'rod\',\'staff\',\'wand\'))']
+  rarity text [note: 'rarity TEXT CHECK (rarity IN (\'common\',\'uncommon\',\'rare\',\'very rare\',\'legendary\',\'artifact\',\'varies\'))']
+  is_magic integer [not null, note: 'is_magic INTEGER NOT NULL DEFAULT 0 CHECK (is_magic IN (0,1))']
+  cost_cp integer [note: 'cost_cp INTEGER CHECK (cost_cp >= 0)']
+  weight real [note: 'weight REAL CHECK (weight >= 0)']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'item\' CHECK (catalog_kind = \'item\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_tool_group {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'tool_group\' CHECK (catalog_kind = \'tool_group\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_tool {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  group_id integer [not null, note: 'group_id INTEGER NOT NULL REFERENCES lib_tool_group(id) ON DELETE RESTRICT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'tool\' CHECK (catalog_kind = \'tool\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_language {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  tier text [not null, note: 'tier TEXT NOT NULL CHECK (tier IN (\'common\',\'rare\'))']
+  origin text [note: 'origin TEXT']
+  is_always integer [not null, note: 'is_always INTEGER NOT NULL DEFAULT 0 CHECK (is_always IN (0,1))']
+  note text [note: 'note TEXT']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'language\' CHECK (catalog_kind = \'language\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_alignment {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  abbr text [not null, note: 'abbr TEXT NOT NULL']
+  order_axis text [not null, note: 'order_axis TEXT NOT NULL']
+  morality_axis text [not null, note: 'morality_axis TEXT NOT NULL']
+  body text [note: 'body TEXT']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'alignment\' CHECK (catalog_kind = \'alignment\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_rule {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  category text [note: 'category TEXT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'rule\' CHECK (catalog_kind = \'rule\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_link {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  link_key text [not null, unique, note: 'link_key TEXT NOT NULL UNIQUE']
+  from_type text [not null, note: 'from_type TEXT NOT NULL']
+  from_slug text [not null, note: 'from_slug TEXT NOT NULL']
+  kind text [not null, note: 'kind TEXT NOT NULL']
+  to_type text [not null, note: 'to_type TEXT NOT NULL']
+  to_slug text [not null, note: 'to_slug TEXT NOT NULL']
+}
+
+Table character {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  owner_id integer [not null, note: 'owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT']
+  system_id integer [not null, note: 'system_id INTEGER NOT NULL REFERENCES rpg_system(id) ON DELETE RESTRICT']
+  name text [not null, note: 'name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 100)']
+  portrait text [note: 'portrait TEXT']
+  is_public integer [not null, note: 'is_public INTEGER NOT NULL DEFAULT 0 CHECK (is_public IN (0,1))']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  updated_at text [not null, note: 'updated_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  publication_blocked_at text [note: 'publication_blocked_at TEXT']
+  Note: 'UNIQUE (id, system_id)'
+  indexes {
+    (id, system_id) [unique]
+  }
+}
+
+Table character_class {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  class_id integer [not null, note: 'class_id INTEGER NOT NULL REFERENCES lib_class(id) ON DELETE RESTRICT']
+  level integer [not null, note: 'level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 20)']
+  subclass_id integer [note: 'subclass_id INTEGER']
+  is_initial_class integer [not null, note: 'is_initial_class INTEGER NOT NULL DEFAULT 0 CHECK (is_initial_class IN (0,1))']
+  Note: 'UNIQUE (character_id, class_id); FOREIGN KEY (class_id, subclass_id) REFERENCES lib_subclass(class_id, id) ON DELETE RESTRICT; UNIQUE (character_id, id); UNIQUE (character_id, id, subclass_id)'
+  indexes {
+    (character_id, class_id) [unique]
+    (character_id, id) [unique]
+    (character_id, id, subclass_id) [unique]
+  }
+}
+
+Table character_narrative {
+  character_id integer [pk, note: 'character_id INTEGER PRIMARY KEY REFERENCES character(id) ON DELETE CASCADE']
+  backstory text [note: 'backstory TEXT']
+  description text [note: 'description TEXT']
+  personality text [note: 'personality TEXT']
+  motivations text [note: 'motivations TEXT']
+  goals text [note: 'goals TEXT']
+  updated_at text [not null, note: 'updated_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+}
+
+Table character_item {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  lib_item_id integer [not null, note: 'lib_item_id INTEGER NOT NULL REFERENCES lib_item(id) ON DELETE RESTRICT']
+  quantity integer [not null, note: 'quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 1)']
+  equipped integer [not null, note: 'equipped INTEGER NOT NULL DEFAULT 0 CHECK (equipped IN (0,1))']
+  notes text [note: 'notes TEXT']
+}
+
+Table character_ability {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  lib_feat_id integer [note: 'lib_feat_id INTEGER REFERENCES lib_feat(id) ON DELETE RESTRICT']
+  lib_tool_id integer [note: 'lib_tool_id INTEGER REFERENCES lib_tool(id) ON DELETE RESTRICT']
+  lib_language_id integer [note: 'lib_language_id INTEGER REFERENCES lib_language(id) ON DELETE RESTRICT']
+  notes text [note: 'notes TEXT']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  proficiency_rank integer [note: 'proficiency_rank INTEGER']
+  Note: 'CHECK ((lib_feat_id IS NOT NULL) + (lib_tool_id IS NOT NULL) + (lib_language_id IS NOT NULL) = 1); UNIQUE (character_id, id, lib_feat_id); FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); CHECK ((lib_tool_id IS NOT NULL AND proficiency_rank IS NOT NULL AND proficiency_rank IN (1,2)) OR (lib_tool_id IS NULL AND proficiency_rank IS NULL))'
+  indexes {
+    (character_id, id, lib_feat_id) [unique]
+  }
+}
+
+Table character_spell {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  lib_spell_id integer [not null, note: 'lib_spell_id INTEGER NOT NULL REFERENCES lib_spell(id) ON DELETE RESTRICT']
+  origin_kind text [not null, note: 'origin_kind TEXT NOT NULL CHECK (origin_kind IN (\'class\',\'subclass\',\'species\',\'background\',\'feat\'))']
+  origin_character_class_id integer [note: 'origin_character_class_id INTEGER']
+  origin_subclass_id integer [note: 'origin_subclass_id INTEGER']
+  origin_species_id integer [note: 'origin_species_id INTEGER']
+  origin_background_id integer [note: 'origin_background_id INTEGER']
+  origin_character_ability_id integer [note: 'origin_character_ability_id INTEGER']
+  origin_feat_id integer [note: 'origin_feat_id INTEGER']
+  preparation_mode text [not null, note: 'preparation_mode TEXT NOT NULL CHECK (preparation_mode IN (\'cantrip\',\'selectable\',\'always_prepared\',\'granted\'))']
+  is_prepared integer [not null, note: 'is_prepared INTEGER NOT NULL DEFAULT 0 CHECK (is_prepared IN (0,1))']
+  casting_ability_choice text [note: 'casting_ability_choice TEXT CHECK (casting_ability_choice IN (\'strength\',\'dexterity\',\'constitution\',\'intelligence\',\'wisdom\',\'charisma\'))']
+  notes text [note: 'notes TEXT']
+  Note: 'CHECK ((origin_kind = \'class\' AND origin_character_class_id IS NOT NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'subclass\' AND origin_character_class_id IS NOT NULL AND origin_subclass_id IS NOT NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'species\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NOT NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'background\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NOT NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'feat\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NOT NULL AND origin_feat_id IS NOT NULL)); CHECK (is_prepared = 0 OR preparation_mode = \'selectable\'); FOREIGN KEY (character_id, origin_character_class_id) REFERENCES character_class(character_id, id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_character_class_id, origin_subclass_id) REFERENCES character_class(character_id, id, subclass_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_species_id) REFERENCES dnd_character(character_id, species_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_background_id) REFERENCES dnd_character(character_id, background_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_character_ability_id, origin_feat_id) REFERENCES character_ability(character_id, id, lib_feat_id) ON DELETE CASCADE'
+}
+
+Table character_spellbook_entry {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  character_class_id integer [not null, note: 'character_class_id INTEGER NOT NULL']
+  lib_spell_id integer [not null, note: 'lib_spell_id INTEGER NOT NULL REFERENCES lib_spell(id) ON DELETE RESTRICT']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  notes text [note: 'notes TEXT']
+  Note: 'UNIQUE (character_class_id, lib_spell_id); FOREIGN KEY (character_id, character_class_id) REFERENCES character_class(character_id, id) ON DELETE CASCADE'
+  indexes {
+    (character_class_id, lib_spell_id) [unique]
+  }
+}
+
+Table character_fighting_style {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  lib_fighting_style_id integer [not null, note: 'lib_fighting_style_id INTEGER NOT NULL REFERENCES lib_fighting_style(id) ON DELETE RESTRICT']
+  source text [not null, note: 'source TEXT NOT NULL DEFAULT \'class\' CHECK (source IN (\'class\',\'subclass\',\'species\',\'background\',\'feat\',\'manual\'))']
+  notes text [note: 'notes TEXT']
+  Note: 'UNIQUE (character_id, lib_fighting_style_id)'
+  indexes {
+    (character_id, lib_fighting_style_id) [unique]
+  }
+}
+
+Table lib_skill {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  ability text [not null, note: 'ability TEXT NOT NULL CHECK (ability IN (\'strength\',\'dexterity\',\'constitution\',\'intelligence\',\'wisdom\',\'charisma\'))']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'skill\' CHECK (catalog_kind = \'skill\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_weapon_property {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'weapon_property\' CHECK (catalog_kind = \'weapon_property\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_weapon_mastery {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  data text [not null, note: 'data TEXT NOT NULL CHECK (json_valid(data))']
+  catalog_entry_id integer [not null, unique, note: 'catalog_entry_id INTEGER NOT NULL UNIQUE']
+  catalog_kind text [not null, note: 'catalog_kind TEXT NOT NULL DEFAULT \'weapon_mastery\' CHECK (catalog_kind = \'weapon_mastery\')']
+  Note: 'FOREIGN KEY (catalog_entry_id, catalog_kind) REFERENCES catalog_entry(id, kind) ON DELETE CASCADE'
+}
+
+Table lib_weapon_definition {
+  item_id integer [pk, note: 'item_id INTEGER PRIMARY KEY REFERENCES lib_item(id) ON DELETE RESTRICT']
+  category text [not null, note: 'category TEXT NOT NULL CHECK (category IN (\'Simple\',\'Martial\'))']
+  weapon_range text [not null, note: 'weapon_range TEXT NOT NULL CHECK (weapon_range IN (\'Melee\',\'Ranged\'))']
+  mastery_id integer [note: 'mastery_id INTEGER REFERENCES lib_weapon_mastery(id) ON DELETE RESTRICT']
+}
+
+Table lib_weapon_property_link {
+  item_id integer [not null, note: 'item_id INTEGER NOT NULL REFERENCES lib_weapon_definition(item_id) ON DELETE CASCADE']
+  property_id integer [not null, note: 'property_id INTEGER NOT NULL REFERENCES lib_weapon_property(id) ON DELETE RESTRICT']
+  Note: 'PRIMARY KEY (item_id, property_id)'
+  indexes {
+    (item_id, property_id) [pk]
+  }
+}
+
+Table character_rule_grant {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  origin_kind text [not null, note: 'origin_kind TEXT NOT NULL CHECK (origin_kind IN (\'class\',\'subclass\',\'species\',\'background\',\'feat\'))']
+  origin_character_class_id integer [note: 'origin_character_class_id INTEGER']
+  origin_subclass_id integer [note: 'origin_subclass_id INTEGER']
+  origin_species_id integer [note: 'origin_species_id INTEGER']
+  origin_background_id integer [note: 'origin_background_id INTEGER']
+  origin_character_ability_id integer [note: 'origin_character_ability_id INTEGER']
+  origin_feat_id integer [note: 'origin_feat_id INTEGER']
+  acquisition_context text [not null, note: 'acquisition_context TEXT NOT NULL CHECK (acquisition_context IN (\'initial_class\',\'multiclass_entry\',\'class_progression\',\'species\',\'background\',\'feat\'))']
+  rule_key text [not null, note: 'rule_key TEXT NOT NULL CHECK (length(trim(rule_key)) > 0)']
+  acquired_at_level integer [not null, note: 'acquired_at_level INTEGER NOT NULL CHECK (acquired_at_level BETWEEN 1 AND 20)']
+  notes text [note: 'notes TEXT']
+  Note: 'CHECK ((origin_kind = \'class\' AND origin_character_class_id IS NOT NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'subclass\' AND origin_character_class_id IS NOT NULL AND origin_subclass_id IS NOT NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'species\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NOT NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'background\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NOT NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'feat\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NOT NULL AND origin_feat_id IS NOT NULL)); FOREIGN KEY (character_id, origin_character_class_id) REFERENCES character_class(character_id, id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_character_class_id, origin_subclass_id) REFERENCES character_class(character_id, id, subclass_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_species_id) REFERENCES dnd_character(character_id, species_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_background_id) REFERENCES dnd_character(character_id, background_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_character_ability_id, origin_feat_id) REFERENCES character_ability(character_id, id, lib_feat_id) ON DELETE CASCADE; UNIQUE (character_id, id); UNIQUE (character_id, rule_key); CHECK ((origin_kind IN (\'class\',\'subclass\') AND acquisition_context IN (\'initial_class\',\'multiclass_entry\',\'class_progression\')) OR (origin_kind IN (\'species\',\'background\',\'feat\') AND acquisition_context = origin_kind)); CHECK (acquisition_context != \'initial_class\' OR (origin_kind = \'class\' AND acquired_at_level = 1)); CHECK (acquisition_context != \'multiclass_entry\' OR (origin_kind = \'class\' AND acquired_at_level > 1))'
+  indexes {
+    (character_id, id) [unique]
+    (character_id, rule_key) [unique]
+  }
+}
+
+Table character_skill {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  notes text [note: 'notes TEXT']
+  skill_id integer [not null, note: 'skill_id INTEGER NOT NULL REFERENCES lib_skill(id) ON DELETE RESTRICT']
+  proficiency_rank integer [not null, note: 'proficiency_rank INTEGER NOT NULL CHECK (proficiency_rank IN (1,2))']
+  Note: 'FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); UNIQUE (grant_id, skill_id)'
+  indexes {
+    (grant_id, skill_id) [unique]
+  }
+}
+
+Table character_saving_throw {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  notes text [note: 'notes TEXT']
+  ability text [not null, note: 'ability TEXT NOT NULL CHECK (ability IN (\'strength\',\'dexterity\',\'constitution\',\'intelligence\',\'wisdom\',\'charisma\'))']
+  Note: 'FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); UNIQUE (grant_id, ability)'
+  indexes {
+    (grant_id, ability) [unique]
+  }
+}
+
+Table character_armor_training {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  notes text [note: 'notes TEXT']
+  armor_kind text [not null, note: 'armor_kind TEXT NOT NULL CHECK (armor_kind IN (\'Light\',\'Medium\',\'Heavy\',\'Shield\'))']
+  Note: 'FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); UNIQUE (grant_id, armor_kind)'
+  indexes {
+    (grant_id, armor_kind) [unique]
+  }
+}
+
+Table character_weapon_training {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  notes text [note: 'notes TEXT']
+  clause_key text [not null, note: 'clause_key TEXT NOT NULL CHECK (length(trim(clause_key)) > 0)']
+  weapon_item_id integer [note: 'weapon_item_id INTEGER REFERENCES lib_weapon_definition(item_id) ON DELETE RESTRICT']
+  category text [note: 'category TEXT CHECK (category IN (\'Simple\',\'Martial\'))']
+  weapon_range text [note: 'weapon_range TEXT CHECK (weapon_range IN (\'Melee\',\'Ranged\'))']
+  Note: 'FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); UNIQUE (grant_id, clause_key); CHECK ((weapon_item_id IS NOT NULL AND category IS NULL AND weapon_range IS NULL) OR (weapon_item_id IS NULL AND category IS NOT NULL))'
+  indexes {
+    (grant_id, clause_key) [unique]
+  }
+}
+
+Table character_weapon_training_property {
+  training_id integer [not null, note: 'training_id INTEGER NOT NULL REFERENCES character_weapon_training(id) ON DELETE CASCADE']
+  property_id integer [not null, note: 'property_id INTEGER NOT NULL REFERENCES lib_weapon_property(id) ON DELETE RESTRICT']
+  predicate text [not null, note: 'predicate TEXT NOT NULL CHECK (predicate IN (\'require_any\',\'exclude\'))']
+  Note: 'PRIMARY KEY (training_id, property_id)'
+  indexes {
+    (training_id, property_id) [pk]
+  }
+}
+
+Table character_weapon_mastery {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  notes text [note: 'notes TEXT']
+  weapon_item_id integer [not null, note: 'weapon_item_id INTEGER NOT NULL REFERENCES lib_weapon_definition(item_id) ON DELETE RESTRICT']
+  Note: 'FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); UNIQUE (grant_id, weapon_item_id)'
+  indexes {
+    (grant_id, weapon_item_id) [unique]
+  }
+}
+
+Table character_level_entry {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  character_class_id integer [not null, note: 'character_class_id INTEGER NOT NULL']
+  sequence_no integer [not null, note: 'sequence_no INTEGER NOT NULL CHECK (sequence_no BETWEEN 1 AND 20)']
+  hp_method text [not null, note: 'hp_method TEXT NOT NULL CHECK (hp_method IN (\'first_max\',\'average\',\'roll\'))']
+  hp_roll integer [note: 'hp_roll INTEGER CHECK (hp_roll BETWEEN 1 AND 12)']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  notes text [note: 'notes TEXT']
+  Note: 'UNIQUE (character_id, sequence_no); CHECK ((hp_method = \'roll\' AND hp_roll IS NOT NULL) OR (hp_method IN (\'first_max\',\'average\') AND hp_roll IS NULL)); FOREIGN KEY (character_id, character_class_id) REFERENCES character_class(character_id, id) ON DELETE CASCADE; CHECK ((sequence_no = 1 AND hp_method = \'first_max\') OR (sequence_no > 1 AND hp_method IN (\'average\',\'roll\')))'
+  indexes {
+    (character_id, sequence_no) [unique]
+  }
+}
+
+Table character_hit_point_bonus {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
+  grant_id integer [not null, note: 'grant_id INTEGER NOT NULL']
+  selection_kind text [not null, note: 'selection_kind TEXT NOT NULL CHECK (selection_kind IN (\'fixed\',\'chosen\'))']
+  choice_key text [note: 'choice_key TEXT']
+  notes text [note: 'notes TEXT']
+  bonus_kind text [not null, note: 'bonus_kind TEXT NOT NULL CHECK (bonus_kind IN (\'flat\',\'per_character_level\',\'per_class_level\'))']
+  amount integer [not null, note: 'amount INTEGER NOT NULL CHECK (amount != 0)']
+  target_character_class_id integer [note: 'target_character_class_id INTEGER']
+  Note: 'FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE; CHECK ((selection_kind = \'fixed\' AND choice_key IS NULL) OR (selection_kind = \'chosen\' AND choice_key IS NOT NULL AND length(trim(choice_key)) > 0)); UNIQUE (grant_id, bonus_kind, target_character_class_id); CHECK ((bonus_kind = \'per_class_level\' AND target_character_class_id IS NOT NULL) OR (bonus_kind IN (\'flat\',\'per_character_level\') AND target_character_class_id IS NULL)); FOREIGN KEY (character_id, target_character_class_id) REFERENCES character_class(character_id, id) ON DELETE CASCADE'
+  indexes {
+    (grant_id, bonus_kind, target_character_class_id) [unique]
+  }
+}
+
+Table rules_source {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  slug text [not null, unique, note: 'slug TEXT NOT NULL UNIQUE']
+  name text [not null, note: 'name TEXT NOT NULL']
+  source_type text [not null, note: 'source_type TEXT NOT NULL CHECK (source_type IN (\'base\',\'supplement\'))']
+  edition text [not null, note: 'edition TEXT NOT NULL']
+  bibliographic_reference text [note: 'bibliographic_reference TEXT']
+  reference_url text [note: 'reference_url TEXT']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+}
+
+Table catalog_entry {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  kind text [not null, note: 'kind TEXT NOT NULL CHECK (kind IN (\'species\', \'class\', \'subclass\', \'background\', \'fighting_style\', \'spell\', \'feat\', \'item\', \'tool_group\', \'tool\', \'language\', \'alignment\', \'rule\', \'skill\', \'weapon_property\', \'weapon_mastery\'))']
+  slug text [not null, note: 'slug TEXT NOT NULL']
+  name text [not null, note: 'name TEXT NOT NULL']
+  deprecated_at text [note: 'deprecated_at TEXT']
+  Note: 'UNIQUE (kind, slug); UNIQUE (id, kind)'
+  indexes {
+    (kind, slug) [unique]
+    (id, kind) [unique]
+  }
+}
+
+Table catalog_entry_source {
+  catalog_entry_id integer [not null, note: 'catalog_entry_id INTEGER NOT NULL REFERENCES catalog_entry(id) ON DELETE CASCADE']
+  source_id integer [not null, note: 'source_id INTEGER NOT NULL REFERENCES rules_source(id) ON DELETE RESTRICT']
+  Note: 'PRIMARY KEY (catalog_entry_id, source_id)'
+  indexes {
+    (catalog_entry_id, source_id) [pk]
+  }
+}
+
+Table rpg_system {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  code text [not null, unique, note: 'code TEXT NOT NULL UNIQUE CHECK (length(trim(code)) > 0)']
+  name text [not null, note: 'name TEXT NOT NULL']
+  edition text [not null, note: 'edition TEXT NOT NULL']
+  is_enabled integer [not null, note: 'is_enabled INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0,1))']
+  Note: 'UNIQUE (id, code)'
+  indexes {
+    (id, code) [unique]
+  }
+}
+
+Table dnd_character {
+  character_id integer [pk, note: 'character_id INTEGER PRIMARY KEY REFERENCES character(id) ON DELETE CASCADE']
+  system_id integer [not null, note: 'system_id INTEGER NOT NULL']
+  system_code text [not null, note: 'system_code TEXT NOT NULL DEFAULT \'dnd-2024\' CHECK (system_code = \'dnd-2024\')']
+  strength integer [not null, note: 'strength INTEGER NOT NULL CHECK (strength BETWEEN 1 AND 30)']
+  dexterity integer [not null, note: 'dexterity INTEGER NOT NULL CHECK (dexterity BETWEEN 1 AND 30)']
+  constitution integer [not null, note: 'constitution INTEGER NOT NULL CHECK (constitution BETWEEN 1 AND 30)']
+  intelligence integer [not null, note: 'intelligence INTEGER NOT NULL CHECK (intelligence BETWEEN 1 AND 30)']
+  wisdom integer [not null, note: 'wisdom INTEGER NOT NULL CHECK (wisdom BETWEEN 1 AND 30)']
+  charisma integer [not null, note: 'charisma INTEGER NOT NULL CHECK (charisma BETWEEN 1 AND 30)']
+  species_id integer [not null, note: 'species_id INTEGER NOT NULL REFERENCES lib_species(id) ON DELETE RESTRICT']
+  background_id integer [note: 'background_id INTEGER REFERENCES lib_background(id) ON DELETE RESTRICT']
+  alignment_id integer [note: 'alignment_id INTEGER REFERENCES lib_alignment(id) ON DELETE RESTRICT']
+  ruleset_revision_id integer [not null, note: 'ruleset_revision_id INTEGER NOT NULL REFERENCES ruleset_revision(id) ON DELETE RESTRICT']
+  Note: 'UNIQUE (character_id, species_id); UNIQUE (character_id, background_id); FOREIGN KEY (character_id, system_id) REFERENCES character(id, system_id) ON DELETE CASCADE; FOREIGN KEY (system_id, system_code) REFERENCES rpg_system(id, code) ON DELETE RESTRICT'
+  indexes {
+    (character_id, species_id) [unique]
+    (character_id, background_id) [unique]
+  }
+}
+
+Table schema_migration {
+  version integer [pk, note: 'version INTEGER PRIMARY KEY CHECK (version > 0)']
+  name text [not null, unique, note: 'name TEXT NOT NULL UNIQUE']
+  checksum_sha256 text [not null, note: 'checksum_sha256 TEXT NOT NULL CHECK (length(checksum_sha256) = 64)']
+  applied_at text [not null, note: 'applied_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+}
+
+Table refresh_token {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  session_id integer [not null, note: 'session_id INTEGER NOT NULL REFERENCES session(id) ON DELETE CASCADE']
+  token_hash text [not null, unique, note: 'token_hash TEXT NOT NULL UNIQUE CHECK (length(token_hash) = 64)']
+  parent_token_id integer [unique, note: 'parent_token_id INTEGER UNIQUE']
+  created_at text [not null, note: 'created_at TEXT NOT NULL DEFAULT (strftime(\'%Y-%m-%dT%H:%M:%fZ\',\'now\'))']
+  expires_at text [not null, note: 'expires_at TEXT NOT NULL']
+  used_at text [note: 'used_at TEXT']
+  revoked_at text [note: 'revoked_at TEXT']
+  Note: 'UNIQUE (session_id, id); FOREIGN KEY (session_id, parent_token_id) REFERENCES refresh_token(session_id, id) ON DELETE NO ACTION; CHECK (parent_token_id IS NULL OR parent_token_id != id); CHECK (expires_at > created_at); CHECK (used_at IS NULL OR used_at >= created_at); CHECK (revoked_at IS NULL OR revoked_at >= created_at)'
+  indexes {
+    (session_id, id) [unique]
+  }
+}
+
+Table login_throttle {
+  id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
+  scope text [not null, note: 'scope TEXT NOT NULL CHECK (scope IN (\'email\',\'network\'))']
+  key_hash text [not null, note: 'key_hash TEXT NOT NULL CHECK (length(key_hash)=64)']
+  window_started_at text [not null, note: 'window_started_at TEXT NOT NULL']
+  failure_count integer [not null, note: 'failure_count INTEGER NOT NULL DEFAULT 0 CHECK (failure_count >= 0)']
+  blocked_until text [note: 'blocked_until TEXT']
+  expires_at text [not null, note: 'expires_at TEXT NOT NULL']
+  updated_at text [not null, note: 'updated_at TEXT NOT NULL']
+  Note: 'UNIQUE (scope,key_hash); CHECK (expires_at > window_started_at)'
+  indexes {
+    (scope,key_hash) [unique]
+  }
+}
+Ref: session.user_id > app_user.id [delete: cascade]
+Ref: auth_token.user_id > app_user.id [delete: cascade]
+Ref: audit_log.actor_user_id > app_user.id [delete: set null]
+Ref: lib_subclass.class_id > lib_class.id [delete: restrict]
+Ref: lib_tool.group_id > lib_tool_group.id [delete: restrict]
+Ref: character.owner_id > app_user.id [delete: restrict]
+Ref: dnd_character.species_id > lib_species.id [delete: restrict]
+Ref: dnd_character.background_id > lib_background.id [delete: restrict]
+Ref: dnd_character.alignment_id > lib_alignment.id [delete: restrict]
+Ref: dnd_character.ruleset_revision_id > ruleset_revision.id [delete: restrict]
+Ref: character_class.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_class.class_id > lib_class.id [delete: restrict]
+Ref: character_narrative.character_id - character.id [delete: cascade]
+Ref: character_item.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_item.lib_item_id > lib_item.id [delete: restrict]
+Ref: character_ability.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_ability.lib_feat_id > lib_feat.id [delete: restrict]
+Ref: character_ability.lib_tool_id > lib_tool.id [delete: restrict]
+Ref: character_ability.lib_language_id > lib_language.id [delete: restrict]
+Ref: character_spell.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_spell.lib_spell_id > lib_spell.id [delete: restrict]
+Ref: character_spellbook_entry.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_spellbook_entry.lib_spell_id > lib_spell.id [delete: restrict]
+Ref: character_fighting_style.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_fighting_style.lib_fighting_style_id > lib_fighting_style.id [delete: restrict]
+Ref: lib_weapon_definition.mastery_id > lib_weapon_mastery.id [delete: restrict]
+Ref: lib_weapon_definition.item_id > lib_item.id [delete: restrict]
+Ref: lib_weapon_property_link.item_id > lib_weapon_definition.item_id [delete: cascade]
+Ref: lib_weapon_property_link.property_id > lib_weapon_property.id [delete: restrict]
+Ref: character_rule_grant.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_skill.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_skill.skill_id > lib_skill.id [delete: restrict]
+Ref: character_saving_throw.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_armor_training.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_weapon_training.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_weapon_training.weapon_item_id > lib_weapon_definition.item_id [delete: restrict]
+Ref: character_weapon_training_property.training_id > character_weapon_training.id [delete: cascade]
+Ref: character_weapon_training_property.property_id > lib_weapon_property.id [delete: restrict]
+Ref: character_weapon_mastery.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_weapon_mastery.weapon_item_id > lib_weapon_definition.item_id [delete: restrict]
+Ref: character_level_entry.character_id > dnd_character.character_id [delete: cascade]
+Ref: character_hit_point_bonus.character_id > dnd_character.character_id [delete: cascade]
+Ref: catalog_entry_source.catalog_entry_id > catalog_entry.id [delete: cascade]
+Ref: catalog_entry_source.source_id > rules_source.id [delete: restrict]
+Ref: character.system_id > rpg_system.id [delete: restrict]
+Ref: dnd_character.character_id - character.id [delete: cascade]
+Ref: refresh_token.session_id > session.id [delete: cascade]
+Ref: lib_species.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_class.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_subclass.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_background.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_fighting_style.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_spell.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_feat.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_item.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_tool_group.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_tool.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_language.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_alignment.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_rule.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: character_class.(class_id, subclass_id) > lib_subclass.(class_id, id) [delete: restrict]
+Ref: character_ability.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_spell.(character_id, origin_character_class_id) > character_class.(character_id, id) [delete: cascade]
+Ref: character_spell.(character_id, origin_character_class_id, origin_subclass_id) > character_class.(character_id, id, subclass_id) [delete: cascade]
+Ref: character_spell.(character_id, origin_species_id) > dnd_character.(character_id, species_id) [delete: cascade]
+Ref: character_spell.(character_id, origin_background_id) > dnd_character.(character_id, background_id) [delete: cascade]
+Ref: character_spell.(character_id, origin_character_ability_id, origin_feat_id) > character_ability.(character_id, id, lib_feat_id) [delete: cascade]
+Ref: character_spellbook_entry.(character_id, character_class_id) > character_class.(character_id, id) [delete: cascade]
+Ref: lib_skill.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_weapon_property.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: lib_weapon_mastery.(catalog_entry_id, catalog_kind) > catalog_entry.(id, kind) [delete: cascade]
+Ref: character_rule_grant.(character_id, origin_character_class_id) > character_class.(character_id, id) [delete: cascade]
+Ref: character_rule_grant.(character_id, origin_character_class_id, origin_subclass_id) > character_class.(character_id, id, subclass_id) [delete: cascade]
+Ref: character_rule_grant.(character_id, origin_species_id) > dnd_character.(character_id, species_id) [delete: cascade]
+Ref: character_rule_grant.(character_id, origin_background_id) > dnd_character.(character_id, background_id) [delete: cascade]
+Ref: character_rule_grant.(character_id, origin_character_ability_id, origin_feat_id) > character_ability.(character_id, id, lib_feat_id) [delete: cascade]
+Ref: character_skill.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_saving_throw.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_armor_training.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_weapon_training.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_weapon_mastery.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_level_entry.(character_id, character_class_id) > character_class.(character_id, id) [delete: cascade]
+Ref: character_hit_point_bonus.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+Ref: character_hit_point_bonus.(character_id, target_character_class_id) > character_class.(character_id, id) [delete: cascade]
+Ref: dnd_character.(character_id, system_id) > character.(id, system_id) [delete: cascade]
+Ref: dnd_character.(system_id, system_code) > rpg_system.(id, code) [delete: restrict]
+Ref: refresh_token.(session_id, parent_token_id) > refresh_token.(session_id, id) [delete: no action]
+
+// Índices adicionais, inclusive UNIQUE parcial da classe inicial: consultar schema.sql.
+// character_summary.total_level é derivado; não é coluna persistida.
+
+// Índices parciais de refresh e auth_token no SQL.
+// Política de acesso é do serviço; publication_blocked_at impede republicação após moderação.
