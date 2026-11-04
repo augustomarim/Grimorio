@@ -23,7 +23,7 @@ Esta é uma auditoria contra @freshmag/one-dndb 0.5.1, não uma confirmação in
 
 - Pré-requisitos de multiclasse: inconclusivos quando há múltiplas classes. primaryAbility não informa sozinho limiar nem lógica E/OU; nenhuma regra foi inferida dele.
 - Elegibilidade na data de aquisição: não avaliada. O relatório usa estado atual; atributos e dependências históricas não estão totalmente representados.
-- Benefícios e quantidades de escolhas: pendentes. choiceKey/ruleKey locais ainda não identificam de maneira uniforme as escolhas estruturadas do catálogo.
+- Benefícios e quantidades de escolhas: escolhas diretas reconhecidas pela convenção choiceKey `<campo>:<id>` agora são auditadas; escolhas aninhadas, chaves antigas e contextos não confirmados permanecem inconclusivos. Veja escolhas-beneficios-backend.md.
 - Exceções de listas, preparação e limites concedidas por subclasses, talentos e suplementos: pendentes. Magias de origem independente não são tratadas como pertencentes automaticamente à lista da classe.
 - Dependências cíclicas de pré-requisitos e benefícios que concedem atributos: não resolvidas por esta auditoria do estado atual.
 - Campanha, autorização do mestre e restrições de suplemento: não inferidas.

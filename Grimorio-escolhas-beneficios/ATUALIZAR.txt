@@ -1,0 +1,6 @@
+Pare o servidor com Ctrl+C. Extraia em C:\Users\augus\Grimorio, mesclando pastas e substituindo os arquivos. Reinicie com npm.cmd run dev.
+Não contém .env ou banco; nenhuma migração ou dependência nova.
+Inclui módulos usados pelo app atualizado para facilitar a atualização incremental.
+GET /characters/:id/benefits/options fornece choiceKeys de escolhas diretas do pacote para as concessões existentes.
+GET /characters/:id/validation audita escolhas reconhecidas. Chaves antigas e regras não cobertas permanecem inconclusivas.
+Executado: 53 testes passaram; tipos, compilação e formatação aprovados.

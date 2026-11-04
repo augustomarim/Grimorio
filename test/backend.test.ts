@@ -1662,3 +1662,256 @@ describe('Auditoria das regras disponíveis no catálogo', () => {
     expect(result.basis.catalogRevision.library_version).toBe('0.5.1');
   });
 });
+
+describe('Escolhas de benefícios extraídas do pacote', () => {
+  async function setup() {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(sheet.id) as {
+      id: number;
+    };
+    const post = (url: string, payload: unknown) =>
+      app.inject({ method: 'POST', url, headers: { origin, cookie }, payload });
+    const grant = await post(`/characters/${sheet.id}/grants`, {
+      originKind: 'class',
+      originId: cc.id,
+      acquisitionContext: 'initial_class',
+      ruleKey: 'wizard.training.first',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    const report = async () => {
+      const response = await app.inject({
+        url: `/characters/${sheet.id}/validation`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      return response.json();
+    };
+    const skill = async (slug: string, key: string, rank = 1, grantId = grant.json().id) => {
+      const response = await post(`/characters/${sheet.id}/benefits`, {
+        kind: 'skill',
+        localId: localId('skill', `skill-${slug}`),
+        grantId,
+        selectionKind: 'chosen',
+        choiceKey: key,
+        proficiencyRank: rank,
+      });
+      expect(response.statusCode).toBe(201);
+      return response.json().id;
+    };
+    return { cookie, id: sheet.id, cc: cc.id, post, grantId: grant.json().id, report, skill };
+  }
+  it('expõe as escolhas reais e reconhece opções válidas e inválidas do mago', async () => {
+    const { id, cookie, skill, report } = await setup();
+    const options = await app.inject({
+      url: `/characters/${id}/benefits/options`,
+      headers: { cookie },
+    });
+    expect(options.statusCode).toBe(200);
+    const training = options
+      .json()
+      .items.find((x: { choiceKey: string }) => x.choiceKey === 'skillChoices:training');
+    expect(training.rule.pick).toBe(2);
+    expect(training.rule.from).toContain('Arcana');
+    const scholar = options
+      .json()
+      .items.find((x: { choiceKey: string }) => x.choiceKey === 'expertise:scholar');
+    expect(scholar.available).toBe(false);
+    const valid = await skill('arcana', 'skillChoices:training');
+    const invalid = await skill('athletics', 'skillChoices:training');
+    const result = await report();
+    expect(
+      result.findings.find(
+        (f: { code: string; entityId: number }) =>
+          f.code === 'BENEFIT_CHOICE_OPTION' && f.entityId === valid
+      ).state
+    ).toBe('pass');
+    expect(
+      result.findings.find(
+        (f: { code: string; entityId: number }) =>
+          f.code === 'BENEFIT_CHOICE_OPTION' && f.entityId === invalid
+      ).state
+    ).toBe('fail');
+    expect((await app.inject({ url: `/characters/${id}/benefits/options` })).statusCode).toBe(404);
+  });
+  it('soma escolhas entre concessões da mesma classe sem multiplicar o limite', async () => {
+    const { id, cc, post, skill, report } = await setup();
+    await skill('arcana', 'skillChoices:training');
+    await skill('history', 'skillChoices:training');
+    const second = await post(`/characters/${id}/grants`, {
+      originKind: 'class',
+      originId: cc,
+      acquisitionContext: 'initial_class',
+      ruleKey: 'wizard.training.second',
+      acquiredAtLevel: 1,
+    });
+    expect(second.statusCode).toBe(201);
+    await skill('religion', 'skillChoices:training', 1, second.json().id);
+    const limit = (await report()).findings.find(
+      (f: { code: string }) => f.code === 'BENEFIT_CHOICE_LIMIT'
+    );
+    expect(limit.state).toBe('fail');
+    expect(limit.evidence.selected).toBe(3);
+    expect(limit.evidence.maximum).toBe(2);
+  });
+  it('confere nível de Scholar e deixa chave antiga inconclusiva', async () => {
+    const { id, cc, post, skill, report } = await setup();
+    await skill('arcana', 'skillChoices:training');
+    const expertiseGrant = await post(`/characters/${id}/grants`, {
+      originKind: 'class',
+      originId: cc,
+      acquisitionContext: 'class_progression',
+      ruleKey: 'wizard.scholar',
+      acquiredAtLevel: 1,
+    });
+    expect(expertiseGrant.statusCode).toBe(201);
+    const expert = await skill('arcana', 'expertise:scholar', 2, expertiseGrant.json().id);
+    const legacy = await skill('history', 'wizard.initial.skill.1');
+    let result = await report();
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { choiceKey: string } }) =>
+          f.code === 'BENEFIT_CHOICE_LEVEL' && f.evidence?.choiceKey === 'expertise:scholar'
+      ).state
+    ).toBe('fail');
+    expect(
+      result.findings.find(
+        (f: { code: string; entityId: number }) =>
+          f.code === 'BENEFIT_CHOICE_MAPPING' && f.entityId === legacy
+      ).state
+    ).toBe('unknown');
+    db.prepare('UPDATE character_class SET level=2 WHERE id=?').run(cc);
+    result = await report();
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { choiceKey: string } }) =>
+          f.code === 'BENEFIT_CHOICE_LEVEL' && f.evidence?.choiceKey === 'expertise:scholar'
+      ).state
+    ).toBe('pass');
+    expect(
+      result.findings.find(
+        (f: { code: string; entityId: number }) =>
+          f.code === 'BENEFIT_CHOICE_OPTION' && f.entityId === expert
+      ).state
+    ).toBe('pass');
+  });
+  it('conta conjuntamente perícias e ferramentas de Skilled', async () => {
+    const { id, post, grantId, skill, report } = await setup();
+    const feat = await post(`/characters/${id}/benefits`, {
+      kind: 'feat',
+      localId: localId('feat', 'skilled'),
+      grantId,
+      selectionKind: 'fixed',
+    });
+    expect(feat.statusCode).toBe(201);
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'feat',
+      originId: feat.json().id,
+      acquisitionContext: 'feat',
+      ruleKey: 'skilled.picks',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    for (const slug of ['arcana', 'history', 'religion'])
+      await skill(slug, 'toolChoices:benefit-1', 1, grant.json().id);
+    const tool = db.prepare('SELECT id FROM lib_tool LIMIT 1').get() as { id: number };
+    expect(
+      (
+        await post(`/characters/${id}/benefits`, {
+          kind: 'tool',
+          localId: tool.id,
+          grantId: grant.json().id,
+          selectionKind: 'chosen',
+          choiceKey: 'toolChoices:benefit-1',
+          proficiencyRank: 1,
+        })
+      ).statusCode
+    ).toBe(201);
+    const result = await report();
+    const limit = result.findings.find(
+      (f: { code: string; evidence?: { choiceKey: string } }) =>
+        f.code === 'BENEFIT_CHOICE_LIMIT' && f.evidence?.choiceKey === 'toolChoices:benefit-1'
+    );
+    expect(limit.state).toBe('fail');
+    expect(limit.evidence.selected).toBe(4);
+    expect(limit.evidence.maximum).toBe(3);
+    expect(
+      result.findings
+        .filter((f: { code: string }) => f.code === 'BENEFIT_CHOICE_OPTION')
+        .every((f: { state: string }) => f.state === 'pass')
+    ).toBe(true);
+  });
+  it('respeita grupos de ferramentas e o acesso a idiomas raros', async () => {
+    const { id, post, grantId, report } = await setup();
+    const background = localId('background', 'artisan');
+    db.prepare('UPDATE dnd_character SET background_id=? WHERE character_id=?').run(background, id);
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'background',
+      originId: background,
+      acquisitionContext: 'background',
+      ruleKey: 'artisan.tool',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    for (const group of ['artisan', 'gaming']) {
+      const tool = db
+        .prepare(
+          'SELECT t.id FROM lib_tool t JOIN lib_tool_group g ON g.id=t.group_id JOIN catalog_entry e ON e.id=g.catalog_entry_id WHERE e.slug=? LIMIT 1'
+        )
+        .get(group) as { id: number };
+      expect(
+        (
+          await post(`/characters/${id}/benefits`, {
+            kind: 'tool',
+            localId: tool.id,
+            grantId: grant.json().id,
+            selectionKind: 'chosen',
+            choiceKey: 'toolChoices:tool',
+            proficiencyRank: 1,
+          })
+        ).statusCode
+      ).toBe(201);
+    }
+    const feat = await post(`/characters/${id}/benefits`, {
+      kind: 'feat',
+      localId: localId('feat', 'echoing-soul'),
+      grantId,
+      selectionKind: 'fixed',
+    });
+    expect(feat.statusCode).toBe(201);
+    const languageGrant = await post(`/characters/${id}/grants`, {
+      originKind: 'feat',
+      originId: feat.json().id,
+      acquisitionContext: 'feat',
+      ruleKey: 'echoing.languages',
+      acquiredAtLevel: 1,
+    });
+    expect(languageGrant.statusCode).toBe(201);
+    for (const tier of ['common', 'rare']) {
+      const language = db
+        .prepare('SELECT id FROM lib_language WHERE tier=? AND is_always=0 LIMIT 1')
+        .get(tier) as { id: number };
+      expect(
+        (
+          await post(`/characters/${id}/benefits`, {
+            kind: 'language',
+            localId: language.id,
+            grantId: languageGrant.json().id,
+            selectionKind: 'chosen',
+            choiceKey: 'languageChoices:inherent-tongues',
+          })
+        ).statusCode
+      ).toBe(201);
+    }
+    const result = await report();
+    for (const key of ['toolChoices:tool', 'languageChoices:inherent-tongues']) {
+      const matches = result.findings.filter(
+        (f: { code: string; evidence?: { choiceKey: string } }) =>
+          f.code === 'BENEFIT_CHOICE_OPTION' && f.evidence?.choiceKey === key
+      );
+      expect(matches.map((f: { state: string }) => f.state)).toEqual(['pass', 'fail']);
+    }
+  });
+});
