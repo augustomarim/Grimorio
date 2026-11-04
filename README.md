@@ -197,3 +197,5 @@ tests/              testes anteriores do modelo e protocolos
 Sem frontend, hospedagem, provedor de e-mail ou agendamento externo de backups. Ainda faltam endpoints de edição de talentos/proficiências, concessões de magia e grimório; cálculo completo de conjuração; conciliação de dependências ao mudar escolhas e teste de implantação real. O schema já tem essas estruturas, mas isso não significa que todos os seus endpoints estejam implementados.
 
 A ficha interativa de partida fica para a v1.5. Confira o histórico de decisões em [docs/modelagem.md](docs/modelagem.md) e as pendências normativas em [docs/fechamento-modelagem-v1.md](docs/fechamento-modelagem-v1.md).
+
+Benefícios de personagem: [rotas, exemplos e limites](docs/beneficios-backend.md).

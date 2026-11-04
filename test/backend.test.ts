@@ -1103,3 +1103,197 @@ describe('Inventário HTTP', () => {
     expect((await app.inject('/characters/99/items')).statusCode).toBe(404);
   });
 });
+
+describe('Benefícios com origem', () => {
+  async function setup() {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(sheet.id) as {
+      id: number;
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: `/characters/${sheet.id}/grants`,
+      headers: { origin, cookie },
+      payload: {
+        originKind: 'class',
+        originId: cc.id,
+        acquisitionContext: 'initial_class',
+        ruleKey: 'wizard.skills',
+        acquiredAtLevel: 1,
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    return { cookie, id: sheet.id, grantId: response.json().id };
+  }
+  it('registra quatro tipos, preserva fontes, especialização e alterações', async () => {
+    const { cookie, id, grantId } = await setup();
+    for (const kind of ['feat', 'tool', 'language', 'skill']) {
+      const entry = db.prepare(`SELECT id FROM lib_${kind} LIMIT 1`).get() as { id: number };
+      const response = await app.inject({
+        method: 'POST',
+        url: `/characters/${id}/benefits`,
+        headers: { origin, cookie },
+        payload: {
+          kind,
+          localId: entry.id,
+          grantId,
+          selectionKind: 'chosen',
+          choiceKey: `wizard.${kind}`,
+          ...(kind === 'skill' || kind === 'tool' ? { proficiencyRank: 2 } : {}),
+        },
+      });
+      expect(response.statusCode).toBe(201);
+      const instanceId = response.json().id;
+      const patch = await app.inject({
+        method: 'PATCH',
+        url: `/characters/${id}/benefits/${kind}/${instanceId}`,
+        headers: { origin, cookie },
+        payload: { notes: 'Escolhido', ...(kind === 'skill' ? { proficiencyRank: 1 } : {}) },
+      });
+      expect(patch.statusCode).toBe(200);
+    }
+    const response = await app.inject({ url: `/characters/${id}/benefits`, headers: { cookie } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items).toHaveLength(4);
+    expect(response.json().skills[0].proficiencyRank).toBe(1);
+    expect(response.json().validation.rulesVerified).toBe(false);
+    for (const row of response.json().items) {
+      expect(Array.isArray(row.sources)).toBe(true);
+      expect(
+        (
+          await app.inject({
+            method: 'DELETE',
+            url: `/characters/${id}/benefits/${row.kind}/${row.id}`,
+            headers: { origin, cookie },
+          })
+        ).statusCode
+      ).toBe(204);
+    }
+    expect(
+      (await app.inject({ url: `/characters/${id}/benefits`, headers: { cookie } })).json().items
+    ).toHaveLength(0);
+  });
+  it('recusa concessão de outro personagem, seleção inválida e graduação indevida', async () => {
+    const { cookie, id, grantId } = await setup();
+    const other = await create(cookie);
+    const feat = db.prepare('SELECT id FROM lib_feat LIMIT 1').get() as { id: number };
+    const payload = { kind: 'feat', localId: feat.id, grantId, selectionKind: 'fixed' };
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/characters/${other.id}/benefits`,
+          headers: { origin, cookie },
+          payload,
+        })
+      ).statusCode
+    ).toBe(400);
+    for (const extra of [
+      { selectionKind: 'chosen' },
+      { proficiencyRank: 2 },
+      { choiceKey: 'unexpected' },
+    ])
+      expect(
+        (
+          await app.inject({
+            method: 'POST',
+            url: `/characters/${id}/benefits`,
+            headers: { origin, cookie },
+            payload: { ...payload, ...extra },
+          })
+        ).statusCode
+      ).toBe(400);
+    expect((await app.inject({ url: `/characters/${id}/benefits` })).statusCode).toBe(404);
+  });
+  it('impede escrita de outro dono e rollback quando auditoria falha', async () => {
+    const { cookie, id, grantId } = await setup();
+    await register('other@example.invalid', 'other');
+    const outsider = cookies(await login('other@example.invalid'));
+    const entry = db.prepare('SELECT id FROM lib_language LIMIT 1').get() as { id: number };
+    const payload = { kind: 'language', localId: entry.id, grantId, selectionKind: 'fixed' };
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/characters/${id}/benefits`,
+          headers: { origin, cookie: outsider },
+          payload,
+        })
+      ).statusCode
+    ).toBe(404);
+    db.exec(
+      "CREATE TRIGGER reject_benefit_audit BEFORE INSERT ON audit_log WHEN NEW.action='benefit.add' BEGIN SELECT RAISE(ABORT,'audit failed'); END"
+    );
+    const response = await app.inject({
+      method: 'POST',
+      url: `/characters/${id}/benefits`,
+      headers: { origin, cookie },
+      payload,
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(400);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_ability WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+  });
+  it('resume a maior graduação e remove descendentes de um talento sem apagar o catálogo', async () => {
+    const { cookie, id, grantId } = await setup();
+    const post = (url: string, payload: unknown) =>
+      app.inject({ method: 'POST', url, headers: { origin, cookie }, payload });
+    const skill = db.prepare('SELECT id FROM lib_skill LIMIT 1').get() as { id: number };
+    const skillPayload = {
+      kind: 'skill',
+      localId: skill.id,
+      grantId,
+      selectionKind: 'fixed',
+      proficiencyRank: 1,
+    };
+    expect((await post(`/characters/${id}/benefits`, skillPayload)).statusCode).toBe(201);
+    expect((await post(`/characters/${id}/benefits`, skillPayload)).statusCode).toBe(400);
+    const feat = db.prepare('SELECT id FROM lib_feat LIMIT 1').get() as { id: number };
+    const featResponse = await post(`/characters/${id}/benefits`, {
+      kind: 'feat',
+      localId: feat.id,
+      grantId,
+      selectionKind: 'fixed',
+    });
+    expect(featResponse.statusCode).toBe(201);
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'feat',
+      originId: featResponse.json().id,
+      acquisitionContext: 'feat',
+      ruleKey: 'feat.expertise',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/benefits`, {
+          ...skillPayload,
+          grantId: grant.json().id,
+          proficiencyRank: 2,
+        })
+      ).statusCode
+    ).toBe(201);
+    expect(
+      (await app.inject({ url: `/characters/${id}/benefits`, headers: { cookie } })).json()
+        .skills[0].proficiencyRank
+    ).toBe(2);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}/benefits/feat/${featResponse.json().id}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(204);
+    expect(
+      (await app.inject({ url: `/characters/${id}/benefits`, headers: { cookie } })).json()
+        .skills[0].proficiencyRank
+    ).toBe(1);
+    expect(db.prepare('SELECT 1 FROM lib_feat WHERE id=?').get(feat.id)).toBeTruthy();
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+});
