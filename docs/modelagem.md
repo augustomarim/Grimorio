@@ -1,6 +1,6 @@
 # Modelagem consolidada — Grimorio
 
-Estado atual: **49 tabelas e 6 views**, conferidos no SQLite. Consolidação estrutural para iniciar o núcleo do backend, com pendências normativas explícitas em fechamento-modelagem-v1.md; nenhum backend ou frontend implementado. Os artefatos foram reconstruídos a partir do resumo fornecido, pois os arquivos do projeto anterior não foram anexados.
+Estado atual: **49 tabelas e 6 views**, conferidos no SQLite. Consolidação estrutural para iniciar o núcleo do backend, com pendências normativas explícitas em fechamento-modelagem-v1.md; backend v0.1 implementado para o núcleo, catálogo e ficha básica; frontend ainda não iniciado. Os artefatos foram reconstruídos a partir do resumo fornecido, pois os arquivos do projeto anterior não foram anexados.
 
 ## Requisitos e decisões preservadas
 
@@ -78,3 +78,7 @@ Dono edita/exclui, visitante consulta públicas elegíveis e administrador consu
 ## Encerramento da preparação estrutural
 
 Leia fechamento-modelagem-v1.md e contrato-backend-v1.md. O início de contas/catálogo/persistência não depende de certificar todo suplemento, mas a promessa de legalidade completa depende da conferência oficial ainda bloqueada por rede. O rascunho de rede não pôde ser alterado; requisitos estão em requisitos-rede-pendentes.md.
+
+## Implementação iniciada
+
+O usuário autorizou o backend. src e test contêm implementação Node/TypeScript/Fastify e testes HTTP reais; README.md e estado-backend.md descrevem comandos, rotas e limites atuais. Os testes Python e os documentos anteriores registram contratos da fase de modelagem, não substituem as novas rotas. O schema não mudou nesta etapa.

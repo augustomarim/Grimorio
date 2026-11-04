@@ -1,0 +1,42 @@
+{
+  "name": "grimorio-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node --watch --import tsx src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "db:migrate": "node --import tsx src/db/migrate-cli.ts",
+    "catalog:import": "node --import tsx src/catalog/import-cli.ts",
+    "test": "vitest run",
+    "test:model": "python3 -m unittest discover -s tests -v",
+    "typecheck": "tsc --noEmit",
+    "admin:promote": "node --import tsx src/auth/admin-cli.ts",
+    "format": "prettier --write src test package.json tsconfig.json",
+    "format:check": "prettier --check src test package.json tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "11.4.0",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@freshmag/one-dndb": "0.5.1",
+    "argon2": "^0.44.0",
+    "better-sqlite3": "^12.11.1",
+    "dexie": "^4.4.7",
+    "fake-indexeddb": "^6.2.7",
+    "fastify": "^5.12.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.19.2",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "5.1.0"
+  }
+}
