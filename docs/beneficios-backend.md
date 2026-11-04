@@ -57,3 +57,7 @@ A API informa `validation.rulesVerified=false`. A integridade da origem não com
 ## Verificação
 
 Os testes automatizados cobrem os quatro tipos, edição/exclusão, origens cruzadas, acesso indevido, escolha e graduação inválidas, rollback de auditoria, unicidade de perícia por concessão, MAX entre origens, cascata de talento e preservação do catálogo. Resultados da execução são informados na entrega.
+
+## Auditoria de escolhas
+
+GET /characters/:id/benefits/options expõe escolhas diretas para origens já registradas. A auditoria reconhece a convenção choiceKey `<campo>:<id>`, sem reinterpretar chaves legadas. Veja [escopo e exemplos](escolhas-beneficios-backend.md).

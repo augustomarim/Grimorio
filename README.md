@@ -203,3 +203,5 @@ Benefícios de personagem: [rotas, exemplos e limites](docs/beneficios-backend.m
 Magias e grimório: [rotas, exemplos e limites](docs/magias-backend.md).
 
 Auditoria das regras disponíveis: [escopo e limitações](docs/validacao-regras-backend.md).
+
+Escolhas de benefícios: [associação ao catálogo e auditoria](docs/escolhas-beneficios-backend.md).

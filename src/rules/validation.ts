@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { ContentItem, Feat, FeatRequirement, Spell } from '@freshmag/one-dndb';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
+import { BenefitAudit } from './benefits.js';
 import { AppError } from '../errors.js';
 
 type State = 'pass' | 'fail' | 'unknown';
@@ -255,8 +256,9 @@ export class ValidationService {
           ? 'Pré-requisitos de multiclasse não foram confirmados em fonte normativa; primaryAbility não define sozinho combinações E/OU'
           : 'Ficha com uma classe',
     });
+    findings.push(...new BenefitAudit(this.db).inspect(id).findings);
     for (const code of [
-      'BENEFIT_CHOICES',
+      'BENEFIT_NESTED_CHOICES',
       'ACQUISITION_HISTORY',
       'SPELL_EXCEPTIONS',
       'CAMPAIGN_RULES',
