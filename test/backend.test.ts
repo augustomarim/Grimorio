@@ -1297,3 +1297,200 @@ describe('Benefícios com origem', () => {
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   });
 });
+
+describe('Magias e grimório', () => {
+  async function setup() {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(sheet.id) as {
+      id: number;
+    };
+    const spell = db.prepare('SELECT id FROM lib_spell WHERE level=1 LIMIT 1').get() as {
+      id: number;
+    };
+    const cantrip = db.prepare('SELECT id FROM lib_spell WHERE level=0 LIMIT 1').get() as {
+      id: number;
+    };
+    const payload = {
+      spellId: spell.id,
+      originKind: 'class',
+      originId: cc.id,
+      preparationMode: 'selectable',
+    };
+    const post = (url: string, payload: unknown) =>
+      app.inject({ method: 'POST', url, headers: { origin, cookie }, payload });
+    return { cookie, id: sheet.id, cc: cc.id, spell: spell.id, cantrip: cantrip.id, payload, post };
+  }
+  it('mantém grimório independente, prepara e desmarca sem apagar catálogo', async () => {
+    const { cookie, id, cc, spell, payload, post } = await setup();
+    const book = await post(`/characters/${id}/spellbook`, {
+      spellId: spell,
+      characterClassId: cc,
+    });
+    expect(book.statusCode).toBe(201);
+    expect(
+      (await post(`/characters/${id}/spellbook`, { spellId: spell, characterClassId: cc }))
+        .statusCode
+    ).toBe(400);
+    const added = await post(`/characters/${id}/spells`, payload);
+    expect(added.statusCode).toBe(201);
+    const instance = added.json().id;
+    expect((await post(`/characters/${id}/spells`, payload)).statusCode).toBe(400);
+    for (const prepared of [true, false]) {
+      expect(
+        (
+          await app.inject({
+            method: 'PATCH',
+            url: `/characters/${id}/spells/${instance}`,
+            headers: { origin, cookie },
+            payload: { isPrepared: prepared, notes: null, castingAbilityChoice: 'intelligence' },
+          })
+        ).statusCode
+      ).toBe(200);
+      const list = (
+        await app.inject({ url: `/characters/${id}/spells`, headers: { cookie } })
+      ).json();
+      expect(list.items[0].effectivePrepared).toBe(prepared);
+      expect(Array.isArray(list.items[0].sources)).toBe(true);
+      expect(list.validation.rulesVerified).toBe(false);
+    }
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}/spellbook/${book.json().id}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(204);
+    expect(
+      (await app.inject({ url: `/characters/${id}/spells`, headers: { cookie } })).json().total
+    ).toBe(1);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}/spells/${instance}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(204);
+    expect(db.prepare('SELECT 1 FROM lib_spell WHERE id=?').get(spell)).toBeTruthy();
+  });
+  it('distingue truques e sempre preparadas e permite a mesma magia por outra origem', async () => {
+    const { cookie, id, cantrip, payload, post } = await setup();
+    expect(
+      (await post(`/characters/${id}/spells`, { ...payload, spellId: cantrip })).statusCode
+    ).toBe(400);
+    expect(
+      (await post(`/characters/${id}/spells`, { ...payload, preparationMode: 'cantrip' }))
+        .statusCode
+    ).toBe(400);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...payload,
+          preparationMode: 'always_prepared',
+          isPrepared: true,
+        })
+      ).statusCode
+    ).toBe(400);
+    const always = await post(`/characters/${id}/spells`, {
+      ...payload,
+      preparationMode: 'always_prepared',
+    });
+    expect(always.statusCode).toBe(201);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}/spells/${always.json().id}`,
+          headers: { origin, cookie },
+          payload: { isPrepared: false },
+        })
+      ).statusCode
+    ).toBe(400);
+    expect(
+      (await app.inject({ url: `/characters/${id}/spells`, headers: { cookie } })).json().items[0]
+        .effectivePrepared
+    ).toBe(true);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...payload,
+          spellId: cantrip,
+          preparationMode: 'cantrip',
+        })
+      ).statusCode
+    ).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...payload,
+          originKind: 'species',
+          originId: localId('species', 'human'),
+        })
+      ).statusCode
+    ).toBe(201);
+  });
+  it('isola origens e instâncias entre personagens e recusa acesso de outro dono', async () => {
+    const { cookie, id, payload, post, spell, cc, cantrip } = await setup();
+    const other = await create(cookie);
+    expect((await post(`/characters/${other.id}/spells`, payload)).statusCode).toBe(400);
+    expect(
+      (await post(`/characters/${other.id}/spellbook`, { spellId: spell, characterClassId: cc }))
+        .statusCode
+    ).toBe(400);
+    expect(
+      (await post(`/characters/${id}/spellbook`, { spellId: cantrip, characterClassId: cc }))
+        .statusCode
+    ).toBe(400);
+    const added = await post(`/characters/${id}/spells`, payload);
+    expect(added.statusCode).toBe(201);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${other.id}/spells/${added.json().id}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(404);
+    expect((await app.inject({ url: `/characters/${id}/spells` })).statusCode).toBe(404);
+    await register('reader@example.invalid', 'reader');
+    const outsider = cookies(await login('reader@example.invalid'));
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}/spells/${added.json().id}`,
+          headers: { origin, cookie: outsider },
+          payload: { notes: 'changed' },
+        })
+      ).statusCode
+    ).toBe(404);
+    expect(
+      (await app.inject({ url: `/characters/${id}/spellbook`, headers: { cookie: outsider } }))
+        .statusCode
+    ).toBe(404);
+  });
+  it('bloqueia novas aquisições depreciadas e reverte quando auditoria falha', async () => {
+    const { id, payload, post, spell } = await setup();
+    db.prepare(
+      "UPDATE catalog_entry SET deprecated_at='2030-01-01T00:00:00Z' WHERE id=(SELECT catalog_entry_id FROM lib_spell WHERE id=?)"
+    ).run(spell);
+    expect((await post(`/characters/${id}/spells`, payload)).statusCode).toBe(400);
+    db.prepare(
+      'UPDATE catalog_entry SET deprecated_at=NULL WHERE id=(SELECT catalog_entry_id FROM lib_spell WHERE id=?)'
+    ).run(spell);
+    db.exec(
+      "CREATE TRIGGER reject_spell_audit BEFORE INSERT ON audit_log WHEN NEW.action='spell.add' BEGIN SELECT RAISE(ABORT,'audit failed'); END"
+    );
+    expect((await post(`/characters/${id}/spells`, payload)).statusCode).toBe(400);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_spell WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+});
