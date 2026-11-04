@@ -1,6 +1,6 @@
 # Plano de implementação do backend v1
 
-Plano concreto para começar a programação sem frontend e sem construir um motor universal. A escolha técnica recomendada segue a conversa: Node.js LTS, TypeScript, Fastify e SQLite com driver verificado. Não foram instalados nem implementados nesta etapa. Licenças, compatibilidade do driver e instalação devem ser confirmadas no início da implementação.
+Plano concreto para começar a programação sem frontend e sem construir um motor universal. A escolha técnica recomendada segue a conversa: Node.js LTS, TypeScript, Fastify e SQLite com driver verificado. O plano começou a ser implementado no backend v0.1; confira estado-backend.md para distinguir as partes entregues das futuras. Licenças, compatibilidade do driver e instalação devem ser confirmadas no início da implementação.
 
 ## Fronteiras
 
@@ -32,7 +32,7 @@ A aplicação não executa sample-data.sql em produção. A migração cria sche
 | Publicação | POST /characters/:id/publish, POST /characters/:id/unpublish |
 | Moderação | POST /admin/characters/:id/hide, POST /admin/characters/:id/unblock-publication |
 
-Nomes são contrato de planejamento, não rotas disponíveis. Escritas usam transação; exclusão de ficha não toca catálogo. Registro de sistemas futuros não habilita um módulo inexistente. GET não realiza confirmações de e-mail, resets ou consumo de tokens.
+As rotas desta tabela estão disponíveis no incremento básico; o comportamento e suas limitações estão em estado-backend.md. Escritas usam transação; exclusão de ficha não toca catálogo. Registro de sistemas futuros não habilita um módulo inexistente. GET não realiza confirmações de e-mail, resets ou consumo de tokens.
 
 ## Primeiro incremento verificável
 

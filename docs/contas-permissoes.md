@@ -1,6 +1,6 @@
 # Contas, permissões e publicação — v1
 
-Regras aprovadas pelo usuário. Estado atual: 49 tabelas, 6 views e schema versão 3. A única tabela adicionada nesta etapa é login_throttle; moderação e vínculo dos tokens ampliam estruturas existentes. Nenhum endpoint, envio de e-mail ou validador real de senha foi implementado.
+Regras aprovadas pelo usuário. Estado atual: 49 tabelas, 6 views e schema versão 3. A única tabela adicionada nesta etapa é login_throttle; moderação e vínculo dos tokens ampliam estruturas existentes. A fase de modelagem não implementava endpoints. O backend v0.1 agora inclui autenticação HTTP e Argon2id real; entrega externa de e-mail ainda não existe. Consulte estado-backend.md.
 
 ## Matriz de acesso
 
@@ -73,3 +73,5 @@ O snapshot é equivalente a 0001+0002+0003, com user_version=3. A fixture tem do
 Também verificou respostas genéricas por entradas conhecidas/desconhecidas, bloqueio temporário por e-mail, bloqueio por rede usando contas desconhecidas, permanência de is_active e migração de dados legados. Esses ensaios usam protocolos de teste em tests/account_support.py e não endpoints de produção. As consultas em validacao-contas.sql foram executadas sobre a fixture. Backup/restauração continuam comparando todos os dados.
 
 Faltam implementação de autenticação real, comparação de senha, autorização em cada endpoint, CSRF/cookies, e-mail, rate limiting HTTP e operacionalização. Conferência normativa de D&D e aprovação final do modelo também permanecem pendentes.
+
+> Implementação posterior: README.md e estado-backend.md são a referência do backend executável. O histórico de testes/propostas acima descreve a fase em que este contrato foi definido. O schema permanece versão 3.

@@ -70,3 +70,5 @@ Escolha da hospedagem/driver, armazenamento externo, manifesto/checksum do backu
 A migração 0002 mantém o checksum da baseline e exige novo login nas sessões legadas. Os ensaios de backup/restauração agora também comparam as cadeias expiradas/revogadas de refresh presentes na fixture. Testes sintéticos de migração posterior usam versão 0004 em diretório temporário.
 
 A migração 0003 retira publicações de contas não confirmadas/inativas e invalida links legados sem vínculo de e-mail. Snapshot e migrações continuam equivalentes; o teste de recuperação agora inclui tokens de confirmação e o bucket temporário da fixture. O esquema está na versão 3.
+
+> Implementação posterior: README.md e estado-backend.md são a referência do backend executável. O histórico de testes/propostas acima descreve a fase em que este contrato foi definido. O schema permanece versão 3.

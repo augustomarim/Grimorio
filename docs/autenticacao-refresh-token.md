@@ -1,6 +1,6 @@
 # Access e refresh tokens — proposta de dados e protocolo
 
-Adição solicitada: refresh token com rotação, expiração e revogação. Modelo atual: 49 tabelas e 6 views; schema versão 3. A única tabela nova é refresh_token. O fluxo foi exercitado por SQL em testes, sem criar endpoints, backend ou escolher framework.
+Adição solicitada: refresh token com rotação, expiração e revogação. Modelo atual: 49 tabelas e 6 views; schema versão 3. A única tabela nova é refresh_token. O fluxo foi exercitado por SQL em testes, na fase original de modelagem. Agora existem endpoints no backend v0.1, com limites documentados em estado-backend.md.
 
 ## Escolha compatível com as sessões existentes
 
@@ -58,3 +58,5 @@ O código em tests/refresh_support.py é suporte de teste para SQL e NÃO valida
 ## Políticas de conta
 
 Confirmação de e-mail é exigida para publicar, não para uso privado. Recuperação de senha revoga todas as famílias, sem promover papel ou confirmar e-mail. Tokens auth_token são vinculados ao e-mail e revogáveis desde a migração 0003. Limites temporários e moderação estão em contas-permissoes.md.
+
+> Implementação posterior: README.md e estado-backend.md são a referência do backend executável. O histórico de testes/propostas acima descreve a fase em que este contrato foi definido. O schema permanece versão 3.

@@ -45,8 +45,10 @@ Essa pendência não bloqueia contas, catálogo ou persistência. Bloqueia a pro
 
 Schema e exemplos executados no SQLite 3.53.1; consultas por domínio executadas; migrações/checksums e backup/restauração local em WAL testados. A suíte passa com 41 testes: 38 anteriores e 3 novos sobre coerência dos exemplos com o pacote. Esses 3 não são validação normativa oficial.
 
-SQL/DBML/dicionário descrevem a estrutura; regras de acesso e protocolos são exercitados por suporte de testes, não endpoints. DBML não foi renderizado no site. Não há backend, frontend, e-mail ou hospedagem implementados.
+SQL/DBML/dicionário descrevem a estrutura; regras de acesso e protocolos são exercitados por suporte de testes, não endpoints. DBML não foi renderizado no site. O fechamento estrutural precedeu a implementação. O backend v0.1 foi iniciado depois, sem frontend, envio externo de e-mail ou hospedagem. Consulte estado-backend.md.
 
 ## Próxima execução: backend
 
 Ordem concreta em contrato-backend-v1.md: fundação e migrações; contas/sessões; catálogo/fontes; persistência e permissões de ficha; módulo D&D com verificações confirmadas; operação/hospedagem. Não voltar a acrescentar tabelas por hipóteses de sistemas futuros. Uma nova mudança física deve resolver uma necessidade demonstrável e vir como migração posterior à versão 3.
+
+> Implementação posterior: README.md e estado-backend.md são a referência do backend executável. O histórico de testes/propostas acima descreve a fase em que este contrato foi definido. O schema permanece versão 3.

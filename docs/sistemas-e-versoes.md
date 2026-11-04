@@ -52,3 +52,5 @@ As consultas de validação foram executadas; FKs e integrity_check passaram. A 
 Atualização administrativa: refresh_token acrescenta renovação de autenticação ao núcleo comum. A revisão do schema é 3; não muda regras ou escolhas D&D. Consulte autenticacao-refresh-token.md.
 
 Políticas atuais de acesso/publicação estão em contas-permissoes.md. A versão 3 acrescenta login_throttle e campos de moderação/vínculo de tokens, sem alterar regras de RPG.
+
+> Implementação posterior: README.md e estado-backend.md são a referência do backend executável. O histórico de testes/propostas acima descreve a fase em que este contrato foi definido. O schema permanece versão 3.
