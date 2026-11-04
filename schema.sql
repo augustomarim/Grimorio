@@ -708,6 +708,21 @@ CREATE INDEX idx_login_throttle_expiry ON login_throttle(expires_at);
 
 INSERT INTO schema_migration(version,name,checksum_sha256) VALUES(3,'0003_account_policies.sql','145b2c13121d82c0e70cdf3d8e5deb392a53976576d0e6ca0f8f8c25598a092e');
 
-PRAGMA user_version=3;
+-- Opções explícitas escolhidas dentro da origem já vinculada ao personagem.
+CREATE TABLE character_choice (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  character_id INTEGER NOT NULL,
+  grant_id INTEGER NOT NULL,
+  choice_id TEXT NOT NULL CHECK (length(trim(choice_id)) BETWEEN 1 AND 200),
+  option_id TEXT NOT NULL CHECK (length(trim(option_id)) BETWEEN 1 AND 200),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  FOREIGN KEY (character_id, grant_id) REFERENCES character_rule_grant(character_id, id) ON DELETE CASCADE,
+  UNIQUE (grant_id, choice_id, option_id)
+) STRICT;
+CREATE INDEX idx_character_choice_character ON character_choice(character_id, grant_id);
+
+INSERT INTO schema_migration(version,name,checksum_sha256) VALUES(4,'0004_character_choices.sql','69fc704aebe487df2ad3c462ae73f2d7db79e2b709dc885cdde8215272b29a8f');
+
+PRAGMA user_version=4;
 
 COMMIT;

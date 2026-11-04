@@ -115,7 +115,7 @@ try {
   console.log('Verificação isolada: servidor, banco, chaves e e-mails temporários.');
   const health = await request('Saúde da API', 'GET', '/health', 200);
   assert.equal(health.status, 'ok');
-  assert.equal(health.schemaVersion, 3);
+  assert.equal(health.schemaVersion, 4);
   assert.equal(health.catalogEntries, 1905);
   report.health = health;
   await request('Sistemas habilitados', 'GET', '/systems', 200);

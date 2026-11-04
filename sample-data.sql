@@ -204,5 +204,7 @@ INSERT INTO dnd_character (character_id,system_id,system_code,strength,dexterity
 INSERT INTO refresh_token (id,session_id,token_hash,parent_token_id,created_at,expires_at,used_at,revoked_at) VALUES (1,1,'78d791215623684edcc067778572338a30543e80dfe2cf87cbc91e72908293eb',NULL,'2025-01-01T00:00:00.000Z','2025-02-01T00:00:00.000Z','2025-01-01T00:10:00.000Z','2025-02-01T00:00:00.000Z');
 INSERT INTO refresh_token (id,session_id,token_hash,parent_token_id,created_at,expires_at,used_at,revoked_at) VALUES (2,1,'5e02db84df7231a46ff4d25ba7dc1158af749ace59002e32bd8cb95313ab93c4',1,'2025-01-01T00:10:00.000Z','2025-02-01T00:00:00.000Z',NULL,'2025-02-01T00:00:00.000Z');
 INSERT INTO login_throttle (id,scope,key_hash,window_started_at,failure_count,blocked_until,expires_at,updated_at) VALUES (1,'email','d8bbc84212dac10fc67edf89077c52e70e955d0ccb740f437e632bf0a696aa1d','2025-01-01T00:00:00.000Z',5,'2025-01-01T00:15:00.000Z','2025-01-02T00:00:00.000Z','2025-01-01T00:00:00.000Z');
+-- Exemplo de opção existente no antecedente Criminal; registro não concede equipamento automaticamente.
+INSERT INTO character_choice(character_id,grant_id,choice_id,option_id,created_at) VALUES(1,4,'equipment','coin','2026-11-03T22:09:55.019Z');
 COMMIT;
 SELECT name,total_level FROM character_summary;

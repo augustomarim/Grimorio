@@ -205,3 +205,5 @@ Magias e grimório: [rotas, exemplos e limites](docs/magias-backend.md).
 Auditoria das regras disponíveis: [escopo e limitações](docs/validacao-regras-backend.md).
 
 Escolhas de benefícios: [associação ao catálogo e auditoria](docs/escolhas-beneficios-backend.md).
+
+Escolhas aninhadas: [registro, migração 4 e limites da auditoria](docs/escolhas-aninhadas-backend.md).

@@ -2,7 +2,7 @@
 
 `0001_initial.sql` é a baseline inicial do modelo atual. Seu conteúdo é apenas SQL de schema; não contém dados de exemplo, criação de arquivos, configuração de WAL ou comandos de transação.
 
-`schema.sql`, na raiz, é o snapshot para banco novo: configura a conexão, executa o schema e as alterações das migrações 0002 e 0003 em transação e registra as versões 1, 2 e 3 com PRAGMA user_version=3. Não execute snapshot e migração 0001 no mesmo banco. sample-data.sql é uma fixture opcional de desenvolvimento e nunca deve ser parte da migração de produção.
+`schema.sql`, na raiz, é o snapshot para banco novo: configura a conexão, executa o schema e as alterações das migrações 0002, 0003 e 0004 em transação e registra as versões 1, 2, 3 e 4 com PRAGMA user_version=4. Não execute snapshot e migração 0001 no mesmo banco. sample-data.sql é uma fixture opcional de desenvolvimento e nunca deve ser parte da migração de produção.
 
 ## Contrato do futuro executor
 
@@ -14,7 +14,7 @@
 6. Inserir a versão, nome, SHA-256 dos bytes do arquivo e data UTC em schema_migration. Atualizar PRAGMA user_version na mesma transação e confirmar. Em qualquer erro, reverter tudo.
 7. Repetir sem reaplicar versões já registradas. Divergências de checksum, versões desconhecidas, lacunas ou inconsistência com user_version bloqueiam a execução.
 
-Uma migração aplicada é imutável. Correções são novos arquivos numerados. Antes da primeira publicação, a baseline ainda representa a proposta de modelagem; após uso real, não deve ser reescrita. 0002_refresh_tokens.sql é a primeira evolução após a baseline: revoga sessões antigas, adiciona access_expires_at e cria refresh_token. As versões 0004 usadas pelos testes são sintéticas e ficam somente em diretórios temporários.
+Uma migração aplicada é imutável. Correções são novos arquivos numerados. Antes da primeira publicação, a baseline ainda representa a proposta de modelagem; após uso real, não deve ser reescrita. 0002_refresh_tokens.sql é a primeira evolução após a baseline: revoga sessões antigas, adiciona access_expires_at e cria refresh_token. As versões 0005 usadas pelos testes são sintéticas e ficam somente em diretórios temporários.
 
 Não há rollback automático por SQL inverso nesta proposta. Para falha na transação, usar ROLLBACK. Para mudança já confirmada, avaliar migração corretiva ou restauração de backup com o procedimento documentado, considerando as escritas posteriores ao backup.
 
@@ -33,3 +33,5 @@ Os testes comparam o schema criado pela baseline com o snapshot, carregam os exe
 Atual: 3. Para banco novo, aplicar 0001, 0002 e 0003 pelo executor ou usar schema.sql. Para banco na versão 1, aplicar 0002 e 0003 após backup; 0002 exige novo login nas sessões legadas. Para banco na versão 2, aplicar somente 0003; ela exige novos links de verificação/reset para substituir tokens antigos sem vínculo ao e-mail. Não reescrever a baseline. O snapshot e a cadeia inteira são comparados nos testes.
 
 0003_account_policies.sql retira publicações inelegíveis, adiciona bloqueio administrativo, vínculo/revogação dos tokens de conta e login_throttle. Preserva fichas e as migrações anteriores.
+
+0004_character_choices.sql adiciona o registro de opções explícitas, preservando personagens e dados anteriores. Atualize com npm.cmd run db:migrate; nunca aplique schema.sql sobre banco existente.
