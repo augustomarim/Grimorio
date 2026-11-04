@@ -199,3 +199,5 @@ Sem frontend, hospedagem, provedor de e-mail ou agendamento externo de backups. 
 A ficha interativa de partida fica para a v1.5. Confira o histórico de decisões em [docs/modelagem.md](docs/modelagem.md) e as pendências normativas em [docs/fechamento-modelagem-v1.md](docs/fechamento-modelagem-v1.md).
 
 Benefícios de personagem: [rotas, exemplos e limites](docs/beneficios-backend.md).
+
+Magias e grimório: [rotas, exemplos e limites](docs/magias-backend.md).

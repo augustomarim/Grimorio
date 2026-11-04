@@ -15,6 +15,7 @@ import { AppError } from './errors.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './characters/routes.js';
 import { catalogRoutes } from './catalog/routes.js';
+import { spellRoutes } from './spells/routes.js';
 import { benefitRoutes } from './benefits/routes.js';
 import { inventoryRoutes } from './inventory/routes.js';
 
@@ -99,6 +100,7 @@ export async function buildApp(options: AppOptions) {
     characterRoutes(app, db, auth);
     inventoryRoutes(app, db, auth);
     benefitRoutes(app, db, auth);
+    spellRoutes(app, db, auth);
     app.get('/health', () => {
       let current: number;
       try {
