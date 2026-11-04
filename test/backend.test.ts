@@ -10,6 +10,7 @@ import { openDatabase } from '../src/db/database.js';
 import { migrate, verifyHistory } from '../src/db/migrations.js';
 import { importCatalog } from '../src/catalog/import.js';
 import { digest, verifyPassword } from '../src/auth/crypto.js';
+import { allStates, anyStates } from '../src/rules/validation.js';
 import { ACCESS, REFRESH } from '../src/routes/auth.js';
 import type { Mail } from '../src/auth/mail.js';
 import type { Config } from '../src/config.js';
@@ -1492,5 +1493,172 @@ describe('Magias e grimório', () => {
       db.prepare('SELECT count(*) AS n FROM character_spell WHERE character_id=?').get(id)
     ).toEqual({ n: 0 });
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+});
+
+describe('Auditoria das regras disponíveis no catálogo', () => {
+  it('combina cláusulas E/OU sem tratar desconhecido como aprovado', () => {
+    expect(allStates(['pass', 'unknown'])).toBe('unknown');
+    expect(allStates(['fail', 'unknown'])).toBe('fail');
+    expect(anyStates(['pass', 'unknown'])).toBe('pass');
+    expect(anyStates(['fail', 'unknown'])).toBe('unknown');
+    expect(anyStates(['fail', 'fail'])).toBe('fail');
+    expect(allStates([])).toBe('pass');
+    expect(anyStates([])).toBe('fail');
+  });
+  async function setup() {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(sheet.id) as {
+      id: number;
+    };
+    const post = (url: string, payload: unknown) =>
+      app.inject({ method: 'POST', url, headers: { origin, cookie }, payload });
+    const report = async () => {
+      const response = await app.inject({
+        url: `/characters/${sheet.id}/validation`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      return response.json();
+    };
+    return { id: sheet.id, cookie, cc: cc.id, post, report };
+  }
+  it('identifica magia fora da lista, nível excessivo e ausência no grimório sem alterar a ficha', async () => {
+    const { id, cc, post, report } = await setup();
+    const spellId = localId('spell', 'cure-wounds');
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          spellId,
+          originKind: 'class',
+          originId: cc,
+          preparationMode: 'selectable',
+          isPrepared: true,
+        })
+      ).statusCode
+    ).toBe(201);
+    const high = localId('spell', 'wish');
+    expect(
+      (await post(`/characters/${id}/spellbook`, { spellId: high, characterClassId: cc }))
+        .statusCode
+    ).toBe(201);
+    const before = db.prepare('SELECT * FROM character WHERE id=?').get(id);
+    const result = await report();
+    for (const code of ['CLASS_SPELL_LIST', 'WIZARD_PREPARED_IN_BOOK', 'SPELLBOOK_ENTRY'])
+      expect(
+        result.findings.some(
+          (f: { code: string; state: string }) => f.code === code && f.state === 'fail'
+        )
+      ).toBe(true);
+    expect(result.rulesVerified).toBe(false);
+    expect(result.summary.unknown).toBeGreaterThan(0);
+    expect(db.prepare('SELECT * FROM character WHERE id=?').get(id)).toEqual(before);
+  });
+  it('usa nível individual, conta apenas preparação manual e verifica truques', async () => {
+    const { id, cc, post, report } = await setup();
+    const wizardSpells = db
+      .prepare(
+        "SELECT id FROM lib_spell WHERE level=1 AND EXISTS(SELECT 1 FROM json_each(data,'$.classes') WHERE value='wizard') LIMIT 5"
+      )
+      .all() as { id: number }[];
+    for (const spell of wizardSpells) {
+      expect(
+        (await post(`/characters/${id}/spellbook`, { spellId: spell.id, characterClassId: cc }))
+          .statusCode
+      ).toBe(201);
+      expect(
+        (
+          await post(`/characters/${id}/spells`, {
+            spellId: spell.id,
+            originKind: 'class',
+            originId: cc,
+            preparationMode: 'selectable',
+            isPrepared: true,
+          })
+        ).statusCode
+      ).toBe(201);
+    }
+    let result = await report();
+    expect(
+      result.findings.find((f: { code: string }) => f.code === 'CLASS_PREPARED_LIMIT').state
+    ).toBe('fail');
+    const row = db
+      .prepare('SELECT id FROM character_spell WHERE character_id=? LIMIT 1')
+      .get(id) as { id: number };
+    db.prepare(
+      "UPDATE character_spell SET preparation_mode='always_prepared',is_prepared=0 WHERE id=?"
+    ).run(row.id);
+    result = await report();
+    expect(
+      result.findings.find((f: { code: string }) => f.code === 'CLASS_PREPARED_LIMIT').state
+    ).toBe('pass');
+    expect(
+      result.findings
+        .filter((f: { code: string }) => f.code === 'CLASS_SPELL_LIST')
+        .every((f: { state: string }) => f.state === 'pass')
+    ).toBe(true);
+    expect(
+      result.findings.find((f: { code: string }) => f.code === 'CLASS_CANTRIP_LIMIT').evidence
+        .maximum
+    ).toBe(3);
+  });
+  it('avalia pré-requisito de nível e E/OU de talentos reais e mantém campanha inconclusiva', async () => {
+    const { id, cc, post, report } = await setup();
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'class',
+      originId: cc,
+      acquisitionContext: 'initial_class',
+      ruleKey: 'test.feats',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    for (const slug of ['war-caster', 'aberrant-anatomy'])
+      expect(
+        (
+          await post(`/characters/${id}/benefits`, {
+            kind: 'feat',
+            localId: localId('feat', slug),
+            grantId: grant.json().id,
+            selectionKind: 'fixed',
+          })
+        ).statusCode
+      ).toBe(201);
+    let result = await report();
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { slug: string } }) =>
+          f.code === 'FEAT_PREREQUISITES' && f.evidence?.slug === 'war-caster'
+      ).state
+    ).toBe('fail');
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { slug: string } }) =>
+          f.code === 'FEAT_PREREQUISITES' && f.evidence?.slug === 'aberrant-anatomy'
+      ).state
+    ).toBe('unknown');
+    db.prepare('UPDATE character_class SET level=4 WHERE id=?').run(cc);
+    result = await report();
+    expect(
+      result.findings.find(
+        (f: { code: string; evidence?: { slug: string } }) =>
+          f.code === 'FEAT_PREREQUISITES' && f.evidence?.slug === 'war-caster'
+      ).state
+    ).toBe('pass');
+  });
+  it('protege fichas privadas e não certifica ficha sem achados negativos', async () => {
+    const { id, report } = await setup();
+    expect((await app.inject({ url: `/characters/${id}/validation` })).statusCode).toBe(404);
+    await register('audit@example.invalid', 'auditor');
+    const stranger = cookies(await login('audit@example.invalid'));
+    expect(
+      (await app.inject({ url: `/characters/${id}/validation`, headers: { cookie: stranger } }))
+        .statusCode
+    ).toBe(404);
+    const result = await report();
+    expect(result.summary.failed).toBe(0);
+    expect(result.rulesVerified).toBe(false);
+    expect(result.basis.catalogRevision.library_version).toBe('0.5.1');
   });
 });

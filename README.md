@@ -201,3 +201,5 @@ A ficha interativa de partida fica para a v1.5. Confira o histórico de decisõe
 Benefícios de personagem: [rotas, exemplos e limites](docs/beneficios-backend.md).
 
 Magias e grimório: [rotas, exemplos e limites](docs/magias-backend.md).
+
+Auditoria das regras disponíveis: [escopo e limitações](docs/validacao-regras-backend.md).
