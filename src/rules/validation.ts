@@ -5,6 +5,8 @@ import { CharacterService } from '../characters/service.js';
 import { ChoiceService } from '../choices/service.js';
 import { CapabilityService } from './capabilities.js';
 import { BenefitAudit } from './benefits.js';
+import { EffectEngine } from './effects.js';
+import { attributeState, abilityName } from './attributes.js';
 import { AppError } from '../errors.js';
 import { multiclassRequirements, multiclassSources } from './multiclass.js';
 
@@ -82,21 +84,38 @@ export class ValidationService {
           if (feature.level <= c.level) features.add(feature.name);
       }
     }
-    const evaluate = (requirement: FeatRequirement, current: FeatRow): State => {
+    // Least fixed point: a feat cannot qualify itself with its own bonus,
+    // or bootstrap another unproven feat in a dependency cycle.
+    const eligible = new Set<number>();
+    const descendants = (root: number) => {
+      const excluded = new Set([root]);
+      const links = this.db
+        .prepare(
+          'SELECT a.id,g.origin_character_ability_id AS parent FROM character_ability a JOIN character_rule_grant g ON g.id=a.grant_id WHERE a.character_id=? AND a.lib_feat_id IS NOT NULL'
+        )
+        .all(id) as { id: number; parent: number | null }[];
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const row of links)
+          if (row.parent !== null && excluded.has(row.parent) && !excluded.has(row.id)) {
+            excluded.add(row.id);
+            changed = true;
+          }
+      }
+      return excluded;
+    };
+    const evaluate = (requirement: FeatRequirement, current: FeatRow, potential = false): State => {
+      const excluded = descendants(current.id);
+      const permitted = new Set(
+        (potential ? owned.map((f) => f.id) : [...eligible]).filter((key) => !excluded.has(key))
+      );
       switch (requirement.kind) {
         case 'level':
           return total >= requirement.level ? 'pass' : 'fail';
         case 'ability': {
-          const keys: Record<string, string> = {
-            str: 'strength',
-            dex: 'dexterity',
-            con: 'constitution',
-            int: 'intelligence',
-            wis: 'wisdom',
-            cha: 'charisma',
-          };
-          const name = requirement.ability.toLowerCase();
-          const value = profile[keys[name] ?? name];
+          const values = attributeState(this.db, id, permitted).effective;
+          const value = values[abilityName(requirement.ability) as keyof typeof values];
           return typeof value === 'number'
             ? value >= requirement.score
               ? 'pass'
@@ -104,15 +123,20 @@ export class ValidationService {
             : 'unknown';
         }
         case 'feat':
-          return owned.some((f) => f.id !== current.id && f.slug === requirement.feat)
+        case 'anyFeat': {
+          const matching = owned.filter(
+            (f) =>
+              !excluded.has(f.id) &&
+              (requirement.kind === 'feat'
+                ? f.slug === requirement.feat
+                : f.record.category === requirement.category)
+          );
+          return matching.some((f) => eligible.has(f.id))
             ? 'pass'
-            : 'fail';
-        case 'anyFeat':
-          return owned.some(
-            (f) => f.id !== current.id && f.record.category === requirement.category
-          )
-            ? 'pass'
-            : 'fail';
+            : matching.length
+              ? 'unknown'
+              : 'fail';
+        }
         case 'only':
           return owned.some(
             (f) => f.id !== current.id && f.record.category === requirement.category
@@ -122,20 +146,47 @@ export class ValidationService {
         case 'feature':
           return features.has(requirement.feature) ? 'pass' : 'unknown';
         case 'campaign':
-          return 'unknown';
+          return typeof profile.campaign_setting === 'string'
+            ? profile.campaign_setting.toLowerCase() === requirement.setting.toLowerCase()
+              ? 'pass'
+              : 'fail'
+            : 'unknown';
         default:
           return 'unknown';
       }
     };
+    const evaluateFeat = (feat: (typeof owned)[number], final = false): State =>
+      feat.record.prereq?.all
+        ? allStates(
+            feat.record.prereq.all.map((clause) =>
+              anyStates(
+                clause.map((requirement) => {
+                  const state = evaluate(requirement, feat);
+                  return final &&
+                    state === 'fail' &&
+                    requirement.kind === 'ability' &&
+                    evaluate(requirement, feat, true) === 'pass'
+                    ? 'unknown'
+                    : state;
+                })
+              )
+            )
+          )
+        : feat.record.prereq
+          ? 'unknown'
+          : 'pass';
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const feat of owned)
+        if (!eligible.has(feat.id) && evaluateFeat(feat) === 'pass') {
+          eligible.add(feat.id);
+          changed = true;
+        }
+    }
     for (const feat of owned) {
-      const clauses = feat.record.prereq?.all;
       findings.push({
         code: 'FEAT_PREREQUISITES',
-        state: clauses
-          ? allStates(clauses.map((clause) => anyStates(clause.map((r) => evaluate(r, feat)))))
-          : feat.record.prereq
-            ? 'unknown'
-            : 'pass',
+        state: evaluateFeat(feat, true),
         entityId: feat.id,
         message: 'Pré-requisitos do talento no estado atual da ficha',
         evidence: { slug: feat.slug, prerequisite: feat.record.prereq ?? null },
@@ -255,21 +306,17 @@ export class ValidationService {
         });
       }
     }
-    findings.push(multiclassRequirements(classes, profile));
+    findings.push(multiclassRequirements(classes, attributeState(this.db, id, eligible).effective));
     findings.push(...new CapabilityService(this.db).audit(id));
     findings.push(...new BenefitAudit(this.db).inspect(id).findings);
     findings.push(...new ChoiceService(this.db).inspect(id).findings);
-    for (const code of [
-      'BENEFIT_NESTED_CHOICES',
-      'ACQUISITION_HISTORY',
-      'SPELL_EXCEPTIONS',
-      'CAMPAIGN_RULES',
-    ])
-      findings.push({
-        code,
-        state: 'unknown',
-        message: 'Verificação ainda não implementada ou dependente de informação adicional',
-      });
+    findings.push(...new EffectEngine(this.db).audit(id));
+    findings.push({
+      code: 'TEXT_RULES_REVIEW',
+      state: 'unknown',
+      message:
+        'Condições de mesa e efeitos descritos apenas em texto exigem revisão; o relatório não certifica o histórico de aquisição.',
+    });
     return {
       characterId: id,
       basis: {
@@ -282,6 +329,7 @@ export class ValidationService {
         scope: 'current-state',
         officialSources: multiclassSources,
       },
+      coverage: new EffectEngine(this.db).report(id).coverage,
       rulesVerified: false,
       summary: {
         passed: findings.filter((f) => f.state === 'pass').length,

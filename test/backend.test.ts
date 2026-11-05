@@ -143,11 +143,11 @@ describe('Fundação e catálogo real', () => {
   it('executa migrações, saúde e não carrega usuários de exemplo', async () => {
     const response = await app.inject('/health');
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ status: 'ok', schemaVersion: 5, catalogEntries: 1905 });
+    expect(response.json()).toMatchObject({ status: 'ok', schemaVersion: 6, catalogEntries: 1905 });
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(db.pragma('journal_mode', { simple: true })).toBe('wal');
     expect(db.prepare('SELECT count(*) AS n FROM app_user').get()).toEqual({ n: 0 });
-    expect(migrate(db)).toBe(5);
+    expect(migrate(db)).toBe(6);
   });
   it('retorna indisponibilidade quando a versão do banco diverge', async () => {
     db.pragma('user_version = 99');
@@ -202,11 +202,11 @@ describe('Fundação e catálogo real', () => {
     const copy = join(directory, 'migrations');
     cpSync(join(process.cwd(), 'migrations'), copy, { recursive: true });
     writeFileSync(
-      join(copy, '0006_test.sql'),
+      join(copy, '0007_test.sql'),
       'CREATE TABLE should_rollback(id INTEGER);\nINSERT INTO missing_table VALUES(1);\n'
     );
     expect(() => migrate(db, copy)).toThrow();
-    expect(verifyHistory(db)).toBe(5);
+    expect(verifyHistory(db)).toBe(6);
     expect(
       db.prepare("SELECT 1 FROM sqlite_master WHERE name='should_rollback'").get()
     ).toBeUndefined();
@@ -3683,5 +3683,264 @@ describe('Motor genérico de efeitos de magias de talentos', () => {
       db.prepare('SELECT id FROM lib_spell WHERE id=?').get(localId('spell', 'misty-step'))
     ).toBeTruthy();
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+});
+
+describe('Motor consolidado de efeitos estruturados', () => {
+  async function setup(slug = 'ability-score-improvement', scores = {}) {
+    await register();
+    const cookie = cookies(await login());
+    const payload = character();
+    payload.classes[0]!.level = 4;
+    Object.assign(payload.attributes, scores);
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload,
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const post = (url: string, payload: unknown) =>
+      app.inject({ method: 'POST', url, headers: { origin, cookie }, payload });
+    const root = await post(`/characters/${id}/grants`, {
+      originKind: 'background',
+      originId: payload.backgroundId,
+      acquisitionContext: 'background',
+      ruleKey: 'draft',
+      acquiredAtLevel: 1,
+    });
+    const feat = await post(`/characters/${id}/benefits`, {
+      kind: 'feat',
+      localId: localId('feat', slug),
+      grantId: root.json().id,
+      selectionKind: 'fixed',
+    });
+    expect(feat.statusCode).toBe(201);
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'feat',
+      originId: feat.json().id,
+      acquisitionContext: 'feat',
+      ruleKey: 'effects',
+      acquiredAtLevel: 4,
+    });
+    expect(grant.statusCode).toBe(201);
+    const source = db
+      .prepare('SELECT data FROM lib_feat WHERE id=?')
+      .get(localId('feat', slug)) as { data: string };
+    const rule = JSON.parse(source.data).effects.abilityBoosts[0].id;
+    const put = (abilities: string[]) =>
+      app.inject({
+        method: 'PUT',
+        url: `/characters/${id}/effects/${grant.json().id}/ability-boosts/${rule}`,
+        headers: { origin, cookie },
+        payload: { abilities },
+      });
+    return { id, cookie, put, post, grantId: grant.json().id, featId: feat.json().id };
+  }
+  it('mantém a base, distribui 2 pontos, substitui e remove escolhas sem duplicar', async () => {
+    const x = await setup();
+    expect((await x.put(['intelligence', 'intelligence'])).json()).toMatchObject({
+      base: { intelligence: 16 },
+      effective: { intelligence: 18 },
+    });
+    expect((await x.put(['wisdom', 'charisma'])).json()).toMatchObject({
+      effective: { intelligence: 16, wisdom: 15, charisma: 15 },
+    });
+    const detail = await app.inject({ url: `/characters/${x.id}`, headers: { cookie: x.cookie } });
+    expect(detail.json()).toMatchObject({ baseAttributes: { intelligence: 16 } });
+    expect((await x.put([])).json()).toMatchObject({ effective: { wisdom: 14, charisma: 14 } });
+  });
+  it('rejeita orçamento e limites sem persistência parcial', async () => {
+    const x = await setup('ability-score-improvement', { intelligence: 19 });
+    expect((await x.put(['intelligence', 'intelligence'])).statusCode).toBe(400);
+    expect((await x.put(['intelligence', 'wisdom', 'charisma'])).statusCode).toBe(400);
+    expect(db.prepare('SELECT count(*) n FROM character_ability_boost').get()).toEqual({ n: 0 });
+    expect((await x.put(['intelligence', 'wisdom'])).statusCode).toBe(200);
+  });
+  it('rejeita atributo não permitido pelo talento', async () => {
+    const x = await setup('actor');
+    expect((await x.put(['intelligence'])).statusCode).toBe(400);
+    expect((await x.put(['charisma'])).json()).toMatchObject({ effective: { charisma: 15 } });
+  });
+  it('projeta resistência de Resilient sem duplicar registros', async () => {
+    const x = await setup('resilient');
+    expect((await x.put(['constitution'])).statusCode).toBe(200);
+    const r = await app.inject({
+      url: `/characters/${x.id}/effects`,
+      headers: { cookie: x.cookie },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().projected.savingThrows).toContain('constitution');
+    expect(r.json().coverage).toMatchObject({ structuredEffectTypes: 13, unrecognizedFields: [] });
+  });
+  it('não permite que o próprio bônus satisfaça o pré-requisito', async () => {
+    const x = await setup('actor', { charisma: 12 });
+    expect((await x.put(['charisma'])).statusCode).toBe(200);
+    const r = await app.inject({
+      url: `/characters/${x.id}/validation`,
+      headers: { cookie: x.cookie },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(
+      r
+        .json()
+        .findings.find(
+          (f: { code: string; entityId: number }) =>
+            f.code === 'FEAT_PREREQUISITES' && f.entityId === x.featId
+        ).state
+    ).toBe('fail');
+  });
+  it('isola orçamentos entre concessões da mesma origem e impede duplicação', async () => {
+    const x = await setup();
+    await x.put(['wisdom', 'wisdom']);
+    const g = await x.post(`/characters/${x.id}/grants`, {
+      originKind: 'feat',
+      originId: x.featId,
+      acquisitionContext: 'feat',
+      ruleKey: 'second',
+      acquiredAtLevel: 4,
+    });
+    const r = await app.inject({
+      method: 'PUT',
+      url: `/characters/${x.id}/effects/${g.json().id}/ability-boosts/benefit-1`,
+      headers: { origin, cookie: x.cookie },
+      payload: { abilities: ['intelligence', 'intelligence'] },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ effective: { wisdom: 14, intelligence: 18 } });
+    expect(db.prepare('SELECT count(*) n FROM character_ability_boost').get()).toEqual({ n: 1 });
+  });
+  it('bloqueia mudança de base que tornaria o bônus excedente e mantém transação', async () => {
+    const x = await setup();
+    await x.put(['intelligence', 'intelligence']);
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/characters/${x.id}`,
+      headers: { origin, cookie: x.cookie },
+      payload: { attributes: { ...character().attributes, intelligence: 20 } },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(
+      db.prepare('SELECT intelligence FROM dnd_character WHERE character_id=?').get(x.id)
+    ).toEqual({ intelligence: 16 });
+  });
+  it('confere contexto explícito de campanha e não adivinha o cenário', async () => {
+    const x = await setup('actor');
+    // Synthetic catalog rule isolates the evaluator; it is not presented as an official feat.
+    db.prepare("UPDATE lib_feat SET data=json_set(data,'$.prereq',json(?)) WHERE id=?").run(
+      JSON.stringify({ text: 'test campaign', all: [[{ kind: 'campaign', setting: 'Eberron' }]] }),
+      localId('feat', 'actor')
+    );
+    const report = () =>
+      app.inject({ url: `/characters/${x.id}/validation`, headers: { cookie: x.cookie } });
+    const state = async () =>
+      (await report())
+        .json()
+        .findings.find(
+          (f: { code: string; entityId: number }) =>
+            f.code === 'FEAT_PREREQUISITES' && f.entityId === x.featId
+        ).state;
+    expect(await state()).toBe('unknown');
+    const patch = (campaignSetting: string) =>
+      app.inject({
+        method: 'PATCH',
+        url: `/characters/${x.id}`,
+        headers: { origin, cookie: x.cookie },
+        payload: { campaignSetting },
+      });
+    expect((await patch('Eberron')).statusCode).toBe(200);
+    expect(await state()).toBe('pass');
+    await patch('Greyhawk');
+    expect(await state()).toBe('fail');
+  });
+  it('rejeita benefícios fixos inventados na rota estrita', async () => {
+    const x = await setup('actor');
+    const bad = await x.post(`/characters/${x.id}/effects/${x.grantId}/benefits`, {
+      kind: 'skill',
+      localId: localId('skill', 'skill-arcana'),
+      selectionKind: 'fixed',
+      proficiencyRank: 1,
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(db.prepare('SELECT count(*) n FROM character_skill').get()).toEqual({ n: 0 });
+  });
+  it('aplica teto 30 explicitamente declarado sem reduzir a base', async () => {
+    const x = await setup('boon-of-blazing-dawn', { intelligence: 29 });
+    expect((await x.put(['intelligence'])).json()).toMatchObject({
+      effective: { intelligence: 30 },
+    });
+  });
+  it('mantém dependência circular entre talentos inconclusiva', async () => {
+    const x = await setup('actor');
+    const existing = db
+      .prepare('SELECT grant_id FROM character_ability WHERE id=?')
+      .get(x.featId) as { grant_id: number };
+    const second = await x.post(`/characters/${x.id}/benefits`, {
+      kind: 'feat',
+      localId: localId('feat', 'resilient'),
+      grantId: existing.grant_id,
+      selectionKind: 'fixed',
+    });
+    expect(second.statusCode).toBe(201);
+    for (const [slug, required] of [
+      ['actor', 'resilient'],
+      ['resilient', 'actor'],
+    ])
+      db.prepare("UPDATE lib_feat SET data=json_set(data,'$.prereq',json(?)) WHERE id=?").run(
+        JSON.stringify({ text: 'synthetic cycle', all: [[{ kind: 'feat', feat: required }]] }),
+        localId('feat', slug!)
+      );
+    const r = await app.inject({
+      url: `/characters/${x.id}/validation`,
+      headers: { cookie: x.cookie },
+    });
+    const states = r
+      .json()
+      .findings.filter((f: { code: string }) => f.code === 'FEAT_PREREQUISITES')
+      .map((f: { state: string }) => f.state);
+    expect(states).toEqual(['unknown', 'unknown']);
+  });
+  it('limita acesso e rejeita bônus de concessão alheia', async () => {
+    const x = await setup();
+    expect((await app.inject(`/characters/${x.id}/effects`)).statusCode).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: `/characters/${x.id}/effects/999999/ability-boosts/benefit-1`,
+          headers: { origin, cookie: x.cookie },
+          payload: { abilities: ['wisdom'] },
+        })
+      ).statusCode
+    ).toBe(400);
+  });
+  it('retorna proficiências fixas de classe sem gravar cópias', async () => {
+    const x = await setup();
+    const r = await app.inject({
+      url: `/characters/${x.id}/effects`,
+      headers: { cookie: x.cookie },
+    });
+    expect(r.json().projected.savingThrows).toEqual(
+      expect.arrayContaining(['intelligence', 'wisdom'])
+    );
+    expect(db.prepare('SELECT count(*) n FROM character_saving_throw').get()).toEqual({ n: 0 });
+  });
+  it('exige confirmação ao excluir bônus dependentes e remove em cascata', async () => {
+    const x = await setup();
+    await x.put(['constitution', 'constitution']);
+    const preview = await app.inject({
+      method: 'POST',
+      url: `/characters/${x.id}/benefits/feat/${x.featId}/removal-preview`,
+      headers: { origin, cookie: x.cookie },
+    });
+    expect(preview.statusCode).toBe(200);
+    const removed = await app.inject({
+      method: 'DELETE',
+      url: `/characters/${x.id}/benefits/feat/${x.featId}?confirmationToken=${preview.json().confirmationToken}`,
+      headers: { origin, cookie: x.cookie },
+    });
+    expect(removed.statusCode).toBe(204);
+    expect(db.prepare('SELECT count(*) n FROM character_ability_boost').get()).toEqual({ n: 0 });
   });
 });

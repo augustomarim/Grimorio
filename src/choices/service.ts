@@ -10,6 +10,7 @@ import {
   magicConfiguration,
   magicInitiateChoice,
   featSpellEffectsChoice,
+  sourceSpellEffectsChoice,
 } from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 export interface ChoiceInput {
@@ -64,7 +65,7 @@ export class ChoiceService {
         options.push({
           grantId: grant.id,
           choiceId: choice.id,
-          automatic: choice.id === featSpellEffectsChoice,
+          automatic: [featSpellEffectsChoice, sourceSpellEffectsChoice].includes(choice.id),
           name: choice.name,
           pick: choice.pick ?? 1,
           requiredLevel: choice.level ?? 1,
@@ -255,7 +256,10 @@ export class ChoiceService {
           throw new AppError(400, 'INVALID_CHOICE', 'Escolha ou opção não encontrada na origem');
         if (source.level < (choice.level ?? 1))
           throw new AppError(400, 'CHOICE_LEVEL', 'Nível insuficiente para a escolha');
-        if (grant.acquisition_context === 'multiclass_entry')
+        if (
+          grant.acquisition_context === 'multiclass_entry' &&
+          input.choiceId !== sourceSpellEffectsChoice
+        )
           throw new AppError(
             409,
             'CHOICE_CONTEXT_UNVERIFIED',

@@ -1,3 +1,5 @@
+> Atualização vigente — efeitos estruturados: schema 6, base e bônus separados, projeção dos 13 campos de Feat.effects, escolhas estritas e pré-requisitos sem autovalidação por bônus. Consulte [efeitos-regras-consolidados.md](docs/efeitos-regras-consolidados.md). Os incrementos descritos abaixo são históricos; texto de combate e condições de mesa não são executados automaticamente.
+
 # Grimorio — backend v0.1
 
 API em **Node.js 24, TypeScript, Fastify e SQLite**, sem frontend. O primeiro incremento implementa autenticação, catálogo e CRUD básico de fichas D&D. As migrações SQL e os artefatos da modelagem permanecem versionados.

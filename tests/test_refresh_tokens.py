@@ -128,10 +128,10 @@ class RefreshTokenTest(unittest.TestCase):
             legacy.execute("INSERT INTO app_user(id,email,username,password_hash) VALUES(1,'test@example.invalid','tester','disabled')")
             legacy.execute("INSERT INTO session(user_id,token_hash,expires_at) VALUES(1,'legacy-hash','2031-01-01T00:00:00.000Z')")
             legacy.commit()
-            self.assertEqual(migrate(legacy,ROOT/'migrations'),[2,3,4,5])
+            self.assertEqual(migrate(legacy,ROOT/'migrations'),[2,3,4,5,6])
             self.assertIsNotNone(legacy.execute('SELECT revoked_at FROM session').fetchone()[0])
             self.assertEqual(legacy.execute('SELECT count(*) FROM refresh_token').fetchone(),(0,))
-            self.assertEqual(check_history(legacy,ROOT/'migrations')[0],5)
+            self.assertEqual(check_history(legacy,ROOT/'migrations')[0],6)
             with self.assertRaises(sqlite3.IntegrityError):
                 legacy.execute('UPDATE session SET revoked_at=NULL')
         finally:

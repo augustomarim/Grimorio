@@ -23,7 +23,7 @@ describe('Projeção local de escolhas diretas, sem modificar o catálogo', () =
     expect(
       sourceChoices({ ...source, magicInitiateListConstraint: 'unrecognized' })[0]!.options
     ).toEqual([]);
-    expect(sourceChoices({ ...source, featSlug: null })).toEqual([]);
+    expect(sourceChoices({ ...source, featSlug: null })[0]!.id).toBe('app:source-spells');
   });
   it('recusa ids e atributos fora da configuração confirmada', () => {
     expect(magicConfiguration(magicInitiateChoice, 'wizard:intelligence')).toEqual({
@@ -71,5 +71,14 @@ describe('Projeção genérica dos efeitos reais de magias', () => {
         magicInitiateListConstraint: null,
       })
     ).toEqual([]);
+  });
+});
+
+describe('Cobertura dos efeitos estruturados do catálogo real', () => {
+  it('reconhece exatamente todos os campos presentes em Feat.effects', async () => {
+    const { effectFields } = await import('../src/rules/effects.js');
+    const fields = [...new Set(feats.flatMap((feat) => Object.keys(feat.effects ?? {})))].sort();
+    expect(fields).toEqual([...effectFields].sort());
+    expect(feats.filter((feat) => feat.effects?.abilityBoosts?.length)).toHaveLength(132);
   });
 });

@@ -1,8 +1,15 @@
 import type Database from 'better-sqlite3';
 import type { ContentItem, Feat } from '@freshmag/one-dndb';
 import { coreEntryKey, entryBenefits } from './multiclass-progression.js';
+import { EffectEngine } from './effects.js';
 import type { Finding } from './validation.js';
-const fields = ['skillChoices', 'expertise', 'toolChoices', 'languageChoices'] as const;
+const fields = [
+  'skillChoices',
+  'expertise',
+  'toolChoices',
+  'languageChoices',
+  'featChoices',
+] as const;
 type Field = (typeof fields)[number];
 export interface Grant {
   id: number;
@@ -38,6 +45,7 @@ interface Selection {
   tier: string | null;
   is_always: number | null;
   local_id: number;
+  category?: string;
 }
 export class BenefitAudit {
   constructor(private db: Database.Database) {}
@@ -150,6 +158,13 @@ export class BenefitAudit {
           .all(id) as Selection[])
       );
     }
+    result.push(
+      ...(this.db
+        .prepare(
+          "SELECT a.id,a.grant_id,a.choice_key,a.selection_kind,NULL AS rank,'feat' AS kind,e.name,e.slug,NULL AS group_slug,NULL AS tier,NULL AS is_always,l.id AS local_id,l.category FROM character_ability a JOIN lib_feat l ON l.id=a.lib_feat_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE a.character_id=?"
+        )
+        .all(id) as Selection[])
+    );
     return result;
   }
   inspect(id: number) {
@@ -167,6 +182,9 @@ export class BenefitAudit {
         scope: string;
       }> = [];
     const sources = new Map(grants.map((g) => [g.id, this.source(id, g)]));
+    const fixedSkills = new Set(
+      new EffectEngine(this.db).sources(id).flatMap((s) => s.data.skillsFixed ?? [])
+    );
     const processed = new Set<string>();
     for (const grant of grants) {
       const source = sources.get(grant.id);
@@ -232,17 +250,19 @@ export class BenefitAudit {
             if (field === 'skillChoices' || field === 'expertise') {
               const rule = choice as NonNullable<ContentItem['skillChoices']>[number];
               allowed = s.kind === 'skill' && (!rule.from || rule.from.includes(s.name));
-              if (rule.upgrade) allowed = undefined;
+              const proficient =
+                fixedSkills.has(s.name) ||
+                selections.some(
+                  (other) =>
+                    other.kind === 'skill' &&
+                    other.id !== s.id &&
+                    other.local_id === s.local_id &&
+                    other.rank === 1
+                );
+              if (rule.upgrade) allowed = allowed && s.rank === (proficient ? 2 : 1);
               else if (field === 'expertise') {
                 allowed = allowed && s.rank === 2;
-                if (
-                  allowed &&
-                  !selections.some(
-                    (other) =>
-                      other.kind === 'skill' && other.local_id === s.local_id && other.rank === 1
-                  )
-                )
-                  allowed = undefined;
+                allowed = allowed && proficient;
               } else allowed = allowed && s.rank === 1;
             } else if (field === 'toolChoices') {
               const rule = choice as NonNullable<ContentItem['toolChoices']>[number];
@@ -251,6 +271,13 @@ export class BenefitAudit {
                 s.rank === 1 &&
                 ((s.kind === 'skill' && rule.skills === true) ||
                   (s.kind === 'tool' && (!groups || groups.includes(s.group_slug ?? ''))));
+            } else if (field === 'featChoices') {
+              const rule = choice as NonNullable<ContentItem['featChoices']>[number];
+              allowed =
+                s.kind === 'feat' &&
+                (!rule.category ||
+                  s.category === rule.category ||
+                  !!rule.include?.includes(s.slug));
             } else {
               const rule = choice as NonNullable<ContentItem['languageChoices']>[number];
               allowed =
@@ -282,13 +309,17 @@ export class BenefitAudit {
           });
       } else {
         const fixed =
-          s.kind === 'skill'
-            ? s.rank === 2
-              ? source?.data.expertiseFixed
-              : source?.data.skillsFixed
-            : s.kind === 'tool'
-              ? source?.data.toolsFixed
-              : source?.data.languagesFixed;
+          s.kind === 'feat'
+            ? source?.data.featsFixed
+                ?.filter((f) => source.level >= (f.level ?? 1))
+                .map((f) => f.id)
+            : s.kind === 'skill'
+              ? s.rank === 2
+                ? source?.data.expertiseFixed
+                : source?.data.skillsFixed
+              : s.kind === 'tool'
+                ? source?.data.toolsFixed
+                : source?.data.languagesFixed;
         findings.push({
           code: 'BENEFIT_FIXED_SOURCE',
           state:

@@ -211,3 +211,7 @@ SELECT name,total_level FROM character_summary;
 
 -- Migração 0005: magias legadas deste exemplo mantêm choice_instance_id e nested_choice_key nulos.
 -- Exemplos de atribuição explícita de magia são executados na suíte HTTP e documentados em magias-escolhas-aninhadas.md.
+
+-- Migração 0006: atributos do exemplo permanecem base; nenhum bônus é presumido.
+-- A distribuição de bônus exige concessão e regra reais do catálogo via endpoint de efeitos.
+-- Consulte character_effective_attributes depois de migrar para a versão 6.

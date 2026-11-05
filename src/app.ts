@@ -15,6 +15,7 @@ import { AppError } from './errors.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './characters/routes.js';
 import { catalogRoutes } from './catalog/routes.js';
+import { effectsRoutes } from './rules/effects-routes.js';
 import { choiceRoutes } from './choices/routes.js';
 import { validationRoutes } from './rules/routes.js';
 import { spellRoutes } from './spells/routes.js';
@@ -61,7 +62,7 @@ export async function buildApp(options: AppOptions) {
     await app.register(cors, {
       origin: (origin, callback) => callback(null, origin === config.origin),
       credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['content-type'],
     });
     await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
@@ -105,6 +106,7 @@ export async function buildApp(options: AppOptions) {
     spellRoutes(app, db, auth);
     validationRoutes(app, db, auth);
     choiceRoutes(app, db, auth);
+    effectsRoutes(app, db, auth);
     app.get('/health', () => {
       let current: number;
       try {

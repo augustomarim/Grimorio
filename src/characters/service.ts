@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { User } from '../auth/service.js';
 import { Reconciliation } from './reconciliation.js';
+import { attributeState, invalidBoosts, assertNoNewInvalidBoosts } from '../rules/attributes.js';
 import { AppError } from '../errors.js';
 export interface ClassChoice {
   classId: number;
@@ -17,6 +18,7 @@ export interface CharacterInput {
   name?: string;
   systemCode?: 'dnd-2024';
   portrait?: string | null;
+  campaignSetting?: string | null;
   attributes?: {
     strength: number;
     dexterity: number;
@@ -209,6 +211,10 @@ export class CharacterService {
             input.alignmentId ?? null,
             revision.id
           );
+        if (input.campaignSetting !== undefined)
+          this.db
+            .prepare('UPDATE dnd_character SET campaign_setting=? WHERE character_id=?')
+            .run(input.campaignSetting, id);
         this.saveClasses(id, input.classes!, levels);
         this.narrative(id, input.narrative);
         this.audit(user, 'character.create', id);
@@ -234,6 +240,7 @@ export class CharacterService {
     this.db
       .transaction(() => {
         this.requireOwner(id, user);
+        const oldInvalidBoosts = invalidBoosts(this.db, id);
         const time = new Date().toISOString();
         if (input.classes) {
           if (!input.progression && input.classes.reduce((n, c) => n + c.level, 0) > 1)
@@ -269,6 +276,11 @@ export class CharacterService {
             }
           }
         }
+        if (input.campaignSetting !== undefined)
+          this.db
+            .prepare('UPDATE dnd_character SET campaign_setting=? WHERE character_id=?')
+            .run(input.campaignSetting, id);
+        if (input.attributes) assertNoNewInvalidBoosts(this.db, id, oldInvalidBoosts);
         if (input.name !== undefined)
           this.db.prepare('UPDATE character SET name=? WHERE id=?').run(input.name, id);
         if (input.portrait !== undefined)
@@ -308,6 +320,7 @@ export class CharacterService {
     return {
       ...sheet,
       ...safeCore,
+      baseAttributes: attributeState(this.db, id).base,
       classes: this.db
         .prepare(
           'SELECT cc.*,e.name,sc.name AS subclass_name FROM character_class cc JOIN lib_class cl ON cl.id=cc.class_id JOIN catalog_entry e ON e.id=cl.catalog_entry_id LEFT JOIN lib_subclass sub ON sub.id=cc.subclass_id LEFT JOIN catalog_entry sc ON sc.id=sub.catalog_entry_id WHERE cc.character_id=? ORDER BY cc.is_initial_class DESC,cc.id'

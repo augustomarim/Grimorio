@@ -11,6 +11,9 @@ const properties = {
   name: { type: 'string', minLength: 1, maxLength: 100, pattern: '\\S' },
   systemCode: { type: 'string', const: 'dnd-2024' },
   portrait: { type: ['string', 'null'], maxLength: 2048 },
+  campaignSetting: {
+    anyOf: [{ type: 'string', minLength: 1, maxLength: 100, pattern: '\\S' }, { type: 'null' }],
+  },
   attributes: {
     type: 'object',
     additionalProperties: false,

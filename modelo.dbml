@@ -540,6 +540,7 @@ Table rpg_system {
 }
 
 Table dnd_character {
+  campaign_setting text [note: 'Opcional; contexto informado de campanha, 1–100 caracteres. Não valida regras textuais do cenário.']
   character_id integer [pk, note: 'character_id INTEGER PRIMARY KEY REFERENCES character(id) ON DELETE CASCADE']
   system_id integer [not null, note: 'system_id INTEGER NOT NULL']
   system_code text [not null, note: 'system_code TEXT NOT NULL DEFAULT \'dnd-2024\' CHECK (system_code = \'dnd-2024\')']
@@ -706,3 +707,21 @@ Table character_choice {
 Ref: character_choice.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
 
 Ref: character_spell.(character_id, choice_instance_id) > character_choice.(character_id, id) [delete: cascade]
+
+
+Table character_ability_boost {
+ id integer [pk, increment]
+ character_id integer [not null]
+ grant_id integer [not null]
+ rule_id text [not null, note: 'Id da regra abilityBoosts no catálogo; 1–200 caracteres']
+ ability text [not null, note: 'strength, dexterity, constitution, intelligence, wisdom ou charisma']
+ amount integer [not null, note: '1–30; orçamento e distribuição validados pelo serviço']
+ indexes {
+  (grant_id,rule_id,ability) [unique]
+  (character_id,grant_id)
+ }
+}
+Ref: character_ability_boost.(character_id,grant_id) > character_rule_grant.(character_id,id) [delete: cascade]
+// Views adicionais: character_rule_source, character_ability_boost_application,
+// character_effective_attributes. character_summary expõe atributos efetivos;
+// dnd_character preserva a base. character_hp_base usa Constituição efetiva.

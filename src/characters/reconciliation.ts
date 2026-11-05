@@ -21,6 +21,7 @@ const tables = [
   'character_level_entry',
   'character_hit_point_bonus',
   'character_choice',
+  'character_ability_boost',
 ] as const;
 type Row = Record<string, unknown>;
 function stable(value: unknown): string {

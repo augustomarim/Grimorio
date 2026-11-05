@@ -1,3 +1,5 @@
+> Atualização vigente — efeitos estruturados: schema 6, base e bônus separados, projeção dos 13 campos de Feat.effects, escolhas estritas e pré-requisitos sem autovalidação por bônus. Consulte [efeitos-regras-consolidados.md](efeitos-regras-consolidados.md). Os incrementos descritos abaixo são históricos; texto de combate e condições de mesa não são executados automaticamente.
+
 # Auditoria preliminar de regras: multiclasse e conjuração
 
 Escopo: análise estática do modelo atual e inspeção executada dos dados reais de @freshmag/one-dndb 0.5.1. Esta etapa não é uma comparação com livros oficiais e não constitui validação normativa completa. SQL, DBML e exemplos não foram alterados.
@@ -53,7 +55,3 @@ Atualização de arquitetura: a revisão estatística de magias permanece válid
 ## Fechamento estrutural posterior
 
 A correção de origens dos exemplos e o plano de implementação estão em fechamento-modelagem-v1.md. A tentativa de consultar o SRD oficial falhou por bloqueio do proxy e o rascunho não pôde ser editado. A conferência normativa não foi concluída; isso limita o validador de regras, não contas/catálogo/persistência.
-
-## Conferência normativa posterior dos atributos
-
-Os pré-requisitos de atributos para multiclasse das 12 classes básicas foram conferidos nas regras gratuitas e no SRD 5.2 oficiais e implementados na auditoria do estado atual. Ver [multiclasse-2024.md](multiclasse-2024.md) para fontes, tabela, testes e limites. As observações acima registram a etapa preliminar; benefícios de entrada e conjuração completa continuam pendentes.

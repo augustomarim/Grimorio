@@ -2,8 +2,14 @@ import type Database from 'better-sqlite3';
 import type { User } from '../auth/service.js';
 import { Reconciliation } from '../characters/reconciliation.js';
 import { CharacterService } from '../characters/service.js';
+import { EffectEngine } from '../rules/effects.js';
+import { ValidationService } from '../rules/validation.js';
 import { BenefitAudit, type Grant } from '../rules/benefits.js';
-import { sourceChoices, featSpellEffectsChoice } from '../rules/source-choices.js';
+import {
+  sourceChoices,
+  featSpellEffectsChoice,
+  sourceSpellEffectsChoice,
+} from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 import { sources } from '../catalog/routes.js';
 
@@ -113,20 +119,29 @@ export class BenefitService {
           );
         const grantId = Number(result.lastInsertRowid);
         let spellChoiceInstanceId: number | undefined;
-        if (input.originKind === 'feat') {
+        {
           const grant = this.db
             .prepare('SELECT * FROM character_rule_grant WHERE character_id=? AND id=?')
             .get(id, grantId) as Grant;
           const source = new BenefitAudit(this.db).source(id, grant);
-          if (
+          const group =
             source &&
-            sourceChoices(source).some((choice) => choice.id === featSpellEffectsChoice)
-          ) {
-            const existing = this.db
-              .prepare(
-                "SELECT c.id FROM character_choice c JOIN character_rule_grant g ON g.id=c.grant_id AND g.character_id=c.character_id WHERE c.character_id=? AND g.origin_kind='feat' AND g.origin_character_ability_id=? AND c.choice_id=? LIMIT 1"
-              )
-              .get(id, input.originId, featSpellEffectsChoice) as { id: number } | undefined;
+            sourceChoices(source).find((choice) =>
+              [featSpellEffectsChoice, sourceSpellEffectsChoice].includes(choice.id)
+            );
+          if (source && group) {
+            const existing = (
+              this.db
+                .prepare(
+                  'SELECT c.id,c.grant_id FROM character_choice c WHERE c.character_id=? AND c.choice_id=?'
+                )
+                .all(id, group.id) as { id: number; grant_id: number }[]
+            ).find((c) => {
+              const g = this.db
+                .prepare('SELECT * FROM character_rule_grant WHERE id=? AND character_id=?')
+                .get(c.grant_id, id) as Grant;
+              return new BenefitAudit(this.db).source(id, g)?.identity === source.identity;
+            });
             spellChoiceInstanceId =
               existing?.id ??
               Number(
@@ -134,7 +149,7 @@ export class BenefitService {
                   .prepare(
                     'INSERT INTO character_choice(character_id,grant_id,choice_id,option_id) VALUES(?,?,?,?)'
                   )
-                  .run(id, grantId, featSpellEffectsChoice, 'catalog').lastInsertRowid
+                  .run(id, grantId, group.id, 'catalog').lastInsertRowid
               );
           }
         }
@@ -146,7 +161,7 @@ export class BenefitService {
       })
       .immediate();
   }
-  add(id: number, user: User, input: BenefitInput) {
+  add(id: number, user: User, input: BenefitInput, strict = false) {
     return this.db
       .transaction(() => {
         this.characters.requireOwner(id, user);
@@ -184,6 +199,80 @@ export class BenefitService {
             'INVALID_RANK',
             'Graduação 1 ou 2 apenas para ferramentas e perícias'
           );
+        const inspector = new BenefitAudit(this.db),
+          effects = new EffectEngine(this.db);
+        const signature = (f: unknown) => JSON.stringify(f);
+        const beforeFailures = strict
+          ? new Set(
+              [...inspector.inspect(id).findings, ...effects.audit(id)]
+                .filter((f) => f.state === 'fail')
+                .map(signature)
+            )
+          : new Set<string>();
+        if (strict) {
+          const grant = this.db
+            .prepare('SELECT * FROM character_rule_grant WHERE character_id=? AND id=?')
+            .get(id, input.grantId) as Grant;
+          const source = inspector.source(id, grant)!;
+          if (
+            input.selectionKind === 'chosen' &&
+            !inspector
+              .inspect(id)
+              .options.some((o) => o.grantId === input.grantId && o.choiceKey === input.choiceKey)
+          )
+            throw new AppError(
+              409,
+              'RULE_UNIDENTIFIED',
+              'Use uma chave de escolha retornada pelo catálogo de efeitos'
+            );
+          if (
+            input.selectionKind === 'fixed' &&
+            input.kind === 'tool' &&
+            input.proficiencyRank !== 1
+          )
+            throw new AppError(
+              400,
+              'EFFECT_NOT_GRANTED',
+              'Ferramenta fixa concede proficiência simples'
+            );
+          if (input.selectionKind === 'fixed') {
+            const row = this.db
+              .prepare(
+                `SELECT e.slug,e.name FROM lib_${input.kind} l JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE l.id=?`
+              )
+              .get(input.localId) as { slug: string; name: string };
+            const fixed =
+              input.kind === 'feat'
+                ? source.data.featsFixed
+                    ?.filter((r) => source.level >= (r.level ?? 1))
+                    .map((r) => r.id)
+                : input.kind === 'skill'
+                  ? input.proficiencyRank === 2
+                    ? source.data.expertiseFixed
+                    : source.data.skillsFixed
+                  : input.kind === 'tool'
+                    ? source.data.toolsFixed
+                    : source.data.languagesFixed;
+            if (!fixed?.includes(input.kind === 'skill' ? row.name : row.slug))
+              throw new AppError(
+                400,
+                'EFFECT_NOT_GRANTED',
+                'Benefício fixo não concedido pela origem'
+              );
+          }
+          if (input.kind === 'feat') {
+            const feat = this.db
+              .prepare('SELECT data FROM lib_feat WHERE id=?')
+              .get(input.localId) as { data: string };
+            if (
+              JSON.parse(feat.data).repeatable !== true &&
+              this.db
+                .prepare('SELECT 1 FROM character_ability WHERE character_id=? AND lib_feat_id=?')
+                .get(id, input.localId)
+            )
+              throw new AppError(400, 'FEAT_NOT_REPEATABLE', 'Talento não repetível já registrado');
+          }
+        }
         let result;
         if (input.kind === 'skill')
           result = this.db
@@ -213,6 +302,34 @@ export class BenefitService {
               input.localId,
               input.proficiencyRank ?? null
             );
+        if (strict) {
+          const errors = [...inspector.inspect(id).findings, ...effects.audit(id)].filter(
+            (f) => f.state === 'fail' && !beforeFailures.has(signature(f))
+          );
+          const ambiguous = inspector
+            .inspect(id)
+            .findings.find(
+              (f) =>
+                f.state === 'unknown' &&
+                f.entityId === Number(result.lastInsertRowid) &&
+                (f.evidence as { kind?: string } | undefined)?.kind === input.kind
+            );
+          if (ambiguous) throw new AppError(409, 'RULE_UNIDENTIFIED', ambiguous.message);
+          if (errors.length) throw new AppError(400, 'EFFECT_RULE_VIOLATION', errors[0]!.message);
+          if (input.kind === 'feat') {
+            const report = new ValidationService(this.db).report(id, user);
+            const prerequisite = report.findings.find(
+              (f) =>
+                f.code === 'FEAT_PREREQUISITES' && f.entityId === Number(result.lastInsertRowid)
+            );
+            if (prerequisite?.state !== 'pass')
+              throw new AppError(
+                prerequisite?.state === 'fail' ? 400 : 409,
+                'FEAT_PREREQUISITES',
+                'Pré-requisitos do talento não atendidos ou ainda inconclusivos'
+              );
+          }
+        }
         this.saved(id, user, 'benefit.add');
         return { id: Number(result.lastInsertRowid), kind: input.kind };
       })

@@ -1,3 +1,5 @@
+> Atualização vigente — efeitos estruturados: schema 6, base e bônus separados, projeção dos 13 campos de Feat.effects, escolhas estritas e pré-requisitos sem autovalidação por bônus. Consulte [efeitos-regras-consolidados.md](efeitos-regras-consolidados.md). Os incrementos descritos abaixo são históricos; texto de combate e condições de mesa não são executados automaticamente.
+
 > Efeitos de magia: projeção genérica dos campos estruturados de 52 talentos e política de Magic Initiate, com exclusão confirmada de benefícios dependentes. Isso não certifica os efeitos completos de todos os talentos; ver motor-efeitos-magias.md.
 
 > Magic Initiate: configuração compartilhada de lista/atributo, repetição por lista e vínculo de legados implementados. Outros efeitos de talentos permanecem pendentes; ver magic-initiate-backend.md.

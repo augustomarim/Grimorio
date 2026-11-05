@@ -1,6 +1,7 @@
 import type { ContentItem, ItemChoice } from '@freshmag/one-dndb';
 export const magicInitiateChoice = 'app:magic-initiate';
 export const featSpellEffectsChoice = 'app:feat-spells';
+export const sourceSpellEffectsChoice = 'app:source-spells';
 const lists = ['cleric', 'druid', 'wizard'] as const;
 const abilities = ['intelligence', 'wisdom', 'charisma'] as const;
 interface Source {
@@ -19,7 +20,6 @@ export function magicConfiguration(choiceId: string, optionId: string) {
 // SRD 5.2 p. 87: one shared list and casting ability for this occurrence of Magic Initiate.
 export function sourceChoices(source: Source): ItemChoice[] {
   const existing = source.data.choices ?? [];
-  if (!source.featSlug) return existing;
   if (source.featSlug !== 'magic-initiate') {
     const spellChoices = source.data.spellChoices ?? [],
       spellsFixed = source.data.spellsFixed ?? [];
@@ -27,8 +27,8 @@ export function sourceChoices(source: Source): ItemChoice[] {
     return [
       ...existing,
       {
-        id: featSpellEffectsChoice,
-        name: 'Spells granted by feat',
+        id: source.featSlug ? featSpellEffectsChoice : sourceSpellEffectsChoice,
+        name: 'Spells granted by source',
         pick: 1,
         options: [{ id: 'catalog', name: 'Catalog spell effects', spellChoices, spellsFixed }],
       },

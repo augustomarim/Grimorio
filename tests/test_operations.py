@@ -27,9 +27,9 @@ class OperationsTest(unittest.TestCase):
     def test_baseline_snapshot_equals_numbered_migration(self):
         other = sqlite3.connect(self.path / 'migrated.db')
         try:
-            self.assertEqual(migrate(other, self.migrations), [1, 2, 3, 4, 5])
+            self.assertEqual(migrate(other, self.migrations), [1, 2, 3, 4, 5, 6])
             self.assertEqual(migrate(other, self.migrations), [])
-            self.assertEqual(other.execute('PRAGMA user_version').fetchone(), (5,))
+            self.assertEqual(other.execute('PRAGMA user_version').fetchone(), (6,))
             self.assertEqual(snapshot(self.db)[0], snapshot(other)[0])
             record = other.execute('SELECT version,name,checksum_sha256 FROM schema_migration WHERE version=1').fetchone()
             initial = self.migrations / '0001_initial.sql'
@@ -43,17 +43,36 @@ class OperationsTest(unittest.TestCase):
         finally:
             other.close()
 
+    def test_effects_migration_preserves_existing_base_and_does_not_guess_bonuses(self):
+        legacy = self.path / 'legacy_migrations'
+        legacy.mkdir()
+        for version in range(1, 6):
+            source = next(self.migrations.glob(f'{version:04d}_*.sql'))
+            shutil.copy(source, legacy / source.name)
+        other = sqlite3.connect(self.path / 'v5.db')
+        try:
+            migrate(other, legacy)
+            other.executescript((ROOT / 'sample-data.sql').read_text().split('-- Migração 0006:')[0])
+            before = other.execute('SELECT character_id,strength,dexterity,constitution,intelligence,wisdom,charisma FROM dnd_character ORDER BY character_id').fetchall()
+            self.assertEqual(migrate(other, self.migrations), [6])
+            after = other.execute('SELECT character_id,strength,dexterity,constitution,intelligence,wisdom,charisma FROM character_effective_attributes ORDER BY character_id').fetchall()
+            self.assertEqual(before, after)
+            self.assertEqual(other.execute('SELECT count(*) FROM character_ability_boost').fetchone(), (0,))
+            validate(other)
+        finally:
+            other.close()
+
     def test_successful_migration_records_and_preserves_data(self):
-        (self.migrations / '0006_test_only.sql').write_text('CREATE TABLE operational_test(id INTEGER PRIMARY KEY, note TEXT) STRICT;\n')
+        (self.migrations / '0007_test_only.sql').write_text('CREATE TABLE operational_test(id INTEGER PRIMARY KEY, note TEXT) STRICT;\n')
         before = self.db.execute('SELECT name,total_level FROM character_summary ORDER BY id').fetchall()
-        self.assertEqual(migrate(self.db, self.migrations), [6])
+        self.assertEqual(migrate(self.db, self.migrations), [7])
         self.assertEqual(migrate(self.db, self.migrations), [])
-        self.assertEqual(check_history(self.db, self.migrations)[0], 6)
+        self.assertEqual(check_history(self.db, self.migrations)[0], 7)
         self.assertEqual(self.db.execute('SELECT name,total_level FROM character_summary ORDER BY id').fetchall(), before)
-        self.assertEqual(self.db.execute('SELECT count(*) FROM schema_migration').fetchone(), (6,))
+        self.assertEqual(self.db.execute('SELECT count(*) FROM schema_migration').fetchone(), (7,))
 
     def test_failed_migration_rolls_back_ddl_and_history(self):
-        (self.migrations / '0006_failure_test.sql').write_text('CREATE TABLE must_disappear(id INTEGER PRIMARY KEY);\nINSERT INTO nonexistent_table VALUES(1);\n')
+        (self.migrations / '0007_failure_test.sql').write_text('CREATE TABLE must_disappear(id INTEGER PRIMARY KEY);\nINSERT INTO nonexistent_table VALUES(1);\n')
         before = snapshot(self.db)
         with self.assertRaises(sqlite3.OperationalError):
             migrate(self.db, self.migrations)
@@ -61,7 +80,7 @@ class OperationsTest(unittest.TestCase):
         self.assertEqual(self.db.execute("SELECT name FROM sqlite_master WHERE name='must_disappear'").fetchall(), [])
 
     def test_migration_cannot_commit_outside_its_contract(self):
-        (self.migrations / '0006_bad_transaction.sql').write_text('CREATE TABLE must_disappear(id INTEGER);\nCOMMIT;\n')
+        (self.migrations / '0007_bad_transaction.sql').write_text('CREATE TABLE must_disappear(id INTEGER);\nCOMMIT;\n')
         before = snapshot(self.db)
         with self.assertRaisesRegex(ValueError, 'Controle transacional'):
             migrate(self.db, self.migrations)
@@ -80,7 +99,7 @@ class OperationsTest(unittest.TestCase):
             before = old.execute('SELECT * FROM character_spell ORDER BY id').fetchall()
             old.execute("UPDATE sqlite_sequence SET seq=10000 WHERE name='character_spell'")
             old.commit()
-            self.assertEqual(migrate(old, ROOT / 'migrations'), [5])
+            self.assertEqual(migrate(old, ROOT / 'migrations'), [5,6])
             self.assertEqual(old.execute('SELECT ' + ','.join(columns) + ' FROM character_spell ORDER BY id').fetchall(), before)
             self.assertEqual(old.execute('SELECT count(*) FROM character_spell WHERE choice_instance_id IS NOT NULL OR nested_choice_key IS NOT NULL').fetchone(), (0,))
             self.assertEqual(old.execute("SELECT seq FROM sqlite_sequence WHERE name='character_spell'").fetchone(), (10000,))
@@ -93,13 +112,13 @@ class OperationsTest(unittest.TestCase):
         initial.write_text(initial.read_text() + '\n-- alteração indevida de teste\n')
         with self.assertRaisesRegex(ValueError, 'modificada'):
             migrate(self.db, self.migrations)
-        self.assertEqual(self.db.execute('PRAGMA user_version').fetchone(), (5,))
+        self.assertEqual(self.db.execute('PRAGMA user_version').fetchone(), (6,))
 
     def test_gap_and_unmanaged_database_rejected(self):
-        (self.migrations / '0007_gap_test.sql').write_text('SELECT 1;\n')
+        (self.migrations / '0008_gap_test.sql').write_text('SELECT 1;\n')
         with self.assertRaisesRegex(ValueError, 'Sequência'):
             migrate(self.db, self.migrations)
-        (self.migrations / '0007_gap_test.sql').unlink()
+        (self.migrations / '0008_gap_test.sql').unlink()
         unmanaged = sqlite3.connect(self.path / 'unmanaged.db')
         try:
             unmanaged.execute('CREATE TABLE old_data(id INTEGER)')

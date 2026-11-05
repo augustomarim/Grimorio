@@ -725,7 +725,7 @@ Definições físicas por coluna; constraints adicionais reproduzidas de schema.
 
 ## Semântica complementar
 
-character é a identidade comum; dnd_character contém os atributos D&D e é a raiz das FKs mecânicas. As seis views continuam de D&D; a galeria comum não presume nível/atributos. catalog_entry é a origem canônica dos metadados, com relações bibliográficas em catalog_entry_source. As presenças inversas de perfil/detalhe são verificadas no serviço.
+character é a identidade comum; dnd_character contém os atributos D&D e é a raiz das FKs mecânicas. As nove views continuam de D&D; a galeria comum não presume nível/atributos. catalog_entry é a origem canônica dos metadados, com relações bibliográficas em catalog_entry_source. As presenças inversas de perfil/detalhe são verificadas no serviço.
 
 publication_blocked_at registra bloqueio de publicação pela administração. Mesmo is_public=1 não autoriza exibição quando há bloqueio, dono inativo ou e-mail não confirmado. Permissões são regras de serviço, não um efeito automático de consultar character.
 
@@ -766,3 +766,31 @@ choice_id também admite a projeção local app:magic-initiate e option_id a con
 ## Projeção genérica dos efeitos de magia
 
 character_choice admite choice_id=app:feat-spells e option_id=catalog para o vínculo técnico de efeitos diretos de talentos. O esquema físico permanece na versão 5. A resposta de criação da concessão informa spellChoiceInstanceId, que é o id de character_choice. Ver motor-efeitos-magias.md.
+
+
+## Evolução 0006 — atributos e efeitos
+
+`dnd_character.campaign_setting`: TEXT opcional, CHECK nulo ou comprimento após trim entre 1 e 100. Contexto de cenário informado pelo usuário; comparação com o campo estruturado `prereq` do catálogo. Os seis atributos em dnd_character são valores **base**.
+
+### character_ability_boost
+
+| Coluna | Definição |
+|---|---|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT |
+| character_id | INTEGER NOT NULL; personagem da concessão |
+| grant_id | INTEGER NOT NULL; concessão da origem |
+| rule_id | TEXT NOT NULL; id de abilityBoosts, 1–200 caracteres após trim |
+| ability | TEXT NOT NULL; enum dos seis nomes completos em inglês |
+| amount | INTEGER NOT NULL; 1–30 |
+
+FK composta (character_id, grant_id) → character_rule_grant(character_id, id), CASCADE. UNIQUE(grant_id, rule_id, ability). Índice (character_id, grant_id). Orçamento, atributos permitidos e limite por atributo são conferidos no serviço contra o JSON original. Não são dados JSON adicionais persistidos.
+
+### Views da evolução
+
+- character_rule_source: grant_id, character_id e source_data; resolve a origem atual da concessão.
+- character_ability_boost_application: character_id, ability, sequence_no, score, boost_id e applied_points. Aplica bônus por nível de aquisição, concessão, regra e id, respeitando o teto de cada regra e preservando bases acima do teto.
+- character_effective_attributes: character_id e os seis atributos efetivos. Sem registro de bônus, coincide com a base.
+- character_summary: atributos agora efetivos e campaign_setting; total_level continua SUM dos níveis das classes.
+- character_hp_base: usa Constituição efetiva; o histórico de níveis continua necessário para PV completos.
+
+Estado físico atual: 51 tabelas de domínio/infraestrutura (exclui sqlite_sequence) e 9 views. `schema.sql` contém o DDL executável e todas as restrições.

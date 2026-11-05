@@ -1,3 +1,5 @@
+> Atualização vigente — efeitos estruturados: schema 6, base e bônus separados, projeção dos 13 campos de Feat.effects, escolhas estritas e pré-requisitos sem autovalidação por bônus. Consulte [efeitos-regras-consolidados.md](efeitos-regras-consolidados.md). Os incrementos descritos abaixo são históricos; texto de combate e condições de mesa não são executados automaticamente.
+
 # Auditoria de regras do catálogo
 
 GET `/characters/:id/validation` inspeciona a ficha salva, sem alterar seus dados. Usa o catálogo local SQLite, sem Dexie ou chamadas externas em tempo de execução. A leitura ocorre em uma transação para produzir um retrato consistente. As permissões são as mesmas da ficha: dono, administrador ou público elegível.
