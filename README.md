@@ -1,6 +1,6 @@
 # Grimorio — backend v0.1
 
-API em **Node.js 24, TypeScript, Fastify e SQLite**, sem frontend. O primeiro incremento implementa autenticação, catálogo e CRUD básico de fichas D&D. As migrações SQL e os artefatos da modelagem permanecem versionados.
+API em **Node.js 24, TypeScript, Fastify e SQLite**, sem frontend. O primeiro incremento implementa autenticação, catálogo e CRUD básico de fichas D&D. As migrações SQL e os artefatos da modelagem permanecem versionados..
 
 ## O que já funciona
 
