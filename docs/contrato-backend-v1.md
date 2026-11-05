@@ -1,3 +1,5 @@
+> Preparação de produção vigente: SMTP com TLS, proxy explícito, Docker/Compose, volume SQLite persistente e CLI de backup/restauração. Consulte [hospedagem do backend](hospedagem-backend.md). Não publicado; DNS/HTTPS do domínio e entrega SMTP real ainda dependem da homologação. Schema permanece 6. As descrições anteriores de produção futura abaixo são históricas.
+
 # Plano de implementação do backend v1
 
 Plano concreto para começar a programação sem frontend e sem construir um motor universal. A escolha técnica recomendada segue a conversa: Node.js LTS, TypeScript, Fastify e SQLite com driver verificado. O plano começou a ser implementado no backend v0.1; confira estado-backend.md para distinguir as partes entregues das futuras. Licenças, compatibilidade do driver e instalação devem ser confirmadas no início da implementação.

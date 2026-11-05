@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "schemaVersion": 6,
+  "vitest": 153,
+  "python": 43,
+  "http": 76,
+  "typecheck": "passed",
+  "build": "passed",
+  "format": "passed",
+  "docker": {
+    "status": "passed",
+    "checks": [
+      "empty catalog is not ready",
+      "catalog imported and healthy",
+      "non-root runtime",
+      "volume survives container restart",
+      "backup verifies in runtime image",
+      "restore verifies in runtime image",
+      "no dotenv in image"
+    ]
+  },
+  "compose": "valid",
+  "caddyfile": "valid",
+  "npmAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "notExecuted": [
+    "deployment to provider",
+    "DNS and public domain TLS issuance",
+    "real SMTP authentication/delivery",
+    "external backup upload or scheduling"
+  ]
+}

@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { resolve } from 'node:path';
 
 export interface Config {
@@ -7,7 +8,16 @@ export interface Config {
   databasePath: string;
   origin: string;
   authKey: string;
-  mailMode: 'disabled' | 'file';
+  mailMode: 'disabled' | 'file' | 'smtp';
+  trustedProxies?: string[];
+  smtp?: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    password: string;
+    from: string;
+  };
   mailDirectory: string;
 }
 export function loadConfig(env = process.env): Config {
@@ -31,9 +41,39 @@ export function loadConfig(env = process.env): Config {
   if (!env.AUTH_KEY || env.AUTH_KEY.length < 32)
     throw new Error('Configure AUTH_KEY aleatória com pelo menos 32 caracteres');
   const mailMode = env.MAIL_MODE ?? 'disabled';
-  if (!['disabled', 'file'].includes(mailMode)) throw new Error('MAIL_MODE inválido');
-  if (environment === 'production' && mailMode === 'file')
-    throw new Error('MAIL_MODE=file é exclusivo de desenvolvimento');
+  if (!['disabled', 'file', 'smtp'].includes(mailMode)) throw new Error('MAIL_MODE inválido');
+  if (environment === 'production' && mailMode !== 'smtp')
+    throw new Error('Produção exige MAIL_MODE=smtp');
+  const trustedProxies = (env.TRUSTED_PROXIES ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (trustedProxies.some((s) => !isIP(s)))
+    throw new Error('TRUSTED_PROXIES aceita somente IPs explícitos separados por vírgula');
+  let smtp: Config['smtp'];
+  if (mailMode === 'smtp') {
+    const smtpPort = Number(env.SMTP_PORT ?? 587);
+    if (
+      !env.SMTP_HOST ||
+      /[\s/]/.test(env.SMTP_HOST) ||
+      ![465, 587].includes(smtpPort) ||
+      !env.SMTP_USER ||
+      !env.SMTP_PASSWORD ||
+      !env.SMTP_FROM ||
+      !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(env.SMTP_FROM)
+    )
+      throw new Error(
+        'Configure SMTP_HOST, SMTP_PORT (465/587), SMTP_USER, SMTP_PASSWORD e SMTP_FROM'
+      );
+    smtp = {
+      host: env.SMTP_HOST,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      user: env.SMTP_USER,
+      password: env.SMTP_PASSWORD,
+      from: env.SMTP_FROM,
+    };
+  }
   return {
     environment: environment as Config['environment'],
     host: env.HOST ?? '127.0.0.1',
@@ -42,6 +82,8 @@ export function loadConfig(env = process.env): Config {
     origin: origin.origin,
     authKey: env.AUTH_KEY,
     mailMode: mailMode as Config['mailMode'],
+    trustedProxies,
+    ...(smtp ? { smtp } : {}),
     mailDirectory: resolve(env.MAIL_DIRECTORY ?? './data/mail'),
   };
 }

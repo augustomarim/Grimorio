@@ -1,3 +1,5 @@
+> Preparação de produção vigente: SMTP com TLS, proxy explícito, Docker/Compose, volume SQLite persistente e CLI de backup/restauração. Consulte [hospedagem do backend](hospedagem-backend.md). Não publicado; DNS/HTTPS do domínio e entrega SMTP real ainda dependem da homologação. Schema permanece 6. As descrições anteriores de produção futura abaixo são históricas.
+
 # Migrações, backup e restauração
 
 Escopo desta etapa: contrato operacional e validação real em SQLite local. Sem alterar regras de D&D, criar backend ou implantar rotinas externas. O modelo passa a **49 tabelas e 6 views**: schema_migration é o histórico técnico e refresh_token foi acrescentada pela etapa posterior de autenticação.

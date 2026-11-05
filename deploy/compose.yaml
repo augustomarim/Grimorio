@@ -1,0 +1,56 @@
+services:
+  api:
+    build:
+      context: ..
+    restart: unless-stopped
+    init: true
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      DATABASE_PATH: /data/grimorio.db
+      TRUSTED_PROXIES: 172.30.0.2
+    volumes:
+      - sqlite:/data
+      - backups:/backups
+    networks:
+      internal:
+        ipv4_address: 172.30.0.3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Configure API_DOMAIN}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      internal:
+        ipv4_address: 172.30.0.2
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  sqlite:
+  backups:
+  caddy_data:
+  caddy_config:
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

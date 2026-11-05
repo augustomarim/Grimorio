@@ -1,3 +1,5 @@
+> Preparação de produção vigente: SMTP com TLS, proxy explícito, Docker/Compose, volume SQLite persistente e CLI de backup/restauração. Consulte [hospedagem do backend](hospedagem-backend.md). Não publicado; DNS/HTTPS do domínio e entrega SMTP real ainda dependem da homologação. Schema permanece 6. As descrições anteriores de produção futura abaixo são históricas.
+
 > Cálculos derivados disponíveis em `GET /characters/:id/derived`: atributos, proficiência, perícias, testes de resistência, iniciativa, CA e PV modelados. Contrato e limites: [cálculos derivados](calculos-derivados-backend.md). Sem nova migração; schema 6.
 
 > Atualização vigente — efeitos estruturados: schema 6, base e bônus separados, projeção dos 13 campos de Feat.effects, escolhas estritas e pré-requisitos sem autovalidação por bônus. Consulte [efeitos-regras-consolidados.md](efeitos-regras-consolidados.md). Os incrementos descritos abaixo são históricos; texto de combate e condições de mesa não são executados automaticamente.

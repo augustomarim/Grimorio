@@ -10,3 +10,7 @@ coverage/
 *.db-shm
 __pycache__/
 *.pyc
+reports/
+# Credenciais da implantação
+/deploy/.env.production
+/backups/

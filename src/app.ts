@@ -6,7 +6,7 @@ import rateLimit from '@fastify/rate-limit';
 import type Database from 'better-sqlite3';
 import type { Config } from './config.js';
 import type { Mailer } from './auth/mail.js';
-import { DisabledMailer, FileMailer } from './auth/mail.js';
+import { DisabledMailer, FileMailer, SmtpMailer } from './auth/mail.js';
 import { hashPassword, token } from './auth/crypto.js';
 import { AuthService } from './auth/service.js';
 import { openDatabase } from './db/database.js';
@@ -48,7 +48,7 @@ export async function buildApp(options: AppOptions) {
         }
       : false,
     bodyLimit: 128 * 1024,
-    trustProxy: false,
+    trustProxy: config.trustedProxies?.length ? config.trustedProxies : false,
     ajv: { customOptions: { removeAdditional: false } },
     logController: new LogController({ disableRequestLogging: true }),
   });
@@ -78,7 +78,11 @@ export async function buildApp(options: AppOptions) {
     });
     const baseMailer =
       options.mailer ??
-      (config.mailMode === 'file' ? new FileMailer(config.mailDirectory) : new DisabledMailer());
+      (config.mailMode === 'smtp' && config.smtp
+        ? new SmtpMailer(config.smtp, config.origin)
+        : config.mailMode === 'file'
+          ? new FileMailer(config.mailDirectory)
+          : new DisabledMailer());
     const safeMailer: Mailer = {
       send: async (mail) => {
         try {
@@ -116,6 +120,15 @@ export async function buildApp(options: AppOptions) {
       }
       if (current !== schemaVersion)
         throw new AppError(503, 'SCHEMA_MISMATCH', 'Versão do banco incompatível');
+      const catalogEntries = (
+        db.prepare('SELECT count(*) count FROM catalog_entry').get() as { count: number }
+      ).count;
+      if (config.environment === 'production' && catalogEntries === 0)
+        throw new AppError(
+          503,
+          'CATALOG_NOT_LOADED',
+          'Carregue o catálogo antes de receber tráfego'
+        );
       return {
         status: 'ok',
         schemaVersion,
