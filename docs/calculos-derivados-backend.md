@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Cálculos derivados da ficha — D&D 2024
 
 `GET /characters/:id/derived` calcula os valores usando o estado persistido. Usa a mesma política de acesso da ficha (dono/admin, ou visitante quando pública e elegível). A leitura é uma transação consistente e não grava totais ou modificadores. O schema continua na versão 6; não há tabelas, colunas ou migrações adicionais nesta etapa.

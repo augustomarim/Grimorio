@@ -1,20 +1,32 @@
 import type { FastifyInstance } from 'fastify';
-import type Database from 'better-sqlite3';
+import type { Database } from '../db/database.js';
 import type { AuthService } from '../auth/service.js';
 import { ACCESS } from '../routes/auth.js';
 import { ChoiceService, type ChoiceInput } from './service.js';
-export function choiceRoutes(app: FastifyInstance, db: Database.Database, auth: AuthService) {
+export function choiceRoutes(app: FastifyInstance, db: Database, auth: AuthService) {
   const service = new ChoiceService(db),
     id = { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
     key = { type: 'string', minLength: 1, maxLength: 200, pattern: '\\S' },
     params = { type: 'object', additionalProperties: false, required: ['id'], properties: { id } };
-  app.get<{ Params: { id: number } }>('/characters/:id/choices', { schema: { params } }, (req) =>
-    service.list(
-      req.params.id,
-      req.cookies[ACCESS] ? auth.authenticate(req.cookies[ACCESS]) : undefined
-    )
+  app.get<{
+    Params: {
+      id: number;
+    };
+  }>(
+    '/characters/:id/choices',
+    { schema: { params } },
+    async (req) =>
+      await service.list(
+        req.params.id,
+        req.cookies[ACCESS] ? await auth.authenticate(req.cookies[ACCESS]) : undefined
+      )
   );
-  app.post<{ Params: { id: number }; Body: ChoiceInput }>(
+  app.post<{
+    Params: {
+      id: number;
+    };
+    Body: ChoiceInput;
+  }>(
     '/characters/:id/choices',
     {
       schema: {
@@ -27,12 +39,19 @@ export function choiceRoutes(app: FastifyInstance, db: Database.Database, auth: 
         },
       },
     },
-    (req, reply) =>
-      reply
+    async (req, reply) =>
+      await reply
         .code(201)
-        .send(service.add(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.body))
+        .send(
+          await service.add(req.params.id, await auth.authenticate(req.cookies[ACCESS]), req.body)
+        )
   );
-  app.post<{ Params: { id: number; instanceId: number } }>(
+  app.post<{
+    Params: {
+      id: number;
+      instanceId: number;
+    };
+  }>(
     '/characters/:id/choices/:instanceId/removal-preview',
     {
       schema: {
@@ -44,16 +63,21 @@ export function choiceRoutes(app: FastifyInstance, db: Database.Database, auth: 
         },
       },
     },
-    (req) =>
-      service.previewRemoval(
+    async (req) =>
+      await service.previewRemoval(
         req.params.id,
-        auth.authenticate(req.cookies[ACCESS]),
+        await auth.authenticate(req.cookies[ACCESS]),
         req.params.instanceId
       )
   );
   app.delete<{
-    Params: { id: number; instanceId: number };
-    Querystring: { confirmationToken?: string };
+    Params: {
+      id: number;
+      instanceId: number;
+    };
+    Querystring: {
+      confirmationToken?: string;
+    };
   }>(
     '/characters/:id/choices/:instanceId',
     {
@@ -71,14 +95,14 @@ export function choiceRoutes(app: FastifyInstance, db: Database.Database, auth: 
         },
       },
     },
-    (req, reply) => {
-      service.remove(
+    async (req, reply) => {
+      await service.remove(
         req.params.id,
-        auth.authenticate(req.cookies[ACCESS]),
+        await auth.authenticate(req.cookies[ACCESS]),
         req.params.instanceId,
         req.query.confirmationToken
       );
-      return reply.code(204).send();
+      return await reply.code(204).send();
     }
   );
 }

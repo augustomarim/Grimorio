@@ -8,10 +8,8 @@ services:
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      DATABASE_PATH: /data/grimorio.db
       TRUSTED_PROXIES: 172.30.0.2
     volumes:
-      - sqlite:/data
       - backups:/backups
     networks:
       internal:
@@ -45,7 +43,6 @@ services:
       api:
         condition: service_healthy
 volumes:
-  sqlite:
   backups:
   caddy_data:
   caddy_config:

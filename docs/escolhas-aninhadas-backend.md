@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 > Atualização: a associação explícita de magias e a exclusão confirmada estão implementadas na migração 0005. Ver magias-escolhas-aninhadas.md; as limitações abaixo registram a etapa anterior.
 
 # Escolhas aninhadas: registro e auditoria

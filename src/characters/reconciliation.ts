@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type Database from 'better-sqlite3';
+import type { Database } from '../db/database.js';
 import type { CharacterInput } from './service.js';
 import { AppError } from '../errors.js';
 const tables = [
@@ -35,8 +35,15 @@ function stable(value: unknown): string {
 interface Plan {
   confirmationToken: string;
   requiresConfirmation: boolean;
-  removals: { table: string; ids: number[]; count: number }[];
-  progressionReplacement: { before: number; after: number } | null;
+  removals: {
+    table: string;
+    ids: (number | string)[];
+    count: number;
+  }[];
+  progressionReplacement: {
+    before: number;
+    after: number;
+  } | null;
   policy: string;
 }
 class PreviewRollback extends Error {
@@ -46,31 +53,45 @@ class PreviewRollback extends Error {
 }
 export class Reconciliation {
   constructor(
-    private db: Database.Database,
-    private context?: { scope: string; root: { table: string; id: number }; previewPath?: string }
+    private db: Database,
+    private context?: {
+      scope: string;
+      root: {
+        table: string;
+        id: number;
+      };
+      previewPath?: string;
+    }
   ) {}
-  private snapshot(id: number) {
+  private async snapshot(id: number) {
     const result: Record<string, Row[]> = {};
     for (const table of tables) {
       const pk = table === 'character' ? 'id' : 'character_id';
-      result[table] = this.db
-        .prepare(`SELECT * FROM ${table} WHERE ${pk}=? ORDER BY rowid`)
-        .all(id) as Row[];
+      result[table] = (await this.db
+        .prepare(
+          `SELECT * FROM ${table} WHERE ${pk}=? ORDER BY ${table === 'dnd_character' || table === 'character_narrative' ? 'character_id' : 'id'}`
+        )
+        .all(id)) as Row[];
     }
-    result.character_weapon_training_property = this.db
+    result.character_weapon_training_property = (await this.db
       .prepare(
-        'SELECT p.rowid AS id,p.* FROM character_weapon_training_property p JOIN character_weapon_training t ON t.id=p.training_id WHERE t.character_id=? ORDER BY p.training_id,p.property_id,p.predicate'
+        "SELECT concat_ws(':',p.training_id,p.property_id,p.predicate) AS id,p.* FROM character_weapon_training_property p JOIN character_weapon_training t ON t.id=p.training_id WHERE t.character_id=? ORDER BY p.training_id,p.property_id,p.predicate"
       )
-      .all(id) as Row[];
-    result.ruleset_revision = this.db
+      .all(id)) as Row[];
+    result.ruleset_revision = (await this.db
       .prepare('SELECT id,revision,library_version,loaded_at FROM ruleset_revision ORDER BY id')
-      .all() as Row[];
+      .all()) as Row[];
     return result;
   }
-  private cleanup(id: number, input: CharacterInput) {
-    const profile = this.db
+  private async cleanup(id: number, input: CharacterInput) {
+    const profile = (await this.db
       .prepare('SELECT species_id,background_id FROM dnd_character WHERE character_id=?')
-      .get(id) as { species_id: number; background_id: number | null } | undefined;
+      .get(id)) as
+      | {
+          species_id: number;
+          background_id: number | null;
+        }
+      | undefined;
     if (!profile) throw new AppError(409, 'PROFILE_INCOMPLETE', 'Perfil D&D incompleto');
     for (const [key, column] of [
       ['speciesId', 'origin_species_id'],
@@ -78,10 +99,10 @@ export class Reconciliation {
     ] as const) {
       const current = key === 'speciesId' ? profile.species_id : profile.background_id;
       if (input[key] !== undefined && input[key] !== current) {
-        this.db
+        await this.db
           .prepare(`DELETE FROM character_spell WHERE character_id=? AND ${column} IS NOT NULL`)
           .run(id);
-        this.db
+        await this.db
           .prepare(
             `DELETE FROM character_rule_grant WHERE character_id=? AND ${column} IS NOT NULL`
           )
@@ -89,11 +110,11 @@ export class Reconciliation {
       }
     }
     if (!input.classes) return;
-    const old = this.db
+    const old = (await this.db
       .prepare(
         'SELECT id,class_id,level,subclass_id,is_initial_class FROM character_class WHERE character_id=?'
       )
-      .all(id) as {
+      .all(id)) as {
       id: number;
       class_id: number;
       level: number;
@@ -105,52 +126,56 @@ export class Reconciliation {
       if (!next) continue; // The existing class removal applies all FK cascades.
       if (next.level < row.level) {
         // No full historical rule-level mapping exists. Explicitly show this conservative reset.
-        this.db
+        await this.db
           .prepare(
             'DELETE FROM character_spell WHERE character_id=? AND origin_character_class_id=?'
           )
           .run(id, row.id);
-        this.db
+        await this.db
           .prepare(
             'DELETE FROM character_rule_grant WHERE character_id=? AND origin_character_class_id=?'
           )
           .run(id, row.id);
-        this.db
+        await this.db
           .prepare(
             'DELETE FROM character_spellbook_entry WHERE character_id=? AND character_class_id=?'
           )
           .run(id, row.id);
       } else if ((next.subclassId ?? null) !== row.subclass_id) {
-        this.db
+        await this.db
           .prepare(
             "DELETE FROM character_spell WHERE character_id=? AND origin_character_class_id=? AND origin_kind='subclass'"
           )
           .run(id, row.id);
-        this.db
+        await this.db
           .prepare(
             "DELETE FROM character_rule_grant WHERE character_id=? AND origin_character_class_id=? AND origin_kind='subclass'"
           )
           .run(id, row.id);
       }
       if (Number(next.initial) !== row.is_initial_class)
-        this.db
+        await this.db
           .prepare(
             "DELETE FROM character_rule_grant WHERE character_id=? AND origin_character_class_id=? AND acquisition_context IN ('initial_class','multiclass_entry')"
           )
           .run(id, row.id);
     }
     const total = input.classes.reduce((sum, c) => sum + c.level, 0);
-    this.db
+    await this.db
       .prepare('DELETE FROM character_rule_grant WHERE character_id=? AND acquired_at_level>?')
       .run(id, total);
   }
-  private evaluate(id: number, input: CharacterInput, operation: () => void): Plan {
+  private async evaluate(
+    id: number,
+    input: CharacterInput,
+    operation: () => void | Promise<void>
+  ): Promise<Plan> {
     try {
-      this.db.transaction(() => {
-        const before = this.snapshot(id);
-        this.cleanup(id, input);
-        operation();
-        const after = this.snapshot(id),
+      await this.db.transaction(async () => {
+        const before = await this.snapshot(id);
+        await this.cleanup(id, input);
+        await operation();
+        const after = await this.snapshot(id),
           removals: Plan['removals'] = [];
         for (const table of [...tables, 'character_weapon_training_property']) {
           if (
@@ -162,7 +187,7 @@ export class Reconciliation {
           const remaining = new Set(after[table]!.map((row) => row.id ?? row.character_id));
           const ids = before[table]!.filter(
             (row) => !remaining.has(row.id ?? row.character_id)
-          ).map((row) => Number(row.id ?? row.character_id));
+          ).map((row) => (row.id ?? row.character_id) as number | string);
           if (ids.length) removals.push({ table, ids, count: ids.length });
         }
         const plan: Plan = {
@@ -192,19 +217,21 @@ export class Reconciliation {
     }
     throw new Error('A prévia deveria ter sido revertida');
   }
-  preview(id: number, input: CharacterInput, operation: () => void) {
-    return this.db.transaction(() => this.evaluate(id, input, operation)).immediate();
+  async preview(id: number, input: CharacterInput, operation: () => void | Promise<void>) {
+    return await this.db
+      .transaction(async () => await this.evaluate(id, input, operation))
+      .immediate();
   }
-  apply(
+  async apply(
     id: number,
     actorId: number,
     input: CharacterInput,
-    operation: () => void,
+    operation: () => void | Promise<void>,
     confirmationToken?: string
   ) {
-    return this.db
-      .transaction(() => {
-        const plan = this.evaluate(id, input, operation);
+    return await this.db
+      .transaction(async () => {
+        const plan = await this.evaluate(id, input, operation);
         if (confirmationToken !== undefined && confirmationToken !== plan.confirmationToken)
           throw new AppError(
             409,
@@ -217,10 +244,10 @@ export class Reconciliation {
             'DEPENDENCIES_REQUIRE_CONFIRMATION',
             `A alteração remove dependências; consulte POST ${this.context?.previewPath ?? `/characters/${id}/changes/preview`} e confirme o token na operação original`
           );
-        this.cleanup(id, input);
-        operation();
+        await this.cleanup(id, input);
+        await operation();
         if (plan.requiresConfirmation)
-          this.db
+          await this.db
             .prepare(
               "INSERT INTO audit_log(actor_user_id,action,entity_type,entity_id,details) VALUES(?,'character.reconcile','character',?,?)"
             )

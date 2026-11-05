@@ -16,3 +16,6 @@ coverage
 **/.env.*
 deploy/.env.production
 backups
+
+legacy
+**/*.dump

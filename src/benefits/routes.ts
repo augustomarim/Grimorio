@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type Database from 'better-sqlite3';
+import type { Database } from '../db/database.js';
 import type { AuthService } from '../auth/service.js';
 import { ACCESS } from '../routes/auth.js';
 import { BenefitService, type BenefitInput, type GrantInput } from './service.js';
@@ -11,15 +11,27 @@ const params = {
   additionalProperties: false,
   properties: { id },
 };
-export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth: AuthService) {
+export function benefitRoutes(app: FastifyInstance, db: Database, auth: AuthService) {
   const service = new BenefitService(db);
-  app.get<{ Params: { id: number } }>('/characters/:id/benefits', { schema: { params } }, (req) =>
-    service.list(
-      req.params.id,
-      req.cookies[ACCESS] ? auth.authenticate(req.cookies[ACCESS]) : undefined
-    )
+  app.get<{
+    Params: {
+      id: number;
+    };
+  }>(
+    '/characters/:id/benefits',
+    { schema: { params } },
+    async (req) =>
+      await service.list(
+        req.params.id,
+        req.cookies[ACCESS] ? await auth.authenticate(req.cookies[ACCESS]) : undefined
+      )
   );
-  app.post<{ Params: { id: number }; Body: GrantInput }>(
+  app.post<{
+    Params: {
+      id: number;
+    };
+    Body: GrantInput;
+  }>(
     '/characters/:id/grants',
     {
       schema: {
@@ -51,12 +63,19 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req, reply) =>
-      reply
+    async (req, reply) =>
+      await reply
         .code(201)
-        .send(service.grant(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.body))
+        .send(
+          await service.grant(req.params.id, await auth.authenticate(req.cookies[ACCESS]), req.body)
+        )
   );
-  app.post<{ Params: { id: number }; Body: BenefitInput }>(
+  app.post<{
+    Params: {
+      id: number;
+    };
+    Body: BenefitInput;
+  }>(
     '/characters/:id/benefits',
     {
       schema: {
@@ -77,14 +96,23 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req, reply) =>
-      reply
+    async (req, reply) =>
+      await reply
         .code(201)
-        .send(service.add(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.body))
+        .send(
+          await service.add(req.params.id, await auth.authenticate(req.cookies[ACCESS]), req.body)
+        )
   );
   app.patch<{
-    Params: { id: number; kind: BenefitInput['kind']; instanceId: number };
-    Body: { notes?: string | null; proficiencyRank?: number };
+    Params: {
+      id: number;
+      kind: BenefitInput['kind'];
+      instanceId: number;
+    };
+    Body: {
+      notes?: string | null;
+      proficiencyRank?: number;
+    };
   }>(
     '/characters/:id/benefits/:kind/:instanceId',
     {
@@ -106,16 +134,22 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req) =>
-      service.update(
+    async (req) =>
+      await service.update(
         req.params.id,
-        auth.authenticate(req.cookies[ACCESS]),
+        await auth.authenticate(req.cookies[ACCESS]),
         req.params.kind,
         req.params.instanceId,
         req.body
       )
   );
-  app.post<{ Params: { id: number; kind: BenefitInput['kind']; instanceId: number } }>(
+  app.post<{
+    Params: {
+      id: number;
+      kind: BenefitInput['kind'];
+      instanceId: number;
+    };
+  }>(
     '/characters/:id/benefits/:kind/:instanceId/removal-preview',
     {
       schema: {
@@ -127,17 +161,23 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req) =>
-      service.previewRemoval(
+    async (req) =>
+      await service.previewRemoval(
         req.params.id,
-        auth.authenticate(req.cookies[ACCESS]),
+        await auth.authenticate(req.cookies[ACCESS]),
         req.params.kind,
         req.params.instanceId
       )
   );
   app.delete<{
-    Params: { id: number; kind: BenefitInput['kind']; instanceId: number };
-    Querystring: { confirmationToken?: string };
+    Params: {
+      id: number;
+      kind: BenefitInput['kind'];
+      instanceId: number;
+    };
+    Querystring: {
+      confirmationToken?: string;
+    };
   }>(
     '/characters/:id/benefits/:kind/:instanceId',
     {
@@ -155,15 +195,15 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req, reply) => {
-      service.remove(
+    async (req, reply) => {
+      await service.remove(
         req.params.id,
-        auth.authenticate(req.cookies[ACCESS]),
+        await auth.authenticate(req.cookies[ACCESS]),
         req.params.kind,
         req.params.instanceId,
         req.query.confirmationToken
       );
-      return reply.code(204).send();
+      return await reply.code(204).send();
     }
   );
 }

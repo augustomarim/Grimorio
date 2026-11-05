@@ -1,4 +1,5 @@
-import type Database from 'better-sqlite3';
+import { asyncMap } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { ContentItem, Feat, FeatRequirement, Spell } from '@freshmag/one-dndb';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
@@ -9,7 +10,6 @@ import { EffectEngine } from './effects.js';
 import { attributeState, abilityName } from './attributes.js';
 import { AppError } from '../errors.js';
 import { multiclassRequirements, multiclassSources } from './multiclass.js';
-
 type State = 'pass' | 'fail' | 'unknown';
 export interface Finding {
   code: string;
@@ -48,28 +48,29 @@ export function anyStates(states: State[]): State {
   return states.includes('pass') ? 'pass' : states.includes('unknown') ? 'unknown' : 'fail';
 }
 export class ValidationService {
-  constructor(private db: Database.Database) {}
-  report(id: number, user?: User) {
-    return this.db.transaction(() => this.inspect(id, user)).deferred();
+  constructor(private db: Database) {}
+  async report(id: number, user?: User) {
+    return await this.db.transaction(async () => await this.inspect(id, user)).deferred();
   }
-  private inspect(id: number, user?: User) {
-    new CharacterService(this.db).requireReadable(id, user);
-    const profile = this.db.prepare('SELECT * FROM dnd_character WHERE character_id=?').get(id) as
-      Record<string, unknown> | undefined;
+  private async inspect(id: number, user?: User) {
+    await new CharacterService(this.db).requireReadable(id, user);
+    const profile = (await this.db
+      .prepare('SELECT * FROM dnd_character WHERE character_id=?')
+      .get(id)) as Record<string, unknown> | undefined;
     if (!profile)
       throw new AppError(409, 'VALIDATION_UNAVAILABLE', 'Validação disponível apenas para D&D');
     const findings: Finding[] = [];
-    const classes = this.db
+    const classes = (await this.db
       .prepare(
         'SELECT cc.id,cc.level,cc.subclass_id,c.data,e.slug FROM character_class cc JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry e ON e.id=c.catalog_entry_id WHERE cc.character_id=? ORDER BY cc.id'
       )
-      .all(id) as ClassRow[];
+      .all(id)) as ClassRow[];
     const total = classes.reduce((sum, c) => sum + c.level, 0);
-    const feats = this.db
+    const feats = (await this.db
       .prepare(
         'SELECT a.id,a.grant_id,e.slug,f.data FROM character_ability a JOIN lib_feat f ON f.id=a.lib_feat_id JOIN catalog_entry e ON e.id=f.catalog_entry_id WHERE a.character_id=? ORDER BY a.id'
       )
-      .all(id) as FeatRow[];
+      .all(id)) as FeatRow[];
     const owned = feats.map((row) => ({ ...row, record: JSON.parse(row.data) as Feat }));
     const features = new Set<string>();
     for (const c of classes) {
@@ -77,9 +78,11 @@ export class ValidationService {
       for (const feature of data.features ?? [])
         if (feature.level <= c.level) features.add(feature.name);
       if (c.subclass_id) {
-        const sub = this.db
+        const sub = (await this.db
           .prepare('SELECT data FROM lib_subclass WHERE id=?')
-          .get(c.subclass_id) as { data: string };
+          .get(c.subclass_id)) as {
+          data: string;
+        };
         for (const feature of (JSON.parse(sub.data) as ContentItem).features ?? [])
           if (feature.level <= c.level) features.add(feature.name);
       }
@@ -87,13 +90,16 @@ export class ValidationService {
     // Least fixed point: a feat cannot qualify itself with its own bonus,
     // or bootstrap another unproven feat in a dependency cycle.
     const eligible = new Set<number>();
-    const descendants = (root: number) => {
+    const descendants = async (root: number) => {
       const excluded = new Set([root]);
-      const links = this.db
+      const links = (await this.db
         .prepare(
           'SELECT a.id,g.origin_character_ability_id AS parent FROM character_ability a JOIN character_rule_grant g ON g.id=a.grant_id WHERE a.character_id=? AND a.lib_feat_id IS NOT NULL'
         )
-        .all(id) as { id: number; parent: number | null }[];
+        .all(id)) as {
+        id: number;
+        parent: number | null;
+      }[];
       let changed = true;
       while (changed) {
         changed = false;
@@ -105,8 +111,12 @@ export class ValidationService {
       }
       return excluded;
     };
-    const evaluate = (requirement: FeatRequirement, current: FeatRow, potential = false): State => {
-      const excluded = descendants(current.id);
+    const evaluate = async (
+      requirement: FeatRequirement,
+      current: FeatRow,
+      potential = false
+    ): Promise<State> => {
+      const excluded = await descendants(current.id);
       const permitted = new Set(
         (potential ? owned.map((f) => f.id) : [...eligible]).filter((key) => !excluded.has(key))
       );
@@ -114,7 +124,7 @@ export class ValidationService {
         case 'level':
           return total >= requirement.level ? 'pass' : 'fail';
         case 'ability': {
-          const values = attributeState(this.db, id, permitted).effective;
+          const values = (await attributeState(this.db, id, permitted)).effective;
           const value = values[abilityName(requirement.ability) as keyof typeof values];
           return typeof value === 'number'
             ? value >= requirement.score
@@ -155,17 +165,17 @@ export class ValidationService {
           return 'unknown';
       }
     };
-    const evaluateFeat = (feat: (typeof owned)[number], final = false): State =>
+    const evaluateFeat = async (feat: (typeof owned)[number], final = false): Promise<State> =>
       feat.record.prereq?.all
         ? allStates(
-            feat.record.prereq.all.map((clause) =>
+            await asyncMap(feat.record.prereq.all, async (clause) =>
               anyStates(
-                clause.map((requirement) => {
-                  const state = evaluate(requirement, feat);
+                await asyncMap(clause, async (requirement) => {
+                  const state = await evaluate(requirement, feat);
                   return final &&
                     state === 'fail' &&
                     requirement.kind === 'ability' &&
-                    evaluate(requirement, feat, true) === 'pass'
+                    (await evaluate(requirement, feat, true)) === 'pass'
                     ? 'unknown'
                     : state;
                 })
@@ -178,7 +188,7 @@ export class ValidationService {
     for (let changed = true; changed;) {
       changed = false;
       for (const feat of owned)
-        if (!eligible.has(feat.id) && evaluateFeat(feat) === 'pass') {
+        if (!eligible.has(feat.id) && (await evaluateFeat(feat)) === 'pass') {
           eligible.add(feat.id);
           changed = true;
         }
@@ -186,7 +196,7 @@ export class ValidationService {
     for (const feat of owned) {
       findings.push({
         code: 'FEAT_PREREQUISITES',
-        state: evaluateFeat(feat, true),
+        state: await evaluateFeat(feat, true),
         entityId: feat.id,
         message: 'Pré-requisitos do talento no estado atual da ficha',
         evidence: { slug: feat.slug, prerequisite: feat.record.prereq ?? null },
@@ -200,11 +210,11 @@ export class ValidationService {
           evidence: { slug: feat.slug, repeatable: feat.record.repeatable ?? false },
         });
     }
-    const spells = this.db
+    const spells = (await this.db
       .prepare(
         'SELECT s.id,s.lib_spell_id,s.choice_instance_id,s.origin_kind,s.origin_character_class_id,s.preparation_mode,s.is_prepared,l.data FROM character_spell s JOIN lib_spell l ON l.id=s.lib_spell_id WHERE s.character_id=? ORDER BY s.id'
       )
-      .all(id) as SpellRow[];
+      .all(id)) as SpellRow[];
     for (const cls of classes) {
       const data = JSON.parse(cls.data) as ContentItem;
       const casting = data.casting;
@@ -241,11 +251,11 @@ export class ValidationService {
           instance.preparation_mode === 'selectable' &&
           instance.is_prepared
         ) {
-          const present = !!this.db
+          const present = !!(await this.db
             .prepare(
               'SELECT 1 FROM character_spellbook_entry WHERE character_id=? AND character_class_id=? AND lib_spell_id=?'
             )
-            .get(id, cls.id, instance.lib_spell_id);
+            .get(id, cls.id, instance.lib_spell_id));
           findings.push({
             code: 'WIZARD_PREPARED_IN_BOOK',
             state: present ? 'pass' : 'fail',
@@ -282,11 +292,14 @@ export class ValidationService {
           evidence: { selected: cantrips, maximum: maxCantrips ?? null, classLevel: cls.level },
         });
       }
-      const entries = this.db
+      const entries = (await this.db
         .prepare(
           'SELECT b.id,l.data FROM character_spellbook_entry b JOIN lib_spell l ON l.id=b.lib_spell_id WHERE b.character_id=? AND b.character_class_id=?'
         )
-        .all(id, cls.id) as { id: number; data: string }[];
+        .all(id, cls.id)) as {
+        id: number;
+        data: string;
+      }[];
       for (const entry of entries) {
         const spell = JSON.parse(entry.data) as Spell;
         const limit = casting?.maxSpellLevel?.[cls.level - 1];
@@ -306,11 +319,13 @@ export class ValidationService {
         });
       }
     }
-    findings.push(multiclassRequirements(classes, attributeState(this.db, id, eligible).effective));
-    findings.push(...new CapabilityService(this.db).audit(id));
-    findings.push(...new BenefitAudit(this.db).inspect(id).findings);
-    findings.push(...new ChoiceService(this.db).inspect(id).findings);
-    findings.push(...new EffectEngine(this.db).audit(id));
+    findings.push(
+      multiclassRequirements(classes, (await attributeState(this.db, id, eligible)).effective)
+    );
+    findings.push(...(await new CapabilityService(this.db).audit(id)));
+    findings.push(...(await new BenefitAudit(this.db).inspect(id)).findings);
+    findings.push(...(await new ChoiceService(this.db).inspect(id)).findings);
+    findings.push(...(await new EffectEngine(this.db).audit(id)));
     findings.push({
       code: 'TEXT_RULES_REVIEW',
       state: 'unknown',
@@ -321,7 +336,7 @@ export class ValidationService {
       characterId: id,
       basis: {
         libraryVersion: '0.5.1',
-        catalogRevision: this.db
+        catalogRevision: await this.db
           .prepare('SELECT revision,library_version FROM ruleset_revision ORDER BY id DESC LIMIT 1')
           .get(),
         characterSavedRevisionId: profile.ruleset_revision_id,
@@ -329,7 +344,7 @@ export class ValidationService {
         scope: 'current-state',
         officialSources: multiclassSources,
       },
-      coverage: new EffectEngine(this.db).report(id).coverage,
+      coverage: (await new EffectEngine(this.db).report(id)).coverage,
       rulesVerified: false,
       summary: {
         passed: findings.filter((f) => f.state === 'pass').length,

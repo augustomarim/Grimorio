@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Núcleo comum, módulo D&D e versões
 
 Decisão aprovada: v1 é criação e gerenciamento de fichas D&D 2024, extensível para outros sistemas. V1.5 é uma evolução possível para uso interativo em partida. O modelo atual contém 49 tabelas e 6 views, incluindo schema_migration como histórico operacional. A separação acrescentou rpg_system e dnd_character; não implementou um motor universal nem outro sistema.

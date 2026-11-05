@@ -27,7 +27,6 @@ export class FileMailer implements Mailer {
     );
   }
 }
-
 export function mailContent(mail: Mail, origin: string) {
   const reset = mail.purpose === 'password_reset';
   const link = new URL(reset ? '/reset-password' : '/verify-email', origin);

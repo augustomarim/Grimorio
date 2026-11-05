@@ -1,4 +1,5 @@
-import type Database from 'better-sqlite3';
+import { asyncFind, asyncMap } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { User } from '../auth/service.js';
 import { Reconciliation } from '../characters/reconciliation.js';
 import { CharacterService } from '../characters/service.js';
@@ -12,7 +13,6 @@ import {
 } from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 import { sources } from '../catalog/routes.js';
-
 export interface GrantInput {
   originKind: 'class' | 'subclass' | 'species' | 'background' | 'feat';
   originId: number;
@@ -32,46 +32,53 @@ export interface BenefitInput {
 }
 export class BenefitService {
   private characters: CharacterService;
-  constructor(private db: Database.Database) {
+  constructor(private db: Database) {
     this.characters = new CharacterService(db);
   }
-  private profile(id: number) {
-    if (!this.db.prepare('SELECT 1 FROM dnd_character WHERE character_id=?').get(id))
+  private async profile(id: number) {
+    if (!(await this.db.prepare('SELECT 1 FROM dnd_character WHERE character_id=?').get(id)))
       throw new AppError(409, 'BENEFITS_UNAVAILABLE', 'Benefícios disponíveis apenas para D&D');
   }
-  private saved(id: number, user: User, action: string) {
-    this.db
+  private async saved(id: number, user: User, action: string) {
+    await this.db
       .prepare('UPDATE character SET updated_at=? WHERE id=?')
       .run(new Date().toISOString(), id);
-    this.db
+    await this.db
       .prepare(
         'UPDATE dnd_character SET ruleset_revision_id=(SELECT id FROM ruleset_revision ORDER BY id DESC LIMIT 1) WHERE character_id=?'
       )
       .run(id);
-    this.db
+    await this.db
       .prepare(
         "INSERT INTO audit_log(actor_user_id,action,entity_type,entity_id) VALUES(?,?,'character',?)"
       )
       .run(user.id, action, id);
   }
-  grant(id: number, user: User, input: GrantInput) {
-    return this.db
-      .transaction(() => {
-        this.characters.requireOwner(id, user);
-        this.profile(id);
-        const total = this.db
+  async grant(id: number, user: User, input: GrantInput) {
+    return await this.db
+      .transaction(async () => {
+        await this.characters.requireOwner(id, user);
+        await this.profile(id);
+        const total = (await this.db
           .prepare('SELECT SUM(level) AS level FROM character_class WHERE character_id=?')
-          .get(id) as { level: number };
+          .get(id)) as {
+          level: number;
+        };
         if (input.acquiredAtLevel > total.level)
           throw new AppError(400, 'INVALID_GRANT', 'Aquisição acima do nível total');
         const origin: Array<number | null> = [null, null, null, null, null, null];
         if (input.originKind === 'class' || input.originKind === 'subclass') {
-          const row = this.db
+          const row = (await this.db
             .prepare(
               'SELECT id,subclass_id,is_initial_class FROM character_class WHERE character_id=? AND id=?'
             )
-            .get(id, input.originId) as
-            { id: number; subclass_id: number | null; is_initial_class: number } | undefined;
+            .get(id, input.originId)) as
+            | {
+                id: number;
+                subclass_id: number | null;
+                is_initial_class: number;
+              }
+            | undefined;
           if (
             !row ||
             (input.originKind === 'subclass' && !row.subclass_id) ||
@@ -82,11 +89,15 @@ export class BenefitService {
           origin[0] = row.id;
           if (input.originKind === 'subclass') origin[1] = row.subclass_id;
         } else if (input.originKind === 'feat') {
-          const row = this.db
+          const row = (await this.db
             .prepare(
               'SELECT lib_feat_id FROM character_ability WHERE character_id=? AND id=? AND lib_feat_id IS NOT NULL'
             )
-            .get(id, input.originId) as { lib_feat_id: number } | undefined;
+            .get(id, input.originId)) as
+            | {
+                lib_feat_id: number;
+              }
+            | undefined;
           if (!row)
             throw new AppError(
               400,
@@ -98,14 +109,14 @@ export class BenefitService {
         } else {
           const column = input.originKind === 'species' ? 'species_id' : 'background_id';
           if (
-            !this.db
+            !(await this.db
               .prepare(`SELECT 1 FROM dnd_character WHERE character_id=? AND ${column}=?`)
-              .get(id, input.originId)
+              .get(id, input.originId))
           )
             throw new AppError(400, 'INVALID_GRANT', 'Origem não pertence ao personagem');
           origin[input.originKind === 'species' ? 2 : 3] = input.originId;
         }
-        const result = this.db
+        const result = await this.db
           .prepare(
             'INSERT INTO character_rule_grant(character_id,origin_kind,origin_character_class_id,origin_subclass_id,origin_species_id,origin_background_id,origin_character_ability_id,origin_feat_id,acquisition_context,rule_key,acquired_at_level) VALUES(?,?,?,?,?,?,?,?,?,?,?)'
           )
@@ -117,43 +128,51 @@ export class BenefitService {
             input.ruleKey,
             input.acquiredAtLevel
           );
-        const grantId = Number(result.lastInsertRowid);
+        const grantId = Number(result.insertId);
         let spellChoiceInstanceId: number | undefined;
         {
-          const grant = this.db
+          const grant = (await this.db
             .prepare('SELECT * FROM character_rule_grant WHERE character_id=? AND id=?')
-            .get(id, grantId) as Grant;
-          const source = new BenefitAudit(this.db).source(id, grant);
+            .get(id, grantId)) as Grant;
+          const source = await new BenefitAudit(this.db).source(id, grant);
           const group =
             source &&
             sourceChoices(source).find((choice) =>
               [featSpellEffectsChoice, sourceSpellEffectsChoice].includes(choice.id)
             );
           if (source && group) {
-            const existing = (
-              this.db
+            const existing = await asyncFind(
+              (await this.db
                 .prepare(
                   'SELECT c.id,c.grant_id FROM character_choice c WHERE c.character_id=? AND c.choice_id=?'
                 )
-                .all(id, group.id) as { id: number; grant_id: number }[]
-            ).find((c) => {
-              const g = this.db
-                .prepare('SELECT * FROM character_rule_grant WHERE id=? AND character_id=?')
-                .get(c.grant_id, id) as Grant;
-              return new BenefitAudit(this.db).source(id, g)?.identity === source.identity;
-            });
+                .all(id, group.id)) as {
+                id: number;
+                grant_id: number;
+              }[],
+              async (c) => {
+                const g = (await this.db
+                  .prepare('SELECT * FROM character_rule_grant WHERE id=? AND character_id=?')
+                  .get(c.grant_id, id)) as Grant;
+                return (
+                  (await new BenefitAudit(this.db).source(id, g))?.identity === source.identity
+                );
+              }
+            );
             spellChoiceInstanceId =
               existing?.id ??
               Number(
-                this.db
-                  .prepare(
-                    'INSERT INTO character_choice(character_id,grant_id,choice_id,option_id) VALUES(?,?,?,?)'
-                  )
-                  .run(id, grantId, group.id, 'catalog').lastInsertRowid
+                (
+                  await this.db
+                    .prepare(
+                      'INSERT INTO character_choice(character_id,grant_id,choice_id,option_id) VALUES(?,?,?,?)'
+                    )
+                    .run(id, grantId, group.id, 'catalog')
+                ).insertId
               );
           }
         }
-        this.saved(id, user, 'benefit.grant');
+        await this.saved(id, user, 'benefit.grant');
         return {
           id: grantId,
           ...(spellChoiceInstanceId === undefined ? {} : { spellChoiceInstanceId }),
@@ -161,22 +180,27 @@ export class BenefitService {
       })
       .immediate();
   }
-  add(id: number, user: User, input: BenefitInput, strict = false) {
-    return this.db
-      .transaction(() => {
-        this.characters.requireOwner(id, user);
-        this.profile(id);
+  async add(id: number, user: User, input: BenefitInput, strict = false) {
+    return await this.db
+      .transaction(async () => {
+        await this.characters.requireOwner(id, user);
+        await this.profile(id);
         if (
-          !this.db
+          !(await this.db
             .prepare('SELECT 1 FROM character_rule_grant WHERE character_id=? AND id=?')
-            .get(id, input.grantId)
+            .get(id, input.grantId))
         )
           throw new AppError(400, 'INVALID_GRANT', 'Concessão não pertence ao personagem');
-        const catalog = this.db
+        const catalog = (await this.db
           .prepare(
             `SELECT e.id,e.deprecated_at FROM lib_${input.kind} l JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE l.id=?`
           )
-          .get(input.localId) as { id: number; deprecated_at: string | null } | undefined;
+          .get(input.localId)) as
+          | {
+              id: number;
+              deprecated_at: string | null;
+            }
+          | undefined;
         if (!catalog || catalog.deprecated_at)
           throw new AppError(400, 'INVALID_BENEFIT', 'Registro inexistente ou depreciado');
         if (
@@ -204,21 +228,21 @@ export class BenefitService {
         const signature = (f: unknown) => JSON.stringify(f);
         const beforeFailures = strict
           ? new Set(
-              [...inspector.inspect(id).findings, ...effects.audit(id)]
+              [...(await inspector.inspect(id)).findings, ...(await effects.audit(id))]
                 .filter((f) => f.state === 'fail')
                 .map(signature)
             )
           : new Set<string>();
         if (strict) {
-          const grant = this.db
+          const grant = (await this.db
             .prepare('SELECT * FROM character_rule_grant WHERE character_id=? AND id=?')
-            .get(id, input.grantId) as Grant;
-          const source = inspector.source(id, grant)!;
+            .get(id, input.grantId)) as Grant;
+          const source = (await inspector.source(id, grant))!;
           if (
             input.selectionKind === 'chosen' &&
-            !inspector
-              .inspect(id)
-              .options.some((o) => o.grantId === input.grantId && o.choiceKey === input.choiceKey)
+            !(await inspector.inspect(id)).options.some(
+              (o) => o.grantId === input.grantId && o.choiceKey === input.choiceKey
+            )
           )
             throw new AppError(
               409,
@@ -236,11 +260,14 @@ export class BenefitService {
               'Ferramenta fixa concede proficiência simples'
             );
           if (input.selectionKind === 'fixed') {
-            const row = this.db
+            const row = (await this.db
               .prepare(
                 `SELECT e.slug,e.name FROM lib_${input.kind} l JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE l.id=?`
               )
-              .get(input.localId) as { slug: string; name: string };
+              .get(input.localId)) as {
+              slug: string;
+              name: string;
+            };
             const fixed =
               input.kind === 'feat'
                 ? source.data.featsFixed
@@ -261,21 +288,23 @@ export class BenefitService {
               );
           }
           if (input.kind === 'feat') {
-            const feat = this.db
+            const feat = (await this.db
               .prepare('SELECT data FROM lib_feat WHERE id=?')
-              .get(input.localId) as { data: string };
+              .get(input.localId)) as {
+              data: string;
+            };
             if (
               JSON.parse(feat.data).repeatable !== true &&
-              this.db
+              (await this.db
                 .prepare('SELECT 1 FROM character_ability WHERE character_id=? AND lib_feat_id=?')
-                .get(id, input.localId)
+                .get(id, input.localId))
             )
               throw new AppError(400, 'FEAT_NOT_REPEATABLE', 'Talento não repetível já registrado');
           }
         }
         let result;
         if (input.kind === 'skill')
-          result = this.db
+          result = await this.db
             .prepare(
               'INSERT INTO character_skill(character_id,grant_id,selection_kind,choice_key,notes,skill_id,proficiency_rank) VALUES(?,?,?,?,?,?,?)'
             )
@@ -289,7 +318,7 @@ export class BenefitService {
               input.proficiencyRank!
             );
         else
-          result = this.db
+          result = await this.db
             .prepare(
               `INSERT INTO character_ability(character_id,grant_id,selection_kind,choice_key,notes,lib_${input.kind}_id,proficiency_rank) VALUES(?,?,?,?,?,?,?)`
             )
@@ -303,24 +332,28 @@ export class BenefitService {
               input.proficiencyRank ?? null
             );
         if (strict) {
-          const errors = [...inspector.inspect(id).findings, ...effects.audit(id)].filter(
-            (f) => f.state === 'fail' && !beforeFailures.has(signature(f))
+          const errors = [
+            ...(await inspector.inspect(id)).findings,
+            ...(await effects.audit(id)),
+          ].filter((f) => f.state === 'fail' && !beforeFailures.has(signature(f)));
+          const ambiguous = (await inspector.inspect(id)).findings.find(
+            (f) =>
+              f.state === 'unknown' &&
+              f.entityId === Number(result.insertId) &&
+              (
+                f.evidence as
+                  | {
+                      kind?: string;
+                    }
+                  | undefined
+              )?.kind === input.kind
           );
-          const ambiguous = inspector
-            .inspect(id)
-            .findings.find(
-              (f) =>
-                f.state === 'unknown' &&
-                f.entityId === Number(result.lastInsertRowid) &&
-                (f.evidence as { kind?: string } | undefined)?.kind === input.kind
-            );
           if (ambiguous) throw new AppError(409, 'RULE_UNIDENTIFIED', ambiguous.message);
           if (errors.length) throw new AppError(400, 'EFFECT_RULE_VIOLATION', errors[0]!.message);
           if (input.kind === 'feat') {
-            const report = new ValidationService(this.db).report(id, user);
+            const report = await new ValidationService(this.db).report(id, user);
             const prerequisite = report.findings.find(
-              (f) =>
-                f.code === 'FEAT_PREREQUISITES' && f.entityId === Number(result.lastInsertRowid)
+              (f) => f.code === 'FEAT_PREREQUISITES' && f.entityId === Number(result.insertId)
             );
             if (prerequisite?.state !== 'pass')
               throw new AppError(
@@ -330,63 +363,76 @@ export class BenefitService {
               );
           }
         }
-        this.saved(id, user, 'benefit.add');
-        return { id: Number(result.lastInsertRowid), kind: input.kind };
+        await this.saved(id, user, 'benefit.add');
+        return { id: Number(result.insertId), kind: input.kind };
       })
       .immediate();
   }
-  list(id: number, user?: User) {
-    this.characters.requireReadable(id, user);
-    this.profile(id);
+  async list(id: number, user?: User) {
+    await this.characters.requireReadable(id, user);
+    await this.profile(id);
     const items = [];
     for (const kind of ['feat', 'tool', 'language', 'skill'] as const) {
       const table = kind === 'skill' ? 'character_skill' : 'character_ability',
         column = kind === 'skill' ? 'skill_id' : `lib_${kind}_id`;
-      const rows = this.db
+      const rows = (await this.db
         .prepare(
-          `SELECT b.id,b.grant_id AS grantId,b.selection_kind AS selectionKind,b.choice_key AS choiceKey,b.proficiency_rank AS proficiencyRank,b.notes,l.id AS localId,e.id AS catalogId,e.name,e.slug,e.deprecated_at AS deprecatedAt FROM ${table} b JOIN lib_${kind} l ON l.id=b.${column} JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE b.character_id=? ORDER BY b.id`
+          `SELECT b.id,b.grant_id AS "grantId",b.selection_kind AS "selectionKind",b.choice_key AS "choiceKey",b.proficiency_rank AS "proficiencyRank",b.notes,l.id AS "localId",e.id AS "catalogId",e.name,e.slug,e.deprecated_at AS "deprecatedAt" FROM ${table} b JOIN lib_${kind} l ON l.id=b.${column} JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE b.character_id=? ORDER BY b.id`
         )
-        .all(id) as Array<{ catalogId: number }>;
+        .all(id)) as Array<{
+        catalogId: number;
+      }>;
       items.push(
-        ...rows.map((row) => ({ ...row, kind, sources: sources(this.db, row.catalogId) }))
+        ...(await asyncMap(rows, async (row) => ({
+          ...row,
+          kind,
+          sources: await sources(this.db, row.catalogId),
+        })))
       );
     }
     return {
       items,
-      grants: this.db
+      grants: await this.db
         .prepare('SELECT * FROM character_rule_grant WHERE character_id=? ORDER BY id')
         .all(id),
-      skills: this.db
+      skills: await this.db
         .prepare(
-          'SELECT skill_id AS skillId,proficiency_rank AS proficiencyRank FROM character_skill_summary WHERE character_id=?'
+          `SELECT skill_id AS "skillId",proficiency_rank AS "proficiencyRank" FROM character_skill_summary WHERE character_id=?`
         )
         .all(id),
       validation: { rulesVerified: false },
     };
   }
-  update(
+  async update(
     id: number,
     user: User,
     kind: BenefitInput['kind'],
     instanceId: number,
-    input: { notes?: string | null; proficiencyRank?: number }
+    input: {
+      notes?: string | null;
+      proficiencyRank?: number;
+    }
   ) {
-    return this.db
-      .transaction(() => {
-        this.characters.requireOwner(id, user);
-        this.profile(id);
+    return await this.db
+      .transaction(async () => {
+        await this.characters.requireOwner(id, user);
+        await this.profile(id);
         const table = kind === 'skill' ? 'character_skill' : 'character_ability',
           column = kind === 'skill' ? 'skill_id' : `lib_${kind}_id`;
-        const row = this.db
+        const row = (await this.db
           .prepare(
             `SELECT notes,proficiency_rank FROM ${table} WHERE character_id=? AND id=? AND ${column} IS NOT NULL`
           )
-          .get(id, instanceId) as
-          { notes: string | null; proficiency_rank: number | null } | undefined;
+          .get(id, instanceId)) as
+          | {
+              notes: string | null;
+              proficiency_rank: number | null;
+            }
+          | undefined;
         if (!row) throw new AppError(404, 'BENEFIT_NOT_FOUND', 'Benefício não encontrado');
         if (input.proficiencyRank !== undefined && kind !== 'tool' && kind !== 'skill')
           throw new AppError(400, 'INVALID_RANK', 'Graduação apenas para perícias e ferramentas');
-        this.db
+        await this.db
           .prepare(`UPDATE ${table} SET notes=?,proficiency_rank=? WHERE character_id=? AND id=?`)
           .run(
             input.notes === undefined ? row.notes : input.notes,
@@ -394,7 +440,7 @@ export class BenefitService {
             id,
             instanceId
           );
-        this.saved(id, user, 'benefit.update');
+        await this.saved(id, user, 'benefit.update');
         return { id: instanceId, kind };
       })
       .immediate();
@@ -405,45 +451,50 @@ export class BenefitService {
       root: { table: kind === 'skill' ? 'character_skill' : 'character_ability', id: instanceId },
     };
   }
-  previewRemoval(id: number, user: User, kind: BenefitInput['kind'], instanceId: number) {
-    this.characters.requireOwner(id, user);
-    return new Reconciliation(this.db, {
+  async previewRemoval(id: number, user: User, kind: BenefitInput['kind'], instanceId: number) {
+    await this.characters.requireOwner(id, user);
+    return await new Reconciliation(this.db, {
       ...this.removalContext(kind, instanceId),
       previewPath: `/characters/${id}/benefits/${kind}/${instanceId}/removal-preview`,
-    }).preview(id, {}, () => this.applyRemoval(id, user, kind, instanceId));
+    }).preview(id, {}, async () => await this.applyRemoval(id, user, kind, instanceId));
   }
-  remove(
+  async remove(
     id: number,
     user: User,
     kind: BenefitInput['kind'],
     instanceId: number,
     confirmationToken?: string
   ) {
-    this.characters.requireOwner(id, user);
-    return new Reconciliation(this.db, {
+    await this.characters.requireOwner(id, user);
+    return await new Reconciliation(this.db, {
       ...this.removalContext(kind, instanceId),
       previewPath: `/characters/${id}/benefits/${kind}/${instanceId}/removal-preview`,
     }).apply(
       id,
       user.id,
       {},
-      () => this.applyRemoval(id, user, kind, instanceId),
+      async () => await this.applyRemoval(id, user, kind, instanceId),
       confirmationToken
     );
   }
-  private applyRemoval(id: number, user: User, kind: BenefitInput['kind'], instanceId: number) {
-    this.db
-      .transaction(() => {
-        this.characters.requireOwner(id, user);
-        this.profile(id);
+  private async applyRemoval(
+    id: number,
+    user: User,
+    kind: BenefitInput['kind'],
+    instanceId: number
+  ) {
+    await this.db
+      .transaction(async () => {
+        await this.characters.requireOwner(id, user);
+        await this.profile(id);
         const table = kind === 'skill' ? 'character_skill' : 'character_ability',
           column = kind === 'skill' ? 'skill_id' : `lib_${kind}_id`;
-        const result = this.db
+        const result = await this.db
           .prepare(`DELETE FROM ${table} WHERE character_id=? AND id=? AND ${column} IS NOT NULL`)
           .run(id, instanceId);
         if (!result.changes)
           throw new AppError(404, 'BENEFIT_NOT_FOUND', 'Benefício não encontrado');
-        this.saved(id, user, 'benefit.remove');
+        await this.saved(id, user, 'benefit.remove');
       })
       .immediate();
   }

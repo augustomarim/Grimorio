@@ -1,11 +1,11 @@
+-- PostgreSQL 17: fixture parcial, apenas para banco novo vazio; nunca carregar em produção.
 -- Fixture parcial conferida com o pacote 0.5.1; não é ficha completa/legalidade normativa integral.
 -- Ari: Human/Criminal, Wizard 3/Cleric 4/Sorcerer 3. Bela: Human/Criminal, Rogue 1.
 -- Alert e Thieves Tools vêm de Criminal; Thieves Cant de Rogue. Faltam escolhas obrigatórias.
 -- Credenciais e buckets demonstrativos expirados; sem senha utilizável.
 -- Executar uma vez em banco novo instalado por schema.sql OU migrações.
-PRAGMA foreign_keys=ON;
 BEGIN;
-PRAGMA defer_foreign_keys=ON;
+SET CONSTRAINTS ALL DEFERRED;
 INSERT INTO app_user (id,email,username,password_hash,role,is_active,email_verified_at,last_login_at,created_at,updated_at) VALUES (1,'example@example.invalid','aventureiro','DISABLED-NOT-A-VALID-PASSWORD-HASH','user',1,'2025-01-01T00:00:00.000Z',NULL,'2026-11-03T22:09:55.020Z','2026-11-03T22:09:55.020Z');
 INSERT INTO session (id,user_id,token_hash,created_at,expires_at,revoked_at,ip_address,user_agent,access_expires_at) VALUES (1,1,'acc1ef01719fc575f41df23eb3136cb35dfb32964270095c9284033ca9df987f','2025-01-01T00:00:00.000Z','2025-02-01T00:00:00.000Z','2025-02-01T00:00:00.000Z',NULL,NULL,'2025-01-01T00:25:00.000Z');
 INSERT INTO auth_token (id,user_id,purpose,token_hash,expires_at,used_at,created_at,issued_email_hash,revoked_at) VALUES (1,1,'email_verification','686e3b818d34f96006ab20b531a33e845c85bc7c0d05226c2ad102c6f2985f4a','2025-01-02T00:00:00.000Z','2025-01-01T00:00:00.000Z','2025-01-01T00:00:00.000Z','c679afbfece266f5588a0767b3572700c25071638962c6d2b9f3adbfc9eecc04',NULL);
@@ -206,6 +206,14 @@ INSERT INTO refresh_token (id,session_id,token_hash,parent_token_id,created_at,e
 INSERT INTO login_throttle (id,scope,key_hash,window_started_at,failure_count,blocked_until,expires_at,updated_at) VALUES (1,'email','d8bbc84212dac10fc67edf89077c52e70e955d0ccb740f437e632bf0a696aa1d','2025-01-01T00:00:00.000Z',5,'2025-01-01T00:15:00.000Z','2025-01-02T00:00:00.000Z','2025-01-01T00:00:00.000Z');
 -- Exemplo de opção existente no antecedente Criminal; registro não concede equipamento automaticamente.
 INSERT INTO character_choice(character_id,grant_id,choice_id,option_id,created_at) VALUES(1,4,'equipment','coin','2026-11-03T22:09:55.019Z');
+DO $$
+DECLARE r record; max_id bigint;
+BEGIN
+ FOR r IN SELECT table_name,column_name FROM information_schema.columns WHERE table_schema=current_schema() AND is_identity='YES' LOOP
+  EXECUTE format('SELECT COALESCE(MAX(%I),0) FROM %I',r.column_name,r.table_name) INTO max_id;
+  PERFORM setval(pg_get_serial_sequence(r.table_name,r.column_name),GREATEST(1,max_id),max_id>0);
+ END LOOP;
+END $$;
 COMMIT;
 SELECT name,total_level FROM character_summary;
 

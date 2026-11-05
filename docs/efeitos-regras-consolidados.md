@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Efeitos e regras estruturados — backend D&D 2024
 
 Esta entrega consolida o motor para os **13 campos realmente presentes em Feat.effects** da versão 0.5.1 de @freshmag/one-dndb. Não existe um resolvedor escrito individualmente para cada talento. O teste de cobertura enumera os campos do catálogo real e compara com os campos tratados. O texto original e os metadados de livro/suplemento continuam no catálogo.

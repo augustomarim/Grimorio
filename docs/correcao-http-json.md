@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Correção do tratamento HTTP de entrada
 
 Reproduzido antes da correção: POST /auth/register com Content-Type application/json e corpo vazio ou JSON inválido retornava 500 INTERNAL_ERROR. JSON válido retornava 202. Isso não prova a causa de todo erro 500 observado no PC do usuário.

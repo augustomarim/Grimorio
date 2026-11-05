@@ -1,28 +1,25 @@
 import { existsSync } from 'node:fs';
 import { backupDatabase, restoreDatabase, inspectBackup } from './backup.js';
 if (existsSync('.env')) process.loadEnvFile('.env');
-const [command, first, second, ...extra] = process.argv.slice(2);
+const [operation, file, ...extra] = process.argv.slice(2);
 try {
-  if (
-    extra.length ||
-    !first ||
-    !['backup', 'restore', 'verify'].includes(command ?? '') ||
-    (command === 'restore' && !second) ||
-    ((command === 'verify' || command === 'backup') && second)
-  )
-    throw new Error(
-      'Uso: backup <novo-arquivo> | verify <arquivo> | restore <backup> <novo-banco>'
-    );
+  if (!file || extra.length || !['backup', 'restore', 'verify'].includes(operation ?? ''))
+    throw new Error('Uso: backup|verify|restore <arquivo>');
+  if (operation === 'restore' && !process.env.RESTORE_DATABASE_URL)
+    throw new Error('Configure RESTORE_DATABASE_URL apontando para um banco vazio');
   const result =
-    command === 'verify'
-      ? inspectBackup(first)
-      : command === 'restore'
-        ? await restoreDatabase(first, second!)
-        : await backupDatabase(process.env.DATABASE_PATH ?? './data/grimorio.db', first);
-  console.info(JSON.stringify({ operation: command, ...result }));
+    operation === 'verify'
+      ? await inspectBackup(file)
+      : operation === 'restore'
+        ? await restoreDatabase(file, process.env.RESTORE_DATABASE_URL!)
+        : await backupDatabase(
+            process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL || '',
+            file
+          );
+  console.info(JSON.stringify({ operation, ...result }));
 } catch {
   console.error(
-    'Operação não concluída. Confira argumentos, permissões, integridade e se o destino é novo. Nenhum destino existente é substituído.'
+    'Operação cancelada. Confira arquivo, conexão, utilitários PostgreSQL 17 e destino de restauração vazio. Nenhuma URL ou credencial é exibida.'
   );
   process.exitCode = 1;
 }

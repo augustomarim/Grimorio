@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Atualização de dependências de teste
 
 Vitest atualizado de 3.2.7 para 5.1.0, compatível com Node 24. Atualizados package.json e package-lock.json. Não foi usado audit fix --force.

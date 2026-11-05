@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "engine": "PostgreSQL 17",
+  "postgresSchemaVersion": 1,
+  "tables": 51,
+  "views": 9,
+  "foreignKeys": 90,
+  "vitest": {
+    "total": 60,
+    "postgresIntegration": 17,
+    "configuration": 5,
+    "pureRules": 38
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "format": "passed",
+  "snapshotAndSampleData": "executed in real PostgreSQL",
+  "transfer": {
+    "equal": true,
+    "tables": 50,
+    "rows": 199
+  },
+  "identity": {
+    "identityPreserved": true,
+    "lastValue": 10000
+  },
+  "runtimeImage": {
+    "status": "passed",
+    "nodeEnvironment": "test; local PostgreSQL transport without TLS; external Neon TLS not exercised",
+    "checks": [
+      "runtime starts with PostgreSQL",
+      "real catalog and PostgreSQL health",
+      "non-root process",
+      "pg_dump 17 included",
+      "pg_dump backup created",
+      "restored 1905 catalog entries",
+      "database independent from API restart",
+      "SQLite driver absent from production image"
+    ]
+  },
+  "npmAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "notExecuted": [
+    "connection to a real Neon project",
+    "public deployment",
+    "external Neon TLS handshake",
+    "dbdiagram.io rendering",
+    "real SMTP delivery"
+  ]
+}

@@ -1,4 +1,5 @@
-import type Database from 'better-sqlite3';
+import { asyncMap } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { ContentItem } from '@freshmag/one-dndb';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
@@ -67,29 +68,29 @@ interface ClassRow {
   subclass_data: string | null;
 }
 export class CapabilityService {
-  constructor(private db: Database.Database) {}
-  private profile(id: number) {
-    if (!this.db.prepare('SELECT 1 FROM dnd_character WHERE character_id=?').get(id))
+  constructor(private db: Database) {}
+  private async profile(id: number) {
+    if (!(await this.db.prepare('SELECT 1 FROM dnd_character WHERE character_id=?').get(id)))
       throw new AppError(
         409,
         'CAPABILITIES_UNAVAILABLE',
         'Capacidades disponíveis apenas para D&D'
       );
   }
-  private classes(id: number) {
-    return this.db
+  private async classes(id: number) {
+    return (await this.db
       .prepare(
         'SELECT cc.id,cc.level,cc.is_initial_class,e.slug,c.data,s.data AS subclass_data FROM character_class cc JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry e ON e.id=c.catalog_entry_id LEFT JOIN lib_subclass s ON s.id=cc.subclass_id WHERE cc.character_id=? ORDER BY cc.is_initial_class DESC,cc.id'
       )
-      .all(id) as ClassRow[];
+      .all(id)) as ClassRow[];
   }
-  casting(id: number, user?: User) {
-    return this.db
-      .transaction(() => {
-        new CharacterService(this.db).requireReadable(id, user);
-        this.profile(id);
-        const classes = this.classes(id),
-          perClass = classes.map((row) => {
+  async casting(id: number, user?: User) {
+    return await this.db
+      .transaction(async () => {
+        await new CharacterService(this.db).requireReadable(id, user);
+        await this.profile(id);
+        const classes = await this.classes(id),
+          perClass = await asyncMap(classes, async (row) => {
             const base = JSON.parse(row.data) as ContentItem,
               sub = row.subclass_data ? (JSON.parse(row.subclass_data) as ContentItem) : undefined;
             const data = base.casting ? base : sub?.casting ? sub : undefined;
@@ -137,12 +138,12 @@ export class CapabilityService {
       })
       .deferred();
   }
-  benefits(id: number, user?: User) {
-    return this.db
-      .transaction(() => {
-        new CharacterService(this.db).requireReadable(id, user);
-        this.profile(id);
-        const items = this.classes(id).map((row) => {
+  async benefits(id: number, user?: User) {
+    return await this.db
+      .transaction(async () => {
+        await new CharacterService(this.db).requireReadable(id, user);
+        await this.profile(id);
+        const items = (await this.classes(id)).map((row) => {
           const data = JSON.parse(row.data) as ContentItem;
           return {
             characterClassId: row.id,
@@ -175,12 +176,12 @@ export class CapabilityService {
       })
       .deferred();
   }
-  audit(id: number): Finding[] {
-    const rows = this.db
+  async audit(id: number): Promise<Finding[]> {
+    const rows = (await this.db
       .prepare(
         "SELECT t.id,t.ability,t.selection_kind,g.acquisition_context,g.rule_key,cc.id AS class_instance_id,cc.is_initial_class,c.data,e.slug FROM character_saving_throw t JOIN character_rule_grant g ON g.id=t.grant_id AND g.character_id=t.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry e ON e.id=c.catalog_entry_id WHERE t.character_id=? AND g.origin_kind='class'"
       )
-      .all(id) as {
+      .all(id)) as {
       id: number;
       rule_key: string;
       class_instance_id: number;
@@ -212,11 +213,11 @@ export class CapabilityService {
       message:
         'Proficiência em salvaguarda versus origem declarada; entrada multiclasse básica não concede salvaguardas',
     }));
-    const armor = this.db
+    const armor = (await this.db
       .prepare(
         "SELECT a.id,a.armor_kind,a.selection_kind,g.rule_key,cc.id AS class_instance_id,catalog.slug FROM character_armor_training a JOIN character_rule_grant g ON g.id=a.grant_id AND g.character_id=a.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry catalog ON catalog.id=c.catalog_entry_id WHERE a.character_id=? AND g.origin_kind='class' AND g.acquisition_context='multiclass_entry'"
       )
-      .all(id) as {
+      .all(id)) as {
       id: number;
       rule_key: string;
       class_instance_id: number;
@@ -241,12 +242,11 @@ export class CapabilityService {
         evidence: { class: row.slug, armorKind: row.armor_kind },
       });
     }
-
-    const weapons = this.db
+    const weapons = (await this.db
       .prepare(
         "SELECT t.id,t.category,t.selection_kind,g.rule_key,cc.id AS class_instance_id,w.category AS item_category,e.slug FROM character_weapon_training t JOIN character_rule_grant g ON g.id=t.grant_id AND g.character_id=t.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry e ON e.id=c.catalog_entry_id LEFT JOIN lib_weapon_definition w ON w.item_id=t.weapon_item_id WHERE t.character_id=? AND g.origin_kind='class' AND g.acquisition_context='multiclass_entry'"
       )
-      .all(id) as {
+      .all(id)) as {
       id: number;
       rule_key: string;
       class_instance_id: number;

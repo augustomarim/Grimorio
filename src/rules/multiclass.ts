@@ -1,10 +1,8 @@
 import type { Finding } from './validation.js';
-
 export const multiclassSources = [
   'https://www.dndbeyond.com/sources/dnd/free-rules/creating-a-character#Multiclassing',
   'https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.pdf',
 ] as const;
-
 // SRD 5.2, pp. 24–25 and the Core Class Traits tables in Classes.
 // Each inner array is OR; the outer array is AND. Never infer these
 // operators from the external catalog's primaryAbility field.
@@ -22,9 +20,11 @@ const prerequisites: Record<string, readonly (readonly string[])[]> = {
   warlock: [['charisma']],
   wizard: [['intelligence']],
 };
-
 export function multiclassRequirements(
-  classes: readonly { id: number; slug: string }[],
+  classes: readonly {
+    id: number;
+    slug: string;
+  }[],
   attributes: Record<string, unknown>
 ): Finding {
   const checks =

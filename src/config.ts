@@ -1,11 +1,10 @@
 import { isIP } from 'node:net';
 import { resolve } from 'node:path';
-
 export interface Config {
   environment: 'development' | 'test' | 'production';
   host: string;
   port: number;
-  databasePath: string;
+  databaseUrl: string;
   origin: string;
   authKey: string;
   mailMode: 'disabled' | 'file' | 'smtp';
@@ -78,7 +77,7 @@ export function loadConfig(env = process.env): Config {
     environment: environment as Config['environment'],
     host: env.HOST ?? '127.0.0.1',
     port,
-    databasePath: resolve(env.DATABASE_PATH ?? './data/grimorio.db'),
+    databaseUrl: databaseUrl(env.DATABASE_URL, environment === 'production'),
     origin: origin.origin,
     authKey: env.AUTH_KEY,
     mailMode: mailMode as Config['mailMode'],
@@ -86,4 +85,18 @@ export function loadConfig(env = process.env): Config {
     ...(smtp ? { smtp } : {}),
     mailDirectory: resolve(env.MAIL_DIRECTORY ?? './data/mail'),
   };
+}
+export function databaseUrl(value: string | undefined, production = false) {
+  if (!value) throw new Error('Configure DATABASE_URL do PostgreSQL/Neon');
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('DATABASE_URL inválida');
+  }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || url.pathname === '/')
+    throw new Error('DATABASE_URL deve apontar para um banco PostgreSQL');
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (production || !local) url.searchParams.set('sslmode', 'verify-full');
+  return url.toString();
 }

@@ -1,4 +1,5 @@
-import type Database from 'better-sqlite3';
+import { asyncMap } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { Spell } from '@freshmag/one-dndb';
 import { BenefitAudit, type Grant } from '../rules/benefits.js';
 import type { Finding } from '../rules/validation.js';
@@ -15,8 +16,8 @@ export interface SpellOrigin {
   castingAbilityChoice?: string | null;
 }
 export class NestedSpells {
-  constructor(private db: Database.Database) {}
-  check(
+  constructor(private db: Database) {}
+  async check(
     id: number,
     spellId: number,
     origin: SpellOrigin,
@@ -24,17 +25,22 @@ export class NestedSpells {
     excludeId?: number,
     auditing = false
   ) {
-    const choice = this.db
+    const choice = (await this.db
       .prepare(
         'SELECT grant_id,choice_id,option_id FROM character_choice WHERE character_id=? AND id=?'
       )
-      .get(id, link.choiceInstanceId) as
-      { grant_id: number; choice_id: string; option_id: string } | undefined;
+      .get(id, link.choiceInstanceId)) as
+      | {
+          grant_id: number;
+          choice_id: string;
+          option_id: string;
+        }
+      | undefined;
     if (!choice)
       throw new AppError(400, 'INVALID_NESTED_ORIGIN', 'Opção não pertence ao personagem');
-    const grant = this.db
+    const grant = (await this.db
       .prepare('SELECT * FROM character_rule_grant WHERE character_id=? AND id=?')
-      .get(id, choice.grant_id) as Grant;
+      .get(id, choice.grant_id)) as Grant;
     const originId =
       grant.origin_character_class_id ??
       grant.origin_species_id ??
@@ -46,7 +52,7 @@ export class NestedSpells {
         'NESTED_ORIGIN_MISMATCH',
         'Magia e opção precisam ter a mesma origem'
       );
-    const source = new BenefitAudit(this.db).source(id, grant),
+    const source = await new BenefitAudit(this.db).source(id, grant),
       definition = (source ? sourceChoices(source) : []).find((c) => c.id === choice.choice_id),
       option = definition?.options.find((o) => o.id === choice.option_id);
     if (!source || !option || !definition)
@@ -55,12 +61,17 @@ export class NestedSpells {
       throw new AppError(400, 'ORIGIN_DEPRECATED', 'Não atribua novas magias a origem depreciada');
     if (source.level < (definition.level ?? 1))
       throw new AppError(400, 'NESTED_LEVEL', 'Opção ainda não liberada');
-    const row = this.db
+    const row = (await this.db
       .prepare(
         'SELECT l.data,l.is_ritual,e.deprecated_at FROM lib_spell l JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE l.id=?'
       )
-      .get(spellId) as
-      { data: string; is_ritual: number; deprecated_at: string | null } | undefined;
+      .get(spellId)) as
+      | {
+          data: string;
+          is_ritual: number;
+          deprecated_at: string | null;
+        }
+      | undefined;
     if (!row || (!auditing && row.deprecated_at))
       throw new AppError(400, 'INVALID_SPELL', 'Magia inexistente ou depreciada');
     const spell = JSON.parse(row.data) as Spell;
@@ -127,18 +138,22 @@ export class NestedSpells {
       )
         throw new AppError(400, 'NESTED_SPELL_OPTION', 'Magia fora dos critérios da escolha');
       const total = (
-        this.db
+        (await this.db
           .prepare('SELECT SUM(level) AS n FROM character_class WHERE character_id=?')
-          .get(id) as { n: number }
+          .get(id)) as {
+          n: number;
+        }
       ).n;
       maximum = rule.pickProficiency ? 2 + Math.floor((total - 1) / 4) : rule.pick;
     }
     const count = (
-      this.db
+      (await this.db
         .prepare(
           'SELECT count(*) AS n FROM character_spell WHERE character_id=? AND choice_instance_id=? AND nested_choice_key=? AND id!=?'
         )
-        .get(id, link.choiceInstanceId, link.nestedChoiceKey, excludeId ?? -1) as { n: number }
+        .get(id, link.choiceInstanceId, link.nestedChoiceKey, excludeId ?? -1)) as {
+        n: number;
+      }
     ).n;
     if (count >= maximum)
       throw new AppError(
@@ -154,12 +169,12 @@ export class NestedSpells {
       nestedChoiceKey: link.nestedChoiceKey,
     };
   }
-  audit(id: number): Finding[] {
-    const spells = this.db
+  async audit(id: number): Promise<Finding[]> {
+    const spells = (await this.db
       .prepare(
         'SELECT * FROM character_spell WHERE character_id=? AND choice_instance_id IS NOT NULL ORDER BY id'
       )
-      .all(id) as {
+      .all(id)) as {
       id: number;
       lib_spell_id: number;
       choice_instance_id: number;
@@ -172,9 +187,9 @@ export class NestedSpells {
       preparation_mode: string;
       casting_ability_choice: string | null;
     }[];
-    return spells.map((s) => {
+    return await asyncMap(spells, async (s) => {
       try {
-        const evidence = this.check(
+        const evidence = await this.check(
           id,
           s.lib_spell_id,
           {

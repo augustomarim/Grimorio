@@ -1,10 +1,10 @@
-import type Database from 'better-sqlite3';
+import { asyncMap, asyncFlatMap } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { Item } from '@freshmag/one-dndb';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
 import { abilities, attributeState, type Ability } from './attributes.js';
 import { EffectEngine } from './effects.js';
-
 export const modifier = (score: number) => Math.floor((score - 10) / 2);
 export function proficiencyBonus(level: number) {
   if (!Number.isInteger(level) || level < 1 || level > 20)
@@ -29,68 +29,78 @@ interface Equipped {
   slug: string;
 }
 export class DerivedService {
-  constructor(private db: Database.Database) {}
-  report(id: number, user?: User) {
-    return this.db
-      .transaction(() => {
-        new CharacterService(this.db).requireReadable(id, user);
-        const attributes = attributeState(this.db, id);
+  constructor(private db: Database) {}
+  async report(id: number, user?: User) {
+    return await this.db
+      .transaction(async () => {
+        await new CharacterService(this.db).requireReadable(id, user);
+        const attributes = await attributeState(this.db, id);
         const scores = attributes.effective;
         const modifiers = Object.fromEntries(
           abilities.map((a) => [a, modifier(scores[a])])
         ) as Record<Ability, number>;
         const engine = new EffectEngine(this.db),
-          sources = engine.sources(id),
-          projected = engine.project(id);
+          sources = await engine.sources(id),
+          projected = await engine.project(id);
         const total = (
-          this.db
+          (await this.db
             .prepare('SELECT SUM(level) n FROM character_class WHERE character_id=?')
-            .get(id) as { n: number }
+            .get(id)) as {
+            n: number;
+          }
         ).n;
         const pb = proficiencyBonus(total);
         const bard = sources.find((s) => s.kind === 'class' && s.slug === 'bard' && s.level >= 2);
         const jack = !!bard?.data.features?.some(
           (f) => f.name.toLowerCase() === 'jack of all trades' && f.level <= bard.level
         );
-        const skills = (
-          this.db
+        const skills = await asyncMap(
+          (await this.db
             .prepare(
               'SELECT l.id,l.ability,e.name,e.slug FROM lib_skill l JOIN catalog_entry e ON e.id=l.catalog_entry_id ORDER BY e.name'
             )
-            .all() as { id: number; ability: Ability; name: string; slug: string }[]
-        ).map((s) => {
-          const rank = projected.skills.find((p) => p.name === s.name)?.rank ?? 0;
-          const contribution = rank ? rank * pb : jack ? Math.floor(pb / 2) : 0;
-          return {
-            ...s,
-            proficiencyRank: rank,
-            abilityModifier: modifiers[s.ability],
-            proficiencyContribution: contribution,
-            bonus: modifiers[s.ability] + contribution,
-            jackOfAllTrades: rank === 0 && jack,
-          };
-        });
+            .all()) as {
+            id: number;
+            ability: Ability;
+            name: string;
+            slug: string;
+          }[],
+          async (s) => {
+            const rank = projected.skills.find((p) => p.name === s.name)?.rank ?? 0;
+            const contribution = rank ? rank * pb : jack ? Math.floor(pb / 2) : 0;
+            return {
+              ...s,
+              proficiencyRank: rank,
+              abilityModifier: modifiers[s.ability],
+              proficiencyContribution: contribution,
+              bonus: modifiers[s.ability] + contribution,
+              jackOfAllTrades: rank === 0 && jack,
+            };
+          }
+        );
         const savingThrows = abilities.map((ability) => ({
           ability,
           proficient: projected.savingThrows.includes(ability),
           bonus: modifiers[ability] + (projected.savingThrows.includes(ability) ? pb : 0),
         }));
-        const equipment = this.db
+        const equipment = (await this.db
           .prepare(
             'SELECT ci.id,ci.quantity,l.data,e.name,e.slug FROM character_item ci JOIN lib_item l ON l.id=ci.lib_item_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE ci.character_id=? AND ci.equipped=1 ORDER BY ci.id'
           )
-          .all(id) as Equipped[];
-        const textReview = sources.flatMap((source) => {
+          .all(id)) as Equipped[];
+        const textReview = await asyncFlatMap(sources, async (source) => {
           const fragments =
             source.data.features
               ?.filter((f) => f.level <= source.level)
               .map((f) => ({ name: f.name, text: f.body })) ?? [];
           if (source.kind === 'feat') {
-            const raw = this.db
+            const raw = (await this.db
               .prepare(
                 'SELECT f.data FROM character_ability a JOIN lib_feat f ON f.id=a.lib_feat_id WHERE a.id=? AND a.character_id=?'
               )
-              .get(source.instanceId, id) as { data: string };
+              .get(source.instanceId, id)) as {
+              data: string;
+            };
             fragments.push({ name: source.name, text: JSON.parse(raw.data).text ?? '' });
           }
           return fragments
@@ -107,22 +117,33 @@ export class DerivedService {
               return areas.length ? [{ source: source.identity, name: f.name, areas }] : [];
             });
         });
-        const armor = this.armor(equipment, modifiers, projected.armor, sources, scores.strength);
+        const armor = await this.armor(
+          equipment,
+          modifiers,
+          projected.armor,
+          sources,
+          scores.strength
+        );
         if (textReview.some((r) => r.areas.includes('armorClass'))) {
           armor.issues.push('TEXT_ARMOR_EFFECTS_REQUIRES_REVIEW');
           armor.value = null;
         }
         const alert = sources.some((s) => s.kind === 'feat' && s.slug === 'alert');
         const count = (
-          this.db
+          (await this.db
             .prepare('SELECT count(*) n FROM character_level_entry WHERE character_id=?')
-            .get(id) as { n: number }
+            .get(id)) as {
+            n: number;
+          }
         ).n;
-        const hp = this.db
+        const hp = (await this.db
           .prepare(
             'SELECT base_hit_points,modeled_max_hit_points FROM character_hit_point_summary WHERE character_id=?'
           )
-          .get(id) as { base_hit_points: number; modeled_max_hit_points: number };
+          .get(id)) as {
+          base_hit_points: number;
+          modeled_max_hit_points: number;
+        };
         return {
           characterId: id,
           totalLevel: total,
@@ -169,11 +190,11 @@ export class DerivedService {
       })
       .deferred();
   }
-  private armor(
+  private async armor(
     equipment: Equipped[],
     m: Record<Ability, number>,
     training: string[],
-    sources: ReturnType<EffectEngine['sources']>,
+    sources: Awaited<ReturnType<EffectEngine['sources']>>,
     strengthScore: number
   ) {
     const worn = equipment.map((row) => ({ ...row, item: JSON.parse(row.data) as Item }));
@@ -184,7 +205,10 @@ export class DerivedService {
     if ([...armor, ...shields].some((r) => r.quantity !== 1))
       issues.push('EQUIPPED_ARMOR_QUANTITY');
     if (worn.some((r) => r.item.magic)) issues.push('MAGIC_EQUIPMENT_REQUIRES_REVIEW');
-    const candidates: { source: string; value: number }[] = [];
+    const candidates: {
+      source: string;
+      value: number;
+    }[] = [];
     if (!armor.length) {
       candidates.push({ source: 'unarmored', value: 10 + m.dexterity });
       for (const s of sources.filter(

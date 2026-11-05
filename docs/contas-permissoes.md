@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Contas, permissões e publicação — v1
 
 Regras aprovadas pelo usuário. Estado atual: 49 tabelas, 6 views e schema versão 3. A única tabela adicionada nesta etapa é login_throttle; moderação e vínculo dos tokens ampliam estruturas existentes. A fase de modelagem não implementava endpoints. O backend v0.1 agora inclui autenticação HTTP e Argon2id real; entrega externa de e-mail ainda não existe. Consulte estado-backend.md.

@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Escolhas de perícias, especializações, ferramentas e idiomas
 
 A auditoria em GET /characters/:id/validation agora reconhece escolhas diretas descritas no catálogo @freshmag/one-dndb 0.5.1. Não cria regras de RPG: interpreta skillChoices, expertise, toolChoices, languageChoices e listas fixas presentes nos dados reais. Continua sendo auditoria do estado atual; não bloqueia a gravação de rascunhos.

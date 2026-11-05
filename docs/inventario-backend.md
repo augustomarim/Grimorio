@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Inventário — incremento do backend
 
 Implementado sobre character_item/lib_item/catalog_entry, sem migração, nova tabela ou dependência. O banco permanece na versão 3, com 49 tabelas e 6 views. Código em src/inventory, dividido em rotas/validação, serviço e repositório SQL.

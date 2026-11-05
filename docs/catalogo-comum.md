@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Catálogo comum e livros
 
 Alteração aprovada: o modelo foi reduzido de 58 para 44 tabelas, mantendo 6 views. Foram removidas 16 tabelas `lib_*_source` e adicionadas `catalog_entry` e `catalog_entry_source`. A contagem foi conferida no SQLite.

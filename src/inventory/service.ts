@@ -1,9 +1,9 @@
-import type Database from 'better-sqlite3';
+import { asyncMap } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
 import { AppError } from '../errors.js';
 import { InventoryRepository, type InventoryQuery, type ItemRow } from './repository.js';
-
 export interface NewItem {
   itemId: number;
   quantity?: number;
@@ -18,24 +18,24 @@ export interface ItemChanges {
 export class InventoryService {
   private repository: InventoryRepository;
   private characters: CharacterService;
-  constructor(db: Database.Database) {
+  constructor(db: Database) {
     this.repository = new InventoryRepository(db);
     this.characters = new CharacterService(db);
   }
-  private profile(characterId: number) {
-    if (!this.repository.hasProfile(characterId))
+  private async profile(characterId: number) {
+    if (!(await this.repository.hasProfile(characterId)))
       throw new AppError(
         409,
         'INVENTORY_UNAVAILABLE',
         'Inventário disponível apenas para perfil D&D neste incremento'
       );
   }
-  private instance(characterId: number, instanceId: number) {
-    const row = this.repository.find(characterId, instanceId);
+  private async instance(characterId: number, instanceId: number) {
+    const row = await this.repository.find(characterId, instanceId);
     if (!row) throw new AppError(404, 'ITEM_NOT_FOUND', 'Instância de item não encontrada');
     return row;
   }
-  private present(row: ItemRow) {
+  private async present(row: ItemRow) {
     return {
       id: row.id,
       characterId: row.character_id,
@@ -52,31 +52,31 @@ export class InventoryService {
         costCp: row.cost_cp,
         weight: row.weight,
         deprecatedAt: row.deprecated_at,
-        sources: this.repository.sources(row.catalog_id),
+        sources: await this.repository.sources(row.catalog_id),
       },
     };
   }
-  list(characterId: number, user: User | undefined, query: InventoryQuery) {
-    this.characters.requireReadable(characterId, user);
-    this.profile(characterId);
-    const { items, total } = this.repository.list(characterId, query);
+  async list(characterId: number, user: User | undefined, query: InventoryQuery) {
+    await this.characters.requireReadable(characterId, user);
+    await this.profile(characterId);
+    const { items, total } = await this.repository.list(characterId, query);
     return {
-      items: items.map((row) => this.present(row)),
+      items: await asyncMap(items, async (row) => await this.present(row)),
       total,
       page: query.page,
       limit: query.limit,
     };
   }
-  get(characterId: number, instanceId: number, user?: User) {
-    this.characters.requireReadable(characterId, user);
-    this.profile(characterId);
-    return this.present(this.instance(characterId, instanceId));
+  async get(characterId: number, instanceId: number, user?: User) {
+    await this.characters.requireReadable(characterId, user);
+    await this.profile(characterId);
+    return await this.present(await this.instance(characterId, instanceId));
   }
   create(characterId: number, user: User, input: NewItem) {
-    return this.repository.transaction(() => {
-      this.characters.requireOwner(characterId, user);
-      this.profile(characterId);
-      const item = this.repository.item(input.itemId);
+    return this.repository.transaction(async () => {
+      await this.characters.requireOwner(characterId, user);
+      await this.profile(characterId);
+      const item = await this.repository.item(input.itemId);
       if (!item)
         throw new AppError(
           400,
@@ -87,26 +87,26 @@ export class InventoryService {
         throw new AppError(400, 'ITEM_DEPRECATED', 'Não é possível adquirir um item depreciado');
       const quantity = input.quantity ?? 1,
         equipped = input.equipped ?? false;
-      const instanceId = this.repository.insert(
+      const instanceId = await this.repository.insert(
         characterId,
         item.id,
         quantity,
         equipped,
         input.notes ?? null
       );
-      this.repository.saved(characterId, user.id, 'inventory.add', instanceId, {
+      await this.repository.saved(characterId, user.id, 'inventory.add', instanceId, {
         itemId: item.id,
         quantity,
         equipped,
       });
-      return this.present(this.instance(characterId, instanceId));
+      return await this.present(await this.instance(characterId, instanceId));
     });
   }
   update(characterId: number, instanceId: number, user: User, input: ItemChanges) {
-    return this.repository.transaction(() => {
-      this.characters.requireOwner(characterId, user);
-      this.profile(characterId);
-      const current = this.instance(characterId, instanceId),
+    return this.repository.transaction(async () => {
+      await this.characters.requireOwner(characterId, user);
+      await this.profile(characterId);
+      const current = await this.instance(characterId, instanceId),
         quantity = input.quantity ?? current.quantity;
       if (current.deprecated_at && quantity > current.quantity)
         throw new AppError(
@@ -116,22 +116,22 @@ export class InventoryService {
         );
       const equipped = input.equipped ?? !!current.equipped,
         notes = input.notes === undefined ? current.notes : input.notes;
-      this.repository.update(characterId, instanceId, quantity, equipped, notes);
-      this.repository.saved(characterId, user.id, 'inventory.update', instanceId, {
+      await this.repository.update(characterId, instanceId, quantity, equipped, notes);
+      await this.repository.saved(characterId, user.id, 'inventory.update', instanceId, {
         itemId: current.item_id,
         quantity,
         equipped,
       });
-      return this.present(this.instance(characterId, instanceId));
+      return await this.present(await this.instance(characterId, instanceId));
     });
   }
-  remove(characterId: number, instanceId: number, user: User) {
-    this.repository.transaction(() => {
-      this.characters.requireOwner(characterId, user);
-      this.profile(characterId);
-      const current = this.instance(characterId, instanceId);
-      this.repository.remove(characterId, instanceId);
-      this.repository.saved(characterId, user.id, 'inventory.remove', instanceId, {
+  async remove(characterId: number, instanceId: number, user: User) {
+    await this.repository.transaction(async () => {
+      await this.characters.requireOwner(characterId, user);
+      await this.profile(characterId);
+      const current = await this.instance(characterId, instanceId);
+      await this.repository.remove(characterId, instanceId);
+      await this.repository.saved(characterId, user.id, 'inventory.remove', instanceId, {
         itemId: current.item_id,
         quantity: current.quantity,
       });

@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Compatibilidade — @freshmag/one-dndb 0.5.1
 
 Tarball publicado no npm inspecionado: https://www.npmjs.com/package/@freshmag/one-dndb/v/0.5.1 . REVISION: d29f5fbddf06c00a. O pacote fornece dados e consultas, não uma validação completa de personagem D&D 2024. Seu conteúdo combina diferentes fontes; não foi comprovada completude normativa nem oficialidade de todos os rótulos.

@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Modelagem consolidada — Grimorio
 
 Estado atual: **49 tabelas e 6 views**, conferidos no SQLite. Consolidação estrutural para iniciar o núcleo do backend, com pendências normativas explícitas em fechamento-modelagem-v1.md; backend v0.1 implementado para o núcleo, catálogo e ficha básica; frontend ainda não iniciado. Os artefatos foram reconstruídos a partir do resumo fornecido, pois os arquivos do projeto anterior não foram anexados.

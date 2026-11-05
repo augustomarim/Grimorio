@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Proficiências, escolhas e progressão
 
 Modelo físico para revisão: 49 tabelas e 6 views. Esta etapa inclui os benefícios discutidos e pontos de vida/progressão. Não implementa backend nem um motor completo de D&D 2024.

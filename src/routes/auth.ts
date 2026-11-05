@@ -33,7 +33,13 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
     reply.clearCookie(REFRESH, { ...cookie, path: '/auth' });
   };
   const generic = { message: 'Se os dados estiverem elegíveis, enviaremos as instruções.' };
-  app.post<{ Body: { email: string; username: string; password: string } }>(
+  app.post<{
+    Body: {
+      email: string;
+      username: string;
+      password: string;
+    };
+  }>(
     '/auth/register',
     {
       config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
@@ -47,10 +53,15 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
     },
     async (req, reply) => {
       await auth.register(req.body.email, req.body.username, req.body.password);
-      return reply.code(202).send(generic);
+      return await reply.code(202).send(generic);
     }
   );
-  app.post<{ Body: { email: string; password: string } }>(
+  app.post<{
+    Body: {
+      email: string;
+      password: string;
+    };
+  }>(
     '/auth/login',
     {
       schema: {
@@ -69,22 +80,28 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
       )
   );
   app.get('/auth/me', async (req) => ({
-    user: publicUser(auth.authenticate(req.cookies[ACCESS])),
+    user: publicUser(await auth.authenticate(req.cookies[ACCESS])),
   }));
-  app.post('/auth/refresh', async (req, reply) => set(reply, auth.refresh(req.cookies[REFRESH])));
+  app.post('/auth/refresh', async (req, reply) =>
+    set(reply, await auth.refresh(req.cookies[REFRESH]))
+  );
   app.post('/auth/logout', async (req, reply) => {
-    auth.logout(req.cookies[ACCESS], req.cookies[REFRESH]);
+    await auth.logout(req.cookies[ACCESS], req.cookies[REFRESH]);
     clear(reply);
-    return reply.code(204).send();
+    return await reply.code(204).send();
   });
   app.post('/auth/logout-all', async (req, reply) => {
-    auth.logoutAll(auth.authenticate(req.cookies[ACCESS]));
+    await auth.logoutAll(await auth.authenticate(req.cookies[ACCESS]));
     clear(reply);
-    return reply.code(204).send();
+    return await reply.code(204).send();
   });
   for (const purpose of ['email_verification', 'password_reset'] as const) {
     const path = purpose === 'email_verification' ? 'email-verification' : 'password-reset';
-    app.post<{ Body: { email: string } }>(
+    app.post<{
+      Body: {
+        email: string;
+      };
+    }>(
       `/auth/${path}/request`,
       {
         config: { rateLimit: { max: 3, timeWindow: '15 minutes' } },
@@ -92,10 +109,15 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
       },
       async (req, reply) => {
         await auth.requestToken(req.body.email, purpose);
-        return reply.code(202).send(generic);
+        return await reply.code(202).send(generic);
       }
     );
-    app.post<{ Body: { token: string; password?: string } }>(
+    app.post<{
+      Body: {
+        token: string;
+        password?: string;
+      };
+    }>(
       `/auth/${path}/confirm`,
       {
         config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
@@ -108,7 +130,7 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
       async (req, reply) => {
         await auth.consume(req.body.token, purpose, req.body.password);
         if (purpose === 'password_reset') clear(reply);
-        return reply.code(204).send();
+        return await reply.code(204).send();
       }
     );
   }

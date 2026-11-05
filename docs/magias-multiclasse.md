@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Magias, concessões, preparação e grimório
 
 Proposta física aprovada nesta etapa: 49 tabelas e 6 views. Os exemplos demonstram armazenamento e integridade; não constituem uma ficha integralmente validada contra todos os livros de D&D 2024.

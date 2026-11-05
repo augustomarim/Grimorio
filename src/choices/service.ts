@@ -1,4 +1,5 @@
-import type Database from 'better-sqlite3';
+import { asyncFilter, asyncSome } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
 import { BenefitAudit, type Grant } from '../rules/benefits.js';
@@ -25,41 +26,41 @@ interface ChoiceRow {
   option_id: string;
 }
 export class ChoiceService {
-  constructor(private db: Database.Database) {}
-  private grants(id: number) {
-    return this.db
+  constructor(private db: Database) {}
+  private async grants(id: number) {
+    return (await this.db
       .prepare('SELECT * FROM character_rule_grant WHERE character_id=? ORDER BY id')
-      .all(id) as Grant[];
+      .all(id)) as Grant[];
   }
-  private profile(id: number) {
-    if (!this.db.prepare('SELECT 1 FROM dnd_character WHERE character_id=?').get(id))
+  private async profile(id: number) {
+    if (!(await this.db.prepare('SELECT 1 FROM dnd_character WHERE character_id=?').get(id)))
       throw new AppError(409, 'CHOICES_UNAVAILABLE', 'Escolhas disponíveis apenas para D&D');
   }
-  private saved(id: number, user: User, action: string) {
-    this.db
+  private async saved(id: number, user: User, action: string) {
+    await this.db
       .prepare('UPDATE character SET updated_at=? WHERE id=?')
       .run(new Date().toISOString(), id);
-    this.db
+    await this.db
       .prepare(
         'UPDATE dnd_character SET ruleset_revision_id=(SELECT id FROM ruleset_revision ORDER BY id DESC LIMIT 1) WHERE character_id=?'
       )
       .run(id);
-    this.db
+    await this.db
       .prepare(
         "INSERT INTO audit_log(actor_user_id,action,entity_type,entity_id) VALUES(?,?,'character',?)"
       )
       .run(user.id, action, id);
   }
-  inspect(id: number) {
-    const grants = this.grants(id),
+  async inspect(id: number) {
+    const grants = await this.grants(id),
       audit = new BenefitAudit(this.db),
-      selected = this.db
+      selected = (await this.db
         .prepare('SELECT * FROM character_choice WHERE character_id=? ORDER BY id')
-        .all(id) as ChoiceRow[];
+        .all(id)) as ChoiceRow[];
     const findings: Finding[] = [],
       options = [];
     for (const grant of grants) {
-      const source = audit.source(id, grant);
+      const source = await audit.source(id, grant);
       if (!source) continue;
       for (const choice of sourceChoices(source)) {
         options.push({
@@ -76,10 +77,10 @@ export class ChoiceService {
         });
       }
     }
-    const nestedFindings = new NestedSpells(this.db).audit(id);
+    const nestedFindings = await new NestedSpells(this.db).audit(id);
     for (const row of selected) {
       const grant = grants.find((g) => g.id === row.grant_id),
-        source = grant ? audit.source(id, grant) : undefined;
+        source = grant ? await audit.source(id, grant) : undefined;
       const choice = (source ? sourceChoices(source) : []).find((c) => c.id === row.choice_id),
         option = choice?.options.find((o) => o.id === row.option_id);
       const recognized = !!option;
@@ -88,11 +89,11 @@ export class ChoiceService {
           ? magicConfiguration(row.choice_id, row.option_id)
           : undefined;
       if (config) {
-        const same = selected.filter((other) => {
+        const same = await asyncFilter(selected, async (other) => {
           const otherGrant = grants.find((g) => g.id === other.grant_id);
           return (
             otherGrant &&
-            audit.source(id, otherGrant)?.featSlug === 'magic-initiate' &&
+            (await audit.source(id, otherGrant))?.featSlug === 'magic-initiate' &&
             magicConfiguration(other.choice_id, other.option_id)?.list === config.list
           );
         });
@@ -111,7 +112,6 @@ export class ChoiceService {
           evidence: config,
         });
       }
-
       findings.push({
         code: 'NESTED_OPTION',
         state: recognized ? 'pass' : 'unknown',
@@ -150,7 +150,7 @@ export class ChoiceService {
           grant.origin_species_id ??
           grant.origin_background_id ??
           grant.origin_character_ability_id;
-        const instances = this.db
+        const instances = await this.db
           .prepare(
             `SELECT s.id FROM character_spell s JOIN lib_spell l ON l.id=s.lib_spell_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE s.character_id=? AND s.origin_kind=? AND s.${column}=? AND e.slug=? AND s.choice_instance_id=? AND s.nested_choice_key=?`
           )
@@ -180,11 +180,17 @@ export class ChoiceService {
       if (option.spellChoices?.length) {
         const linked = nestedFindings.filter(
           (f) =>
-            (f.evidence as { choiceInstanceId?: number; nestedChoiceKey?: string })
-              ?.choiceInstanceId === row.id &&
-            (f.evidence as { nestedChoiceKey?: string })?.nestedChoiceKey?.startsWith(
-              'spellChoices:'
-            )
+            (
+              f.evidence as {
+                choiceInstanceId?: number;
+                nestedChoiceKey?: string;
+              }
+            )?.choiceInstanceId === row.id &&
+            (
+              f.evidence as {
+                nestedChoiceKey?: string;
+              }
+            )?.nestedChoiceKey?.startsWith('spellChoices:')
         );
         findings.push({
           code: 'NESTED_SPELL_CHOICES',
@@ -200,18 +206,21 @@ export class ChoiceService {
         });
       }
     }
-    const magicInstances = this.db
+    const magicInstances = (await this.db
       .prepare(
         "SELECT a.id FROM character_ability a JOIN lib_feat f ON f.id=a.lib_feat_id JOIN catalog_entry e ON e.id=f.catalog_entry_id WHERE a.character_id=? AND e.slug='magic-initiate'"
       )
-      .all(id) as { id: number }[];
+      .all(id)) as {
+      id: number;
+    }[];
     for (const feat of magicInstances) {
       if (
-        !selected.some(
-          (row) =>
+        !(await asyncSome(
+          selected,
+          async (row) =>
             grants.find((g) => g.id === row.grant_id)?.origin_character_ability_id === feat.id &&
             magicConfiguration(row.choice_id, row.option_id)
-        )
+        ))
       )
         findings.push({
           code: 'MAGIC_INITIATE_CONFIGURATION',
@@ -224,24 +233,24 @@ export class ChoiceService {
     findings.push(...nestedFindings);
     return { selected, options, findings };
   }
-  list(id: number, user?: User) {
-    return this.db
-      .transaction(() => {
-        new CharacterService(this.db).requireReadable(id, user);
-        this.profile(id);
-        return { ...this.inspect(id), rulesVerified: false };
+  async list(id: number, user?: User) {
+    return await this.db
+      .transaction(async () => {
+        await new CharacterService(this.db).requireReadable(id, user);
+        await this.profile(id);
+        return { ...(await this.inspect(id)), rulesVerified: false };
       })
       .deferred();
   }
-  add(id: number, user: User, input: ChoiceInput) {
-    return this.db
-      .transaction(() => {
-        new CharacterService(this.db).requireOwner(id, user);
-        this.profile(id);
-        const grants = this.grants(id),
+  async add(id: number, user: User, input: ChoiceInput) {
+    return await this.db
+      .transaction(async () => {
+        await new CharacterService(this.db).requireOwner(id, user);
+        await this.profile(id);
+        const grants = await this.grants(id),
           grant = grants.find((g) => g.id === input.grantId),
           audit = new BenefitAudit(this.db),
-          source = grant ? audit.source(id, grant) : undefined;
+          source = grant ? await audit.source(id, grant) : undefined;
         if (!grant || !source)
           throw new AppError(400, 'INVALID_ORIGIN', 'Concessão não pertence ao personagem');
         if (source.deprecatedAt)
@@ -270,15 +279,18 @@ export class ChoiceService {
             ? magicConfiguration(input.choiceId, input.optionId)
             : undefined;
         if (config) {
-          const selected = this.db
+          const selected = (await this.db
             .prepare(
               'SELECT c.option_id,g.* FROM character_choice c JOIN character_rule_grant g ON g.id=c.grant_id AND g.character_id=c.character_id WHERE c.character_id=? AND c.choice_id=?'
             )
-            .all(id, magicInitiateChoice) as (Grant & { option_id: string })[];
+            .all(id, magicInitiateChoice)) as (Grant & {
+            option_id: string;
+          })[];
           if (
-            selected.some(
-              (row) =>
-                audit.source(id, row)?.featSlug === 'magic-initiate' &&
+            await asyncSome(
+              selected,
+              async (row) =>
+                (await audit.source(id, row))?.featSlug === 'magic-initiate' &&
                 magicConfiguration(magicInitiateChoice, row.option_id)?.list === config.list
             )
           )
@@ -288,15 +300,21 @@ export class ChoiceService {
               'Outra ocorrência de Magic Initiate já usa essa lista'
             );
         }
-        const groupIds = grants
-          .filter((g) => audit.source(id, g)?.identity === source.identity)
-          .map((g) => g.id);
+        const groupIds = (
+          await asyncFilter(
+            grants,
+            async (g) => (await audit.source(id, g))?.identity === source.identity
+          )
+        ).map((g) => g.id);
         const existing = (
-          this.db
+          (await this.db
             .prepare(
               'SELECT grant_id,option_id FROM character_choice WHERE character_id=? AND choice_id=?'
             )
-            .all(id, input.choiceId) as { grant_id: number; option_id: string }[]
+            .all(id, input.choiceId)) as {
+            grant_id: number;
+            option_id: string;
+          }[]
         ).filter((r) => groupIds.includes(r.grant_id));
         if (
           existing.some((r) => r.option_id === input.optionId) ||
@@ -307,44 +325,52 @@ export class ChoiceService {
             'CHOICE_LIMIT',
             'Opção repetida ou limite de escolhas excedido na origem'
           );
-        const result = this.db
+        const result = await this.db
           .prepare(
             'INSERT INTO character_choice(character_id,grant_id,choice_id,option_id) VALUES(?,?,?,?)'
           )
           .run(id, input.grantId, input.choiceId, input.optionId);
-        this.saved(id, user, 'choice.add');
-        return { id: Number(result.lastInsertRowid) };
+        await this.saved(id, user, 'choice.add');
+        return { id: Number(result.insertId) };
       })
       .immediate();
   }
-  previewRemoval(id: number, user: User, instanceId: number) {
-    new CharacterService(this.db).requireOwner(id, user);
-    return new Reconciliation(this.db, {
+  async previewRemoval(id: number, user: User, instanceId: number) {
+    await new CharacterService(this.db).requireOwner(id, user);
+    return await new Reconciliation(this.db, {
       scope: `choice.remove:${instanceId}`,
       previewPath: `/characters/${id}/choices/${instanceId}/removal-preview`,
       root: { table: 'character_choice', id: instanceId },
-    }).preview(id, {}, () => this.applyRemoval(id, user, instanceId));
+    }).preview(id, {}, async () => await this.applyRemoval(id, user, instanceId));
   }
-  remove(id: number, user: User, instanceId: number, confirmationToken?: string) {
-    new CharacterService(this.db).requireOwner(id, user);
-    return new Reconciliation(this.db, {
+  async remove(id: number, user: User, instanceId: number, confirmationToken?: string) {
+    await new CharacterService(this.db).requireOwner(id, user);
+    return await new Reconciliation(this.db, {
       scope: `choice.remove:${instanceId}`,
       previewPath: `/characters/${id}/choices/${instanceId}/removal-preview`,
       root: { table: 'character_choice', id: instanceId },
-    }).apply(id, user.id, {}, () => this.applyRemoval(id, user, instanceId), confirmationToken);
+    }).apply(
+      id,
+      user.id,
+      {},
+      async () => await this.applyRemoval(id, user, instanceId),
+      confirmationToken
+    );
   }
-  private applyRemoval(id: number, user: User, instanceId: number) {
-    this.db
-      .transaction(() => {
-        new CharacterService(this.db).requireOwner(id, user);
-        this.profile(id);
+  private async applyRemoval(id: number, user: User, instanceId: number) {
+    await this.db
+      .transaction(async () => {
+        await new CharacterService(this.db).requireOwner(id, user);
+        await this.profile(id);
         if (
-          !this.db
-            .prepare('DELETE FROM character_choice WHERE character_id=? AND id=?')
-            .run(id, instanceId).changes
+          !(
+            await this.db
+              .prepare('DELETE FROM character_choice WHERE character_id=? AND id=?')
+              .run(id, instanceId)
+          ).changes
         )
           throw new AppError(404, 'CHOICE_NOT_FOUND', 'Escolha não encontrada');
-        this.saved(id, user, 'choice.remove');
+        await this.saved(id, user, 'choice.remove');
       })
       .immediate();
   }

@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Access e refresh tokens — proposta de dados e protocolo
 
 Adição solicitada: refresh token com rotação, expiração e revogação. Modelo atual: 49 tabelas e 6 views; schema versão 3. A única tabela nova é refresh_token. O fluxo foi exercitado por SQL em testes, na fase original de modelagem. Agora existem endpoints no backend v0.1, com limites documentados em estado-backend.md.

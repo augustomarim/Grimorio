@@ -14,3 +14,5 @@ reports/
 # Credenciais da implantação
 /deploy/.env.production
 /backups/
+# Backups PostgreSQL contêm dados privados
+*.dump

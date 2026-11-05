@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { openDatabase } from './database.js';
 import { migrate } from './migrations.js';
 if (existsSync('.env')) process.loadEnvFile('.env');
-const db = openDatabase(process.env.DATABASE_PATH ?? './data/grimorio.db');
+const db = openDatabase(process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL || '');
 try {
-  console.info(JSON.stringify({ schemaVersion: migrate(db) }));
+  console.info(JSON.stringify({ schemaVersion: await migrate(db) }));
 } finally {
-  db.close();
+  await db.close();
 }

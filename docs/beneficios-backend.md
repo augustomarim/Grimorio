@@ -1,3 +1,5 @@
+> Persistência atual: PostgreSQL / Neon; veja [neon.md](neon.md). As regras de RPG deste documento continuam como referência; detalhes SQLite, comandos antigos e contagens de testes de entregas anteriores são históricos.
+
 # Benefícios de personagem — backend
 
 Este incremento usa as tabelas existentes. Não altera schema.sql, DBML ou migrações.

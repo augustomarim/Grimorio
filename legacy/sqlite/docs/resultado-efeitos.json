@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "schemaVersion": 6,
+  "tables": 51,
+  "views": 9,
+  "structuredFeatEffectTypes": 13,
+  "checks": {
+    "vitest": 134,
+    "python": 43,
+    "http": 76,
+    "typecheck": "passed",
+    "build": "passed",
+    "format": "passed"
+  },
+  "validationScope": "current-state; structured fields in @freshmag/one-dndb 0.5.1",
+  "notCertified": [
+    "text-only tabletop/conditional combat effects",
+    "complete acquisition history",
+    "dbdiagram.io rendered diagram"
+  ],
+  "migrationPolicy": "Existing scores preserved as base. No automatic legacy bonuses."
+}

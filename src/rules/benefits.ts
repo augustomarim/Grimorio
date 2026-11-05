@@ -1,4 +1,5 @@
-import type Database from 'better-sqlite3';
+import { asyncMap, asyncFilter } from '../db/async-array.js';
+import type { Database } from '../db/database.js';
 import type { ContentItem, Feat } from '@freshmag/one-dndb';
 import { coreEntryKey, entryBenefits } from './multiclass-progression.js';
 import { EffectEngine } from './effects.js';
@@ -48,17 +49,21 @@ interface Selection {
   category?: string;
 }
 export class BenefitAudit {
-  constructor(private db: Database.Database) {}
-  source(characterId: number, g: Grant): Source | undefined {
+  constructor(private db: Database) {}
+  async source(characterId: number, g: Grant): Promise<Source | undefined> {
     let table: string, localId: number | null;
     switch (g.origin_kind) {
       case 'class':
         table = 'class';
         localId =
           (
-            this.db
+            (await this.db
               .prepare('SELECT class_id FROM character_class WHERE character_id=? AND id=?')
-              .get(characterId, g.origin_character_class_id) as { class_id: number } | undefined
+              .get(characterId, g.origin_character_class_id)) as
+              | {
+                  class_id: number;
+                }
+              | undefined
           )?.class_id ?? null;
         break;
       case 'subclass':
@@ -80,23 +85,32 @@ export class BenefitAudit {
       default:
         return;
     }
-    const record = this.db
+    const record = (await this.db
       .prepare(
         `SELECT l.data,e.deprecated_at FROM lib_${table} l JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE l.id=?`
       )
-      .get(localId) as { data: string; deprecated_at: string | null } | undefined;
+      .get(localId)) as
+      | {
+          data: string;
+          deprecated_at: string | null;
+        }
+      | undefined;
     if (!record) return;
     const raw = JSON.parse(record.data) as ContentItem & Feat;
     const level = g.origin_character_class_id
       ? (
-          this.db
+          (await this.db
             .prepare('SELECT level FROM character_class WHERE character_id=? AND id=?')
-            .get(characterId, g.origin_character_class_id) as { level: number }
+            .get(characterId, g.origin_character_class_id)) as {
+            level: number;
+          }
         ).level
       : (
-          this.db
+          (await this.db
             .prepare('SELECT SUM(level) AS n FROM character_class WHERE character_id=?')
-            .get(characterId) as { n: number }
+            .get(characterId)) as {
+            n: number;
+          }
         ).n;
     const entry =
       g.origin_kind === 'class' &&
@@ -106,12 +120,16 @@ export class BenefitAudit {
         : undefined;
     let magicInitiateListConstraint: string | null = null;
     if (g.origin_kind === 'feat' && raw.id === 'magic-initiate') {
-      const parent = this.db
+      const parent = (await this.db
         .prepare(
           "SELECT a.selection_kind,b.data FROM character_ability a JOIN character_rule_grant p ON p.id=a.grant_id AND p.character_id=a.character_id JOIN lib_background b ON b.id=p.origin_background_id WHERE a.character_id=? AND a.id=? AND p.origin_kind='background'"
         )
-        .get(characterId, g.origin_character_ability_id) as
-        { selection_kind: string; data: string } | undefined;
+        .get(characterId, g.origin_character_ability_id)) as
+        | {
+            selection_kind: string;
+            data: string;
+          }
+        | undefined;
       if (parent?.selection_kind === 'fixed') {
         const note = (JSON.parse(parent.data) as ContentItem).featsFixed?.find(
           (f) => f.id === 'magic-initiate'
@@ -134,12 +152,12 @@ export class BenefitAudit {
       identity: `${g.origin_kind}:${g.origin_character_class_id ?? g.origin_character_ability_id ?? localId}`,
     };
   }
-  private selections(id: number) {
-    const skill = this.db
+  private async selections(id: number) {
+    const skill = (await this.db
       .prepare(
         "SELECT s.id,s.grant_id,s.choice_key,s.selection_kind,s.proficiency_rank AS rank,'skill' AS kind,e.name,e.slug,NULL AS group_slug,NULL AS tier,NULL AS is_always,l.id AS local_id FROM character_skill s JOIN lib_skill l ON l.id=s.skill_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE s.character_id=?"
       )
-      .all(id) as Selection[];
+      .all(id)) as Selection[];
     const result = [...skill];
     for (const kind of ['tool', 'language'] as const) {
       const extra =
@@ -151,27 +169,27 @@ export class BenefitAudit {
           ? 'LEFT JOIN lib_tool_group g ON g.id=l.group_id LEFT JOIN catalog_entry ge ON ge.id=g.catalog_entry_id'
           : '';
       result.push(
-        ...(this.db
+        ...((await this.db
           .prepare(
             `SELECT s.id,s.grant_id,s.choice_key,s.selection_kind,s.proficiency_rank AS rank,'${kind}' AS kind,e.name,e.slug,${extra},l.id AS local_id FROM character_ability s JOIN lib_${kind} l ON l.id=s.lib_${kind}_id JOIN catalog_entry e ON e.id=l.catalog_entry_id ${joins} WHERE s.character_id=?`
           )
-          .all(id) as Selection[])
+          .all(id)) as Selection[])
       );
     }
     result.push(
-      ...(this.db
+      ...((await this.db
         .prepare(
           "SELECT a.id,a.grant_id,a.choice_key,a.selection_kind,NULL AS rank,'feat' AS kind,e.name,e.slug,NULL AS group_slug,NULL AS tier,NULL AS is_always,l.id AS local_id,l.category FROM character_ability a JOIN lib_feat l ON l.id=a.lib_feat_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE a.character_id=?"
         )
-        .all(id) as Selection[])
+        .all(id)) as Selection[])
     );
     return result;
   }
-  inspect(id: number) {
-    const grants = this.db
+  async inspect(id: number) {
+    const grants = (await this.db
       .prepare('SELECT * FROM character_rule_grant WHERE character_id=? ORDER BY id')
-      .all(id) as Grant[];
-    const selections = this.selections(id),
+      .all(id)) as Grant[];
+    const selections = await this.selections(id),
       findings: Finding[] = [],
       options: Array<{
         grantId: number;
@@ -181,9 +199,9 @@ export class BenefitAudit {
         available: boolean;
         scope: string;
       }> = [];
-    const sources = new Map(grants.map((g) => [g.id, this.source(id, g)]));
+    const sources = new Map(await asyncMap(grants, async (g) => [g.id, await this.source(id, g)]));
     const fixedSkills = new Set(
-      new EffectEngine(this.db).sources(id).flatMap((s) => s.data.skillsFixed ?? [])
+      (await new EffectEngine(this.db).sources(id)).flatMap((s) => s.data.skillsFixed ?? [])
     );
     const processed = new Set<string>();
     for (const grant of grants) {
@@ -204,15 +222,17 @@ export class BenefitAudit {
           const pool = `${source.identity}:${key}`;
           if (processed.has(pool)) continue;
           processed.add(pool);
-          const selected = selections.filter(
-            (s) =>
+          const selected = await asyncFilter(
+            selections,
+            async (s) =>
               s.selection_kind === 'chosen' &&
               s.choice_key === key &&
               sources.get(s.grant_id)?.identity === source.identity
           );
           if (!selected.length) continue;
-          const contexts = selected.map(
-            (s) => grants.find((g) => g.id === s.grant_id)!.acquisition_context
+          const contexts = await asyncMap(
+            selected,
+            async (s) => grants.find((g) => g.id === s.grant_id)!.acquisition_context
           );
           const contextUnknown =
             grant.origin_kind === 'class' &&

@@ -37,7 +37,10 @@ export function combinedSlots(classes: readonly CastingClass[]): {
   slots: Slots[] | null;
   effectiveCasterLevel?: number;
   reason?: string;
-  contributions?: { characterClassId: number; effectiveLevels: number }[];
+  contributions?: {
+    characterClassId: number;
+    effectiveLevels: number;
+  }[];
 } {
   const spellcasters = classes.filter((c) => c.spellcasting);
   if (!spellcasters.length) return { state: 'known', slots: [] };
@@ -69,11 +72,25 @@ export function combinedSlots(classes: readonly CastingClass[]): {
 export interface EntryBenefits {
   hitDie: number;
   savingThrows: string[];
-  armorTraining: { kind: 'Light' | 'Medium' | 'Heavy' | 'Shield' }[];
-  weaponTraining: { category: 'Martial' }[];
+  armorTraining: {
+    kind: 'Light' | 'Medium' | 'Heavy' | 'Shield';
+  }[];
+  weaponTraining: {
+    category: 'Martial';
+  }[];
   toolsFixed: string[];
-  skillChoices: { id: string; name: string; pick: number; from?: string[] }[];
-  toolChoices: { id: string; name: string; pick: number; group: string }[];
+  skillChoices: {
+    id: string;
+    name: string;
+    pick: number;
+    from?: string[];
+  }[];
+  toolChoices: {
+    id: string;
+    name: string;
+    pick: number;
+    group: string;
+  }[];
   page: number;
   levelOneFeatures: true;
   startingEquipment: false;
@@ -168,6 +185,5 @@ export function entryBenefits(slug: string): EntryBenefits | undefined {
     startingEquipment: false,
   };
 }
-
 // Explicit application key separates core starting traits from level-one features.
 export const coreEntryKey = (characterClassId: number) => `multiclass-core:${characterClassId}`;

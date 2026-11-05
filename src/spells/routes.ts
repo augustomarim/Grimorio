@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type Database from 'better-sqlite3';
+import type { Database } from '../db/database.js';
 import type { AuthService } from '../auth/service.js';
 import { ACCESS } from '../routes/auth.js';
 import type { NestedOrigin } from './nested.js';
@@ -23,9 +23,15 @@ const instanceParams = {
   required: ['id', 'instanceId'],
   properties: { id, instanceId: id },
 };
-export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: AuthService) {
+export function spellRoutes(app: FastifyInstance, db: Database, auth: AuthService) {
   const service = new SpellService(db);
-  app.post<{ Params: { id: number; instanceId: number }; Body: NestedOrigin }>(
+  app.post<{
+    Params: {
+      id: number;
+      instanceId: number;
+    };
+    Body: NestedOrigin;
+  }>(
     '/characters/:id/spells/:instanceId/nested-origin',
     {
       schema: {
@@ -41,17 +47,25 @@ export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: A
         },
       },
     },
-    (req) =>
-      service.bindChoice(
+    async (req) =>
+      await service.bindChoice(
         req.params.id,
-        auth.authenticate(req.cookies[ACCESS]),
+        await auth.authenticate(req.cookies[ACCESS]),
         req.params.instanceId,
         req.body
       )
   );
   for (const book of [false, true]) {
     const path = book ? '/characters/:id/spellbook' : '/characters/:id/spells';
-    app.get<{ Params: { id: number }; Querystring: { page: number; limit: number } }>(
+    app.get<{
+      Params: {
+        id: number;
+      };
+      Querystring: {
+        page: number;
+        limit: number;
+      };
+    }>(
       path,
       {
         schema: {
@@ -66,10 +80,10 @@ export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: A
           },
         },
       },
-      (req) =>
-        service.list(
+      async (req) =>
+        await service.list(
           req.params.id,
-          req.cookies[ACCESS] ? auth.authenticate(req.cookies[ACCESS]) : undefined,
+          req.cookies[ACCESS] ? await auth.authenticate(req.cookies[ACCESS]) : undefined,
           book,
           req.query.page,
           req.query.limit
@@ -104,21 +118,28 @@ export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: A
             notes,
           },
         };
-    app.post<{ Params: { id: number }; Body: SpellInput & BookInput }>(
-      path,
-      { schema: { params, body } },
-      (req, reply) => {
-        const user = auth.authenticate(req.cookies[ACCESS]);
-        return reply
-          .code(201)
-          .send(
-            book
-              ? service.addBook(req.params.id, user, req.body)
-              : service.add(req.params.id, user, req.body)
-          );
-      }
-    );
-    app.patch<{ Params: { id: number; instanceId: number }; Body: SpellChanges }>(
+    app.post<{
+      Params: {
+        id: number;
+      };
+      Body: SpellInput & BookInput;
+    }>(path, { schema: { params, body } }, async (req, reply) => {
+      const user = await auth.authenticate(req.cookies[ACCESS]);
+      return await reply
+        .code(201)
+        .send(
+          book
+            ? await service.addBook(req.params.id, user, req.body)
+            : await service.add(req.params.id, user, req.body)
+        );
+    });
+    app.patch<{
+      Params: {
+        id: number;
+        instanceId: number;
+      };
+      Body: SpellChanges;
+    }>(
       `${path}/:instanceId`,
       {
         schema: {
@@ -131,27 +152,28 @@ export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: A
           },
         },
       },
-      (req) =>
-        service.update(
+      async (req) =>
+        await service.update(
           req.params.id,
-          auth.authenticate(req.cookies[ACCESS]),
+          await auth.authenticate(req.cookies[ACCESS]),
           req.params.instanceId,
           book,
           req.body
         )
     );
-    app.delete<{ Params: { id: number; instanceId: number } }>(
-      `${path}/:instanceId`,
-      { schema: { params: instanceParams } },
-      (req, reply) => {
-        service.remove(
-          req.params.id,
-          auth.authenticate(req.cookies[ACCESS]),
-          req.params.instanceId,
-          book
-        );
-        return reply.code(204).send();
-      }
-    );
+    app.delete<{
+      Params: {
+        id: number;
+        instanceId: number;
+      };
+    }>(`${path}/:instanceId`, { schema: { params: instanceParams } }, async (req, reply) => {
+      await service.remove(
+        req.params.id,
+        await auth.authenticate(req.cookies[ACCESS]),
+        req.params.instanceId,
+        book
+      );
+      return await reply.code(204).send();
+    });
   }
 }

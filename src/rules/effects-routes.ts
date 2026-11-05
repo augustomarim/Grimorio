@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type Database from 'better-sqlite3';
+import type { Database } from '../db/database.js';
 import type { AuthService } from '../auth/service.js';
 import { ACCESS } from '../routes/auth.js';
 import { CharacterService } from '../characters/service.js';
@@ -7,11 +7,15 @@ import { AttributeChoices, abilities } from './attributes.js';
 import { EffectEngine } from './effects.js';
 import { BenefitService, type BenefitInput } from '../benefits/service.js';
 const id = { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
-export function effectsRoutes(app: FastifyInstance, db: Database.Database, auth: AuthService) {
+export function effectsRoutes(app: FastifyInstance, db: Database, auth: AuthService) {
   const characters = new CharacterService(db),
     engine = new EffectEngine(db),
     attributes = new AttributeChoices(db);
-  app.get<{ Params: { id: number } }>(
+  app.get<{
+    Params: {
+      id: number;
+    };
+  }>(
     '/characters/:id/effects',
     {
       schema: {
@@ -23,17 +27,23 @@ export function effectsRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req) => {
-      characters.requireReadable(
+    async (req) => {
+      await characters.requireReadable(
         req.params.id,
-        req.cookies[ACCESS] ? auth.authenticate(req.cookies[ACCESS]) : undefined
+        req.cookies[ACCESS] ? await auth.authenticate(req.cookies[ACCESS]) : undefined
       );
-      return db.transaction(() => engine.report(req.params.id)).deferred();
+      return await db.transaction(async () => await engine.report(req.params.id)).deferred();
     }
   );
   app.put<{
-    Params: { id: number; grantId: number; ruleId: string };
-    Body: { abilities: (typeof abilities)[number][] };
+    Params: {
+      id: number;
+      grantId: number;
+      ruleId: string;
+    };
+    Body: {
+      abilities: (typeof abilities)[number][];
+    };
   }>(
     '/characters/:id/effects/:grantId/ability-boosts/:ruleId',
     {
@@ -54,41 +64,50 @@ export function effectsRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req) => {
-      const user = auth.authenticate(req.cookies[ACCESS]);
-      return db
-        .transaction(() => {
-          characters.requireOwner(req.params.id, user);
-          const result = attributes.select(
+    async (req) => {
+      const user = await auth.authenticate(req.cookies[ACCESS]);
+      return await db
+        .transaction(async () => {
+          await characters.requireOwner(req.params.id, user);
+          const result = await attributes.select(
             req.params.id,
             req.params.grantId,
             req.params.ruleId,
             req.body.abilities
           );
-          db.prepare('UPDATE character SET updated_at=? WHERE id=?').run(
-            new Date().toISOString(),
-            req.params.id
-          );
-          db.prepare(
-            'UPDATE dnd_character SET ruleset_revision_id=(SELECT id FROM ruleset_revision ORDER BY id DESC LIMIT 1) WHERE character_id=?'
-          ).run(req.params.id);
-          db.prepare(
-            "INSERT INTO audit_log(actor_user_id,action,entity_type,entity_id,details) VALUES(?,'effects.ability-boost','character',?,?)"
-          ).run(
-            user.id,
-            req.params.id,
-            JSON.stringify({
-              grantId: req.params.grantId,
-              ruleId: req.params.ruleId,
-              abilities: req.body.abilities,
-            })
-          );
+          await db
+            .prepare('UPDATE character SET updated_at=? WHERE id=?')
+            .run(new Date().toISOString(), req.params.id);
+          await db
+            .prepare(
+              'UPDATE dnd_character SET ruleset_revision_id=(SELECT id FROM ruleset_revision ORDER BY id DESC LIMIT 1) WHERE character_id=?'
+            )
+            .run(req.params.id);
+          await db
+            .prepare(
+              "INSERT INTO audit_log(actor_user_id,action,entity_type,entity_id,details) VALUES(?,'effects.ability-boost','character',?,?)"
+            )
+            .run(
+              user.id,
+              req.params.id,
+              JSON.stringify({
+                grantId: req.params.grantId,
+                ruleId: req.params.ruleId,
+                abilities: req.body.abilities,
+              })
+            );
           return result;
         })
         .immediate();
     }
   );
-  app.post<{ Params: { id: number; grantId: number }; Body: Omit<BenefitInput, 'grantId'> }>(
+  app.post<{
+    Params: {
+      id: number;
+      grantId: number;
+    };
+    Body: Omit<BenefitInput, 'grantId'>;
+  }>(
     '/characters/:id/effects/:grantId/benefits',
     {
       schema: {
@@ -113,13 +132,13 @@ export function effectsRoutes(app: FastifyInstance, db: Database.Database, auth:
         },
       },
     },
-    (req, reply) =>
-      reply
+    async (req, reply) =>
+      await reply
         .code(201)
         .send(
-          new BenefitService(db).add(
+          await new BenefitService(db).add(
             req.params.id,
-            auth.authenticate(req.cookies[ACCESS]),
+            await auth.authenticate(req.cookies[ACCESS]),
             { ...req.body, grantId: req.params.grantId },
             true
           )

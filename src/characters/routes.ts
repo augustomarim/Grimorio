@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type Database from 'better-sqlite3';
+import type { Database } from '../db/database.js';
 import type { AuthService } from '../auth/service.js';
 import { AppError } from '../errors.js';
 import { ACCESS } from '../routes/auth.js';
@@ -72,7 +72,7 @@ const properties = {
     ),
   },
 };
-export function characterRoutes(app: FastifyInstance, db: Database.Database, auth: AuthService) {
+export function characterRoutes(app: FastifyInstance, db: Database, auth: AuthService) {
   const service = new CharacterService(db),
     params = { type: 'object', properties: { id }, required: ['id'] };
   const query = {
@@ -88,19 +88,27 @@ export function characterRoutes(app: FastifyInstance, db: Database.Database, aut
     ['public', true],
     ['mine', false],
   ] as const)
-    app.get<{ Querystring: { page: number; limit: number; q?: string } }>(
+    app.get<{
+      Querystring: {
+        page: number;
+        limit: number;
+        q?: string;
+      };
+    }>(
       `/characters/${path}`,
       { schema: { querystring: query } },
-      (req) =>
-        service.list(
-          publicOnly ? undefined : auth.authenticate(req.cookies[ACCESS]),
+      async (req) =>
+        await service.list(
+          publicOnly ? undefined : await auth.authenticate(req.cookies[ACCESS]),
           req.query.page,
           req.query.limit,
           publicOnly,
           req.query.q
         )
     );
-  app.post<{ Body: CharacterInput }>(
+  app.post<{
+    Body: CharacterInput;
+  }>(
     '/characters',
     {
       schema: {
@@ -112,19 +120,31 @@ export function characterRoutes(app: FastifyInstance, db: Database.Database, aut
         },
       },
     },
-    (req, reply) => {
-      const user = auth.authenticate(req.cookies[ACCESS]),
-        id = service.create(user, req.body);
-      return reply.code(201).send(service.detail(id, user));
+    async (req, reply) => {
+      const user = await auth.authenticate(req.cookies[ACCESS]),
+        id = await service.create(user, req.body);
+      return await reply.code(201).send(await service.detail(id, user));
     }
   );
-  app.get<{ Params: { id: number } }>('/characters/:id', { schema: { params } }, (req) =>
-    service.detail(
-      req.params.id,
-      req.cookies[ACCESS] ? auth.authenticate(req.cookies[ACCESS]) : undefined
-    )
+  app.get<{
+    Params: {
+      id: number;
+    };
+  }>(
+    '/characters/:id',
+    { schema: { params } },
+    async (req) =>
+      await service.detail(
+        req.params.id,
+        req.cookies[ACCESS] ? await auth.authenticate(req.cookies[ACCESS]) : undefined
+      )
   );
-  app.post<{ Params: { id: number }; Body: CharacterInput }>(
+  app.post<{
+    Params: {
+      id: number;
+    };
+    Body: CharacterInput;
+  }>(
     '/characters/:id/changes/preview',
     {
       schema: {
@@ -132,9 +152,21 @@ export function characterRoutes(app: FastifyInstance, db: Database.Database, aut
         body: { type: 'object', minProperties: 1, additionalProperties: false, properties },
       },
     },
-    (req) => service.previewChanges(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.body)
+    async (req) =>
+      await service.previewChanges(
+        req.params.id,
+        await auth.authenticate(req.cookies[ACCESS]),
+        req.body
+      )
   );
-  app.patch<{ Params: { id: number }; Body: CharacterInput & { confirmationToken?: string } }>(
+  app.patch<{
+    Params: {
+      id: number;
+    };
+    Body: CharacterInput & {
+      confirmationToken?: string;
+    };
+  }>(
     '/characters/:id',
     {
       schema: {
@@ -150,23 +182,23 @@ export function characterRoutes(app: FastifyInstance, db: Database.Database, aut
         },
       },
     },
-    (req) => {
-      const user = auth.authenticate(req.cookies[ACCESS]);
+    async (req) => {
+      const user = await auth.authenticate(req.cookies[ACCESS]);
       const { confirmationToken, ...changes } = req.body;
       if (!Object.keys(changes).length)
         throw new AppError(400, 'INVALID_INPUT', 'Informe a alteração além do token');
-      service.update(req.params.id, user, changes, confirmationToken);
-      return service.detail(req.params.id, user);
+      await service.update(req.params.id, user, changes, confirmationToken);
+      return await service.detail(req.params.id, user);
     }
   );
-  app.delete<{ Params: { id: number } }>(
-    '/characters/:id',
-    { schema: { params } },
-    (req, reply) => {
-      service.remove(req.params.id, auth.authenticate(req.cookies[ACCESS]));
-      return reply.code(204).send();
-    }
-  );
+  app.delete<{
+    Params: {
+      id: number;
+    };
+  }>('/characters/:id', { schema: { params } }, async (req, reply) => {
+    await service.remove(req.params.id, await auth.authenticate(req.cookies[ACCESS]));
+    return await reply.code(204).send();
+  });
   for (const [path, action] of [
     ['publish', 'publish'],
     ['unpublish', 'unpublish'],
@@ -174,13 +206,17 @@ export function characterRoutes(app: FastifyInstance, db: Database.Database, aut
     ['unblock-publication', 'unblock'],
   ] as const) {
     const prefix = action === 'hide' || action === 'unblock' ? '/admin' : '';
-    app.post<{ Params: { id: number } }>(
-      `${prefix}/characters/:id/${path}`,
-      { schema: { params } },
-      (req, reply) => {
-        service.publication(req.params.id, auth.authenticate(req.cookies[ACCESS]), action);
-        return reply.code(204).send();
-      }
-    );
+    app.post<{
+      Params: {
+        id: number;
+      };
+    }>(`${prefix}/characters/:id/${path}`, { schema: { params } }, async (req, reply) => {
+      await service.publication(
+        req.params.id,
+        await auth.authenticate(req.cookies[ACCESS]),
+        action
+      );
+      return await reply.code(204).send();
+    });
   }
 }

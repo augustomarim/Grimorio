@@ -13,16 +13,15 @@
     "db:migrate": "node --import tsx src/db/migrate-cli.ts",
     "catalog:import": "node --import tsx src/catalog/import-cli.ts",
     "test": "vitest run",
-    "test:model": "python3 -m unittest discover -s tests -v",
+    "test:model": "vitest run test/postgres",
     "typecheck": "tsc --noEmit",
     "admin:promote": "node --import tsx src/auth/admin-cli.ts",
-    "format": "prettier --write src test scripts .github/workflows package.json tsconfig.json",
-    "format:check": "prettier --check src test scripts .github/workflows package.json tsconfig.json",
-    "test:smoke": "npm run build && node scripts/smoke.mjs",
-    "verify": "node scripts/verify.mjs",
+    "format": "prettier --write src test package.json tsconfig.json vitest.config.ts deploy/compose.yaml",
+    "format:check": "prettier --check src test package.json tsconfig.json vitest.config.ts deploy/compose.yaml",
     "db:backup": "node --import tsx src/db/backup-cli.ts backup",
     "db:verify-backup": "node --import tsx src/db/backup-cli.ts verify",
-    "db:restore": "node --import tsx src/db/backup-cli.ts restore"
+    "db:restore": "node --import tsx src/db/backup-cli.ts restore",
+    "db:transfer-sqlite": "node --import tsx src/db/sqlite-transfer-cli.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
@@ -31,19 +30,21 @@
     "@fastify/rate-limit": "^10.3.0",
     "@freshmag/one-dndb": "0.5.1",
     "argon2": "^0.44.0",
-    "better-sqlite3": "^12.11.1",
     "dexie": "^4.4.7",
     "fake-indexeddb": "^6.2.7",
     "fastify": "^5.12.8",
-    "nodemailer": "^10.3.1"
+    "nodemailer": "^10.3.1",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.19.2",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "better-sqlite3": "^12.11.1"
   }
 }

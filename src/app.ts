@@ -3,7 +3,7 @@ import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import type Database from 'better-sqlite3';
+import type { Database } from './db/database.js';
 import type { Config } from './config.js';
 import type { Mailer } from './auth/mail.js';
 import { DisabledMailer, FileMailer, SmtpMailer } from './auth/mail.js';
@@ -21,17 +21,16 @@ import { validationRoutes } from './rules/routes.js';
 import { spellRoutes } from './spells/routes.js';
 import { benefitRoutes } from './benefits/routes.js';
 import { inventoryRoutes } from './inventory/routes.js';
-
 export interface AppOptions {
   config: Config;
-  database?: Database.Database;
+  database?: Database;
   mailer?: Mailer;
   now?: () => Date;
   logger?: boolean;
 }
 export async function buildApp(options: AppOptions) {
   const config = options.config,
-    db = options.database ?? openDatabase(config.databasePath);
+    db = options.database ?? openDatabase(config.databaseUrl);
   const app = Fastify({
     logger: options.logger
       ? {
@@ -53,10 +52,12 @@ export async function buildApp(options: AppOptions) {
     logController: new LogController({ disableRequestLogging: true }),
   });
   try {
-    const schemaVersion = migrate(db);
-    db.prepare(
-      "INSERT INTO rpg_system(code,name,edition,is_enabled) VALUES('dnd-2024','Dungeons & Dragons','2024',1) ON CONFLICT(code) DO NOTHING"
-    ).run();
+    const schemaVersion = await migrate(db);
+    await db
+      .prepare(
+        "INSERT INTO rpg_system(code,name,edition,is_enabled) VALUES('dnd-2024','Dungeons & Dragons','2024',1) ON CONFLICT(code) DO NOTHING"
+      )
+      .run();
     await app.register(cookie);
     await app.register(helmet);
     await app.register(cors, {
@@ -111,17 +112,19 @@ export async function buildApp(options: AppOptions) {
     validationRoutes(app, db, auth);
     choiceRoutes(app, db, auth);
     effectsRoutes(app, db, auth);
-    app.get('/health', () => {
+    app.get('/health', async () => {
       let current: number;
       try {
-        current = verifyHistory(db);
+        current = await verifyHistory(db);
       } catch {
         throw new AppError(503, 'SCHEMA_MISMATCH', 'Histórico do banco incompatível');
       }
       if (current !== schemaVersion)
         throw new AppError(503, 'SCHEMA_MISMATCH', 'Versão do banco incompatível');
       const catalogEntries = (
-        db.prepare('SELECT count(*) count FROM catalog_entry').get() as { count: number }
+        (await db.prepare('SELECT count(*) count FROM catalog_entry').get()) as {
+          count: number;
+        }
       ).count;
       if (config.environment === 'production' && catalogEntries === 0)
         throw new AppError(
@@ -132,36 +135,48 @@ export async function buildApp(options: AppOptions) {
       return {
         status: 'ok',
         schemaVersion,
-        sqliteVersion: (
-          db.prepare('SELECT sqlite_version() AS version').get() as { version: string }
+        databaseEngine: 'postgresql',
+        databaseVersion: (
+          (await db.prepare("SELECT current_setting('server_version') AS version").get()) as {
+            version: string;
+          }
         ).version,
         catalogEntries: (
-          db.prepare('SELECT count(*) AS count FROM catalog_entry').get() as { count: number }
+          (await db.prepare('SELECT count(*) AS count FROM catalog_entry').get()) as {
+            count: number;
+          }
         ).count,
       };
     });
-    app.setErrorHandler((error, req, reply) => {
+    app.setErrorHandler(async (error, req, reply) => {
       const err = (error instanceof Error ? error : new Error('Erro desconhecido')) as Error & {
         validation?: unknown;
         statusCode?: number;
         code?: string;
       };
       if (error instanceof AppError)
-        return reply
+        return await reply
           .code(error.statusCode)
           .send({ error: { code: error.code, message: error.message } });
       if (err.validation)
-        return reply
+        return await reply
           .code(400)
           .send({ error: { code: 'INVALID_INPUT', message: 'Dados de entrada inválidos' } });
       if (err.statusCode === 429)
-        return reply.code(429).send({
+        return await reply.code(429).send({
           error: {
             code: 'RATE_LIMITED',
             message: 'Muitas tentativas. Aguarde antes de tentar novamente.',
           },
         });
-      const inputErrors: Record<string, { status: number; code: string; message: string }> = {
+      const inputErrors: Record<
+        string,
+        {
+          status: number;
+          code: string;
+          message: string;
+        }
+      > = {
         FST_ERR_CTP_EMPTY_JSON_BODY: {
           status: 400,
           code: 'INVALID_JSON',
@@ -190,33 +205,33 @@ export async function buildApp(options: AppOptions) {
       };
       const inputError = err.code ? inputErrors[err.code] : undefined;
       if (inputError)
-        return reply
+        return await reply
           .code(inputError.status)
           .send({ error: { code: inputError.code, message: inputError.message } });
       if (err.statusCode && err.statusCode >= 400 && err.statusCode < 500)
-        return reply
+        return await reply
           .code(err.statusCode)
           .send({ error: { code: 'INVALID_REQUEST', message: 'Requisição inválida.' } });
-      if (err.code?.startsWith('SQLITE_CONSTRAINT'))
-        return reply.code(400).send({
+      if (err.code && ['23502', '23503', '23505', '23514', '22P02', '22003'].includes(err.code))
+        return await reply.code(400).send({
           error: {
             code: 'CONSTRAINT_VIOLATION',
             message: 'Os dados violam uma restrição do banco',
           },
         });
       req.log.error({ errorType: err.name, code: err.code }, 'Erro interno');
-      return reply.code(500).send({
+      return await reply.code(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'Erro interno do servidor', requestId: req.id },
       });
     });
     app.addHook('onClose', async () => {
-      db.close();
+      await db.close();
     });
     await app.ready();
     return { app, db, auth };
   } catch (error) {
     await app.close();
-    if (db.open) db.close();
+    if (db.open) await db.close();
     throw error;
   }
 }
