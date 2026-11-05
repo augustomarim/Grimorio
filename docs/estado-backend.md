@@ -1,3 +1,5 @@
+> Estado atual: schema versão 4; módulos de talentos, magias, grimório, escolhas e auditoria implementados. As contagens abaixo são registros históricos de cada incremento. Capacidades individuais de conjuração e limites desta etapa estão em capacidades-classes-backend.md.
+
 # Backend v0.1 — estado da implementação
 
 Implementado em src, com Node.js 24, TypeScript, Fastify 5, better-sqlite3 e Argon2id. O backend usa as migrações existentes, sem novas tabelas: schema versão 3, 49 tabelas e 6 views. A base estrutural e os testes Python continuam no projeto.
@@ -33,7 +35,7 @@ Upsert mantém ids e referências; ausência na nova carga deprecia. A lista de 
 
 Núcleo comum e perfil D&D são criados na mesma transação. Há nome/retrato, seis atributos, espécie, antecedente, alinhamento, classes/subclasses, narrativa e histórico de níveis/PV. A soma das classes é o nível total. As respostas usam localIds do catálogo para escolhas e não aceitam owner_id ou role no corpo.
 
-Valida faixas, duplicidade de classe, exatamente uma inicial, soma até 20, classe da subclasse, nível indicado pelo catálogo para adquiri-la, correspondência do histórico e limite da rolagem ao dado real. O relatório de validação confere os pré-requisitos de atributos das 12 classes básicas segundo as regras oficiais; veja [multiclasse-2024.md](multiclasse-2024.md). Benefícios de entrada e conjuração multiclasse completa continuam pendentes. Alterações de classes exigem histórico completo de PV para não descartar rolagens. Sem histórico em fichas de nível maior que 1, PV é null até completar, e não zero apresentado como máximo válido.
+Valida faixas, duplicidade de classe, exatamente uma inicial, soma até 20, classe da subclasse, nível indicado pelo catálogo para adquiri-la, correspondência do histórico e limite da rolagem ao dado real. Não implementa todos os requisitos normativos de multiclasse. Alterações de classes exigem histórico completo de PV para não descartar rolagens. Sem histórico em fichas de nível maior que 1, PV é null até completar, e não zero apresentado como máximo válido.
 
 Alterações de narrativa e conteúdo atualizam a identidade da ficha e a referência de revisão do último salvamento. Concessões dependentes já presentes podem bloquear mudança de espécie/antecedente/subclasse pelas FKs; o incremento seguinte precisa de conciliação explícita em vez de apagar silenciosamente escolhas.
 
@@ -49,7 +51,7 @@ Também foi iniciado o JavaScript compilado e executada uma demonstração em so
 
 ## Incrementos ainda necessários
 
-1. Endpoints e serviços de talentos/proficiências, concessões de magias e grimório. Inventário já está implementado; ver inventario-backend.md.
+1. Talentos/proficiências, magias, grimório, inventário e escolhas explícitas já possuem endpoints. Permanecem pendentes a conciliação completa e as regras ainda inconclusivas.
 2. Mapeamento completo de escolhas, conciliação de dependências, requisitos e cálculo de conjuração; a consulta ao SRD oficial continua com a limitação de rede documentada.
 3. Concorrência de edição da mesma ficha (controle de versão/ETag) antes de colaboração real.
 4. Provedor de e-mail, recuperação de falhas de entrega e limites adicionais por destino; integração com domínio/HTTPS/proxy e segredos da implantação.

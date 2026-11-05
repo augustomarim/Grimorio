@@ -3,6 +3,7 @@ import type { ContentItem, Feat, FeatRequirement, Spell } from '@freshmag/one-dn
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
 import { ChoiceService } from '../choices/service.js';
+import { CapabilityService } from './capabilities.js';
 import { BenefitAudit } from './benefits.js';
 import { AppError } from '../errors.js';
 import { multiclassRequirements, multiclassSources } from './multiclass.js';
@@ -251,6 +252,7 @@ export class ValidationService {
       }
     }
     findings.push(multiclassRequirements(classes, profile));
+    findings.push(...new CapabilityService(this.db).audit(id));
     findings.push(...new BenefitAudit(this.db).inspect(id).findings);
     findings.push(...new ChoiceService(this.db).inspect(id).findings);
     for (const code of [

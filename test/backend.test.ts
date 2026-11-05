@@ -2148,3 +2148,113 @@ describe('Escolhas aninhadas e migração 4', () => {
     ).toBe('unknown');
   });
 });
+
+describe('Capacidades de conjuração e contexto de benefícios', () => {
+  it('expõe a tabela da classe inicial com acesso privado e nenhuma mutação', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const before = db.prepare('SELECT * FROM character WHERE id=?').get(sheet.id);
+    const casting = await app.inject({
+      url: `/characters/${sheet.id}/casting`,
+      headers: { cookie },
+    });
+    expect(casting.statusCode).toBe(200);
+    expect(casting.json().common.state).toBe('known');
+    expect(casting.json().common.slots[0]).toEqual({ level: 1, maximum: 2 });
+    expect(casting.json().pact).toEqual([]);
+    expect(casting.json().tracksRemaining).toBe(false);
+    const benefits = await app.inject({
+      url: `/characters/${sheet.id}/class-benefits`,
+      headers: { cookie },
+    });
+    expect(benefits.statusCode).toBe(200);
+    expect(benefits.json().items[0].benefits.savingThrows).toEqual(['Intelligence', 'Wisdom']);
+    for (const path of ['casting', 'class-benefits'])
+      expect((await app.inject({ url: `/characters/${sheet.id}/${path}` })).statusCode).toBe(404);
+    expect(db.prepare('SELECT * FROM character WHERE id=?').get(sheet.id)).toEqual(before);
+  });
+  it('não soma Pacto com espaços comuns nem copia benefícios iniciais para a segunda classe', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const response = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: {
+        ...character(),
+        classes: [
+          { classId: localId('class', 'wizard'), level: 3, initial: true },
+          { classId: localId('class', 'warlock'), level: 5, initial: false },
+        ],
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    const id = response.json().id;
+    const casting = (
+      await app.inject({ url: `/characters/${id}/casting`, headers: { cookie } })
+    ).json();
+    expect(casting.common.state).toBe('unknown');
+    expect(casting.common.slots).toBeNull();
+    expect(casting.pact[0].slots).toEqual([{ level: 3, maximum: 2 }]);
+    expect(casting.perClass[0].classLevel).toBe(3);
+    const benefits = (
+      await app.inject({ url: `/characters/${id}/class-benefits`, headers: { cookie } })
+    ).json();
+    expect(benefits.items[1].context).toBe('multiclass_entry');
+    expect(benefits.items[1].state).toBe('unknown');
+    expect(benefits.items[1].benefits).toBeNull();
+  });
+  it('retorna zero para classe sem conjuração', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const response = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: {
+        ...character(),
+        classes: [{ classId: localId('class', 'fighter'), level: 1, initial: true }],
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    const result = (
+      await app.inject({ url: `/characters/${response.json().id}/casting`, headers: { cookie } })
+    ).json();
+    expect(result.common).toEqual({ state: 'known', slots: [] });
+    expect(result.pact).toEqual([]);
+  });
+  it('audita salvaguardas declaradas como benefício fixo da classe inicial', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const cls = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(sheet.id) as {
+      id: number;
+    };
+    const grant = await app.inject({
+      method: 'POST',
+      url: `/characters/${sheet.id}/grants`,
+      headers: { origin, cookie },
+      payload: {
+        originKind: 'class',
+        originId: cls.id,
+        acquisitionContext: 'initial_class',
+        ruleKey: 'wizard.saves',
+        acquiredAtLevel: 1,
+      },
+    });
+    expect(grant.statusCode).toBe(201);
+    for (const ability of ['wisdom', 'strength'])
+      db.prepare(
+        "INSERT INTO character_saving_throw(character_id,grant_id,selection_kind,ability) VALUES(?,?,'fixed',?)"
+      ).run(sheet.id, grant.json().id, ability);
+    const result = (
+      await app.inject({ url: `/characters/${sheet.id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      result.findings
+        .filter((f: { code: string }) => f.code === 'CLASS_SAVING_THROW_SOURCE')
+        .map((f: { state: string }) => f.state)
+    ).toEqual(['pass', 'fail']);
+  });
+});
