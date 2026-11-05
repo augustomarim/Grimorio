@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { ContentItem, Feat } from '@freshmag/one-dndb';
+import { coreEntryKey, entryBenefits } from './multiclass-progression.js';
 import type { Finding } from './validation.js';
 const fields = ['skillChoices', 'expertise', 'toolChoices', 'languageChoices'] as const;
 type Field = (typeof fields)[number];
@@ -13,12 +14,14 @@ export interface Grant {
   origin_character_ability_id: number | null;
   origin_feat_id: number | null;
   acquisition_context: string;
+  rule_key: string;
 }
 interface Source {
   data: ContentItem;
   level: number;
   identity: string;
   deprecatedAt: string | null;
+  multiclassVerified: boolean;
 }
 interface Selection {
   id: number;
@@ -85,9 +88,21 @@ export class BenefitAudit {
             .prepare('SELECT SUM(level) AS n FROM character_class WHERE character_id=?')
             .get(characterId) as { n: number }
         ).n;
+    const entry =
+      g.origin_kind === 'class' &&
+      g.acquisition_context === 'multiclass_entry' &&
+      g.rule_key === coreEntryKey(g.origin_character_class_id!)
+        ? entryBenefits(raw.id)
+        : undefined;
     return {
+      multiclassVerified: !!entry,
       deprecatedAt: record.deprecated_at,
-      data: g.origin_kind === 'feat' ? ((raw.effects ?? {}) as ContentItem) : raw,
+      data:
+        g.origin_kind === 'feat'
+          ? ((raw.effects ?? {}) as ContentItem)
+          : entry
+            ? { ...raw, ...entry, hitDie: `D${entry.hitDie}`, skillsFixed: [] }
+            : raw,
       level,
       identity: `${g.origin_kind}:${g.origin_character_class_id ?? g.origin_character_ability_id ?? localId}`,
     };
@@ -164,10 +179,14 @@ export class BenefitAudit {
           );
           const contextUnknown =
             grant.origin_kind === 'class' &&
-            (contexts.includes('multiclass_entry') ||
+            ((contexts.includes('multiclass_entry') && !source.multiclassVerified) ||
               ((choice.level ?? 1) === 1 &&
                 field !== 'expertise' &&
-                contexts.some((c) => c !== 'initial_class')));
+                contexts.some(
+                  (c) =>
+                    c !== 'initial_class' &&
+                    !(c === 'multiclass_entry' && source.multiclassVerified)
+                )));
           const state = contextUnknown ? 'unknown' : !available ? 'fail' : 'pass';
           findings.push({
             code: 'BENEFIT_CHOICE_LEVEL',

@@ -2174,7 +2174,7 @@ describe('Capacidades de conjuração e contexto de benefícios', () => {
       expect((await app.inject({ url: `/characters/${sheet.id}/${path}` })).statusCode).toBe(404);
     expect(db.prepare('SELECT * FROM character WHERE id=?').get(sheet.id)).toEqual(before);
   });
-  it('não soma Pacto com espaços comuns nem copia benefícios iniciais para a segunda classe', async () => {
+  it('mantém Pacto separado e usa os benefícios corretos de entrada para a segunda classe', async () => {
     await register();
     const cookie = cookies(await login());
     const response = await app.inject({
@@ -2194,16 +2194,16 @@ describe('Capacidades de conjuração e contexto de benefícios', () => {
     const casting = (
       await app.inject({ url: `/characters/${id}/casting`, headers: { cookie } })
     ).json();
-    expect(casting.common.state).toBe('unknown');
-    expect(casting.common.slots).toBeNull();
+    expect(casting.common.state).toBe('known');
+    expect(casting.common.slots.find((s: { level: number }) => s.level === 2).maximum).toBe(2);
     expect(casting.pact[0].slots).toEqual([{ level: 3, maximum: 2 }]);
     expect(casting.perClass[0].classLevel).toBe(3);
     const benefits = (
       await app.inject({ url: `/characters/${id}/class-benefits`, headers: { cookie } })
     ).json();
     expect(benefits.items[1].context).toBe('multiclass_entry');
-    expect(benefits.items[1].state).toBe('unknown');
-    expect(benefits.items[1].benefits).toBeNull();
+    expect(benefits.items[1].state).toBe('verified');
+    expect(benefits.items[1].benefits.armorTraining).toEqual([{ kind: 'Light' }]);
   });
   it('retorna zero para classe sem conjuração', async () => {
     await register();
@@ -2256,5 +2256,172 @@ describe('Capacidades de conjuração e contexto de benefícios', () => {
         .filter((f: { code: string }) => f.code === 'CLASS_SAVING_THROW_SOURCE')
         .map((f: { state: string }) => f.state)
     ).toEqual(['pass', 'fail']);
+  });
+});
+
+describe('Benefícios de entrada e espaços comuns segundo o SRD anexado', () => {
+  async function setup(second = 'bard', level = 1) {
+    await register();
+    const cookie = cookies(await login());
+    const response = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: {
+        ...character(),
+        classes: [
+          { classId: localId('class', 'wizard'), level: 1, initial: true },
+          { classId: localId('class', second), level, initial: false },
+        ],
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    const id = response.json().id;
+    const cc = db
+      .prepare('SELECT id FROM character_class WHERE character_id=? AND is_initial_class=0')
+      .get(id) as { id: number };
+    const grant = await app.inject({
+      method: 'POST',
+      url: `/characters/${id}/grants`,
+      headers: { origin, cookie },
+      payload: {
+        originKind: 'class',
+        originId: cc.id,
+        acquisitionContext: 'multiclass_entry',
+        ruleKey: `multiclass-core:${cc.id}`,
+        acquiredAtLevel: 2,
+      },
+    });
+    expect(grant.statusCode).toBe(201);
+    return { id, cookie, grantId: grant.json().id };
+  }
+  it('expõe uma escolha de Bardo, audita seu limite e não concede salvaguardas', async () => {
+    const { id, cookie, grantId } = await setup();
+    const options = (
+      await app.inject({ url: `/characters/${id}/benefits/options`, headers: { cookie } })
+    ).json();
+    const skill = options.items.find(
+      (x: { choiceKey: string; grantId: number }) =>
+        x.grantId === grantId && x.choiceKey === 'skillChoices:multiclass-training'
+    );
+    expect(skill.rule.pick).toBe(1);
+    for (const name of ['skill-arcana', 'skill-history'])
+      expect(
+        (
+          await app.inject({
+            method: 'POST',
+            url: `/characters/${id}/benefits`,
+            headers: { origin, cookie },
+            payload: {
+              kind: 'skill',
+              localId: localId('skill', name),
+              grantId,
+              selectionKind: 'chosen',
+              choiceKey: skill.choiceKey,
+              proficiencyRank: 1,
+            },
+          })
+        ).statusCode
+      ).toBe(201);
+    db.prepare(
+      "INSERT INTO character_saving_throw(character_id,grant_id,selection_kind,ability) VALUES(?,?,'fixed','charisma')"
+    ).run(id, grantId);
+    const report = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      report.findings.find((f: { code: string }) => f.code === 'BENEFIT_CHOICE_LIMIT').state
+    ).toBe('fail');
+    expect(
+      report.findings.find((f: { code: string }) => f.code === 'CLASS_SAVING_THROW_SOURCE').state
+    ).toBe('fail');
+  });
+  it('rejeita na auditoria a armadura pesada atribuída à entrada em Guerreiro', async () => {
+    const { id, cookie, grantId } = await setup('fighter');
+    for (const armor of ['Medium', 'Heavy'])
+      db.prepare(
+        "INSERT INTO character_armor_training(character_id,grant_id,selection_kind,armor_kind) VALUES(?,?,'fixed',?)"
+      ).run(id, grantId, armor);
+    for (const category of ['Martial', 'Simple'])
+      db.prepare(
+        "INSERT INTO character_weapon_training(character_id,grant_id,selection_kind,clause_key,category) VALUES(?,?,'fixed',?,?)"
+      ).run(id, grantId, category, category);
+    const report = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    const findings = report.findings.filter(
+      (f: { code: string }) => f.code === 'MULTICLASS_ARMOR_SOURCE'
+    );
+    expect(findings.map((f: { state: string }) => f.state)).toEqual(['pass', 'fail']);
+    expect(
+      report.findings
+        .filter((f: { code: string }) => f.code === 'MULTICLASS_WEAPON_SOURCE')
+        .map((f: { state: string }) => f.state)
+    ).toEqual(['pass', 'fail']);
+  });
+  it('recalcula espaços após alterar os níveis e mantém limite de magia preparado por classe', async () => {
+    const { id, cookie } = await setup('paladin', 3);
+    const result = (
+      await app.inject({ url: `/characters/${id}/casting`, headers: { cookie } })
+    ).json();
+    expect(result.common.effectiveCasterLevel).toBe(3);
+    expect(result.common.slots[1]).toEqual({ level: 2, maximum: 2 });
+    expect(
+      result.perClass.find((c: { class: string }) => c.class === 'wizard').casting.maxSpellLevel[0]
+    ).toBe(1);
+    const updated = await app.inject({
+      method: 'PATCH',
+      url: `/characters/${id}`,
+      headers: { origin, cookie },
+      payload: {
+        classes: [
+          { classId: localId('class', 'wizard'), level: 1, initial: true },
+          { classId: localId('class', 'paladin'), level: 5, initial: false },
+        ],
+        progression: [
+          { classId: localId('class', 'wizard'), hpMethod: 'first_max' },
+          ...Array.from({ length: 5 }, () => ({
+            classId: localId('class', 'paladin'),
+            hpMethod: 'average',
+          })),
+        ],
+      },
+    });
+    expect(updated.statusCode).toBe(200);
+    const evolved = (
+      await app.inject({ url: `/characters/${id}/casting`, headers: { cookie } })
+    ).json();
+    expect(evolved.common.effectiveCasterLevel).toBe(4);
+    expect(evolved.common.slots[1].maximum).toBe(3);
+    expect(result.tracksRemaining).toBe(false);
+    expect(result.rulesVerified).toBe(false);
+  });
+  it('não confunde características de nível 1 ou concessões legadas com os traços iniciais da entrada', async () => {
+    const { id, cookie } = await setup('cleric');
+    const cc = db
+      .prepare('SELECT id FROM character_class WHERE character_id=? AND is_initial_class=0')
+      .get(id) as { id: number };
+    const response = await app.inject({
+      method: 'POST',
+      url: `/characters/${id}/grants`,
+      headers: { origin, cookie },
+      payload: {
+        originKind: 'class',
+        originId: cc.id,
+        acquisitionContext: 'multiclass_entry',
+        ruleKey: 'cleric.protector',
+        acquiredAtLevel: 2,
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    db.prepare(
+      "INSERT INTO character_armor_training(character_id,grant_id,selection_kind,armor_kind) VALUES(?,?,'fixed','Heavy')"
+    ).run(id, response.json().id);
+    const report = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      report.findings.find((f: { code: string }) => f.code === 'MULTICLASS_ARMOR_SOURCE').state
+    ).toBe('unknown');
   });
 });

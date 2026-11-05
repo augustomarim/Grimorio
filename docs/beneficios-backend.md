@@ -61,3 +61,7 @@ Os testes automatizados cobrem os quatro tipos, edição/exclusão, origens cruz
 ## Auditoria de escolhas
 
 GET /characters/:id/benefits/options expõe escolhas diretas para origens já registradas. A auditoria reconhece a convenção choiceKey `<campo>:<id>`, sem reinterpretar chaves legadas. Veja [escopo e exemplos](escolhas-beneficios-backend.md).
+
+## Traços de entrada multiclasse confirmados
+
+Use coreGrantRuleKey retornado por GET /characters/:id/class-benefits para identificar os traços de entrada de uma nova classe. A implementação baseada no PDF SRD 5.2 está em multiclasse-progressao-srd52.md. As auditorias não alteram o contrato de gravação de rascunhos.

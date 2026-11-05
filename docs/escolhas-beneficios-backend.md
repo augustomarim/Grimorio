@@ -33,6 +33,6 @@ Especialização sem registro separado de proficiência permanece unknown. Escol
 
 ## Limites
 
-Não são exigidas todas as escolhas em uma ficha em edição. Não há certificação integral: rulesVerified permanece false. Não são resolvidas automaticamente escolhas aninhadas em opções de linhagem ou outras seleções, substituições permitidas pelo mestre, elegibilidade histórica ou escolha com graduação upgrade. Benefícios de entrada multiclasse permanecem unknown, assim como escolhas iniciais de classe registradas em contexto incompatível. A disponibilidade do endpoint de opções só indica nível e não elimina essas ressalvas.
+Não são exigidas todas as escolhas em uma ficha em edição. Não há certificação integral: rulesVerified permanece false. Não são resolvidas automaticamente escolhas aninhadas em opções de linhagem ou outras seleções, substituições permitidas pelo mestre, elegibilidade histórica ou escolha com graduação upgrade. Traços de entrada das 12 classes básicas agora são reconhecidos quando a concessão usa a chave canônica multiclass-core:<id da instância de classe>. Concessões legadas ou classes não cobertas permanecem unknown, assim como escolhas iniciais registradas em contexto incompatível. Ver multiclasse-progressao-srd52.md. A disponibilidade do endpoint de opções só indica nível e não elimina essas ressalvas.
 
 Não há migração, alteração de schema/DBML ou dependência nova. Testes HTTP exercitam escolhas reais de Wizard, Skilled, Artisan e Echoing Soul, chave legada, restrição de acesso e soma de limites entre concessões.

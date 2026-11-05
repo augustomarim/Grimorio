@@ -34,3 +34,7 @@ Talentos e magias são auditados contra @freshmag/one-dndb 0.5.1. Os pré-requis
 Testes cobrem lógica E/OU em três estados, talentos reais War Caster e Aberrant Anatomy, magia Cure Wounds fora da lista padrão de mago, Wish acima do nível do grimório, excesso de preparação, exclusão de always_prepared da contagem, acesso a fichas privadas, leitura sem mutação e permanência de rulesVerified=false quando não há divergências detectadas.
 
 Nenhuma migração ou dependência nova.
+
+## Conferência posterior no PDF anexado
+
+Os benefícios de entrada e a tabela de espaços comuns das classes básicas foram implementados após leitura local do SRD 5.2. Ver multiclasse-progressao-srd52.md para páginas, hash, escopo, atribuição e limitações de suplementos/subclasses.

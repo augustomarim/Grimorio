@@ -1,3 +1,5 @@
+> Atualização: a seção de limites abaixo registra a etapa anterior. O PDF oficial foi fornecido e a combinação básica e os benefícios de entrada foram implementados; o comportamento vigente está em [multiclasse-progressao-srd52.md](multiclasse-progressao-srd52.md).
+
 # Capacidades de classe e espaços de magia — escopo parcial
 
 ## Rotas

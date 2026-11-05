@@ -53,3 +53,7 @@ Testes unitários cobrem as 12 classes, fronteira 12/13, E/OU, classe inicial,
 três classes, suplementos e informação ausente. O teste HTTP confirma o
 recálculo depois de alterar atributos e remover a multiclasse, mantendo o
 salvamento parcial e `rulesVerified=false`.
+
+## Conferência local posterior
+
+O usuário forneceu o PDF SRD 5.2; a conferência local e a implementação dos benefícios de entrada e espaços comuns estão em multiclasse-progressao-srd52.md. Os limites deste documento sobre atributos na aquisição e suplementos continuam aplicáveis.

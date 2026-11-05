@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { ContentItem } from '@freshmag/one-dndb';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
+import { combinedSlots, coreEntryKey, entryBenefits } from './multiclass-progression.js';
 import { AppError } from '../errors.js';
 import type { Finding } from './validation.js';
 export interface Slots {
@@ -105,27 +106,31 @@ export class CapabilityService {
                   : { state: 'known' as const, kind: 'common' as const, slots: [] as Slots[] },
             };
           });
-        const common = perClass.filter((c) => c.casting && !c.casting.pact),
-          pact = perClass.filter((c) => c.casting?.pact);
-        // Even a single spellcasting class combined with another class is not reinterpreted here.
-        const combined = classes.length > 1 && common.length > 0;
+        const pact = perClass.filter((c) => c.casting?.pact);
         const unresolved = perClass.some((c) => !c.casting && c.capacity.state === 'unknown');
-        const commonCapacity =
-          combined || unresolved
-            ? {
-                state: 'unknown',
-                slots: null,
-                reason: unresolved
-                  ? 'Dados de conjuração insuficientes no catálogo'
-                  : 'Combinação multiclasse ainda não conferida na fonte oficial',
-              }
-            : (common[0]?.capacity ?? { state: 'known', slots: [] });
+        const commonCapacity = unresolved
+          ? {
+              state: 'unknown',
+              slots: null,
+              reason: 'Dados de conjuração insuficientes no catálogo',
+            }
+          : combinedSlots(
+              perClass.map((c) => ({
+                id: c.characterClassId,
+                slug: c.class,
+                level: c.classLevel,
+                spellcasting: !!c.casting && !c.casting.pact,
+                subclassCasting: c.source === 'subclass',
+                individual: c.capacity,
+              }))
+            );
         return {
           characterId: id,
           perClass,
           common: commonCapacity,
           pact: pact.map((c) => ({ characterClassId: c.characterClassId, ...c.capacity })),
-          basis: 'catalog-progression',
+          basis: 'SRD-5.2-and-catalog-progression',
+          sources: { multiclassPages: [25, 26], pactSeparate: true },
           rulesVerified: false,
           tracksRemaining: false,
         };
@@ -143,7 +148,12 @@ export class CapabilityService {
             characterClassId: row.id,
             class: row.slug,
             context: row.is_initial_class ? 'initial_class' : 'multiclass_entry',
-            state: row.is_initial_class ? 'catalog' : 'unknown',
+            coreGrantRuleKey: row.is_initial_class ? null : coreEntryKey(row.id),
+            state: row.is_initial_class
+              ? 'catalog'
+              : entryBenefits(row.slug)
+                ? 'verified'
+                : 'unknown',
             benefits: row.is_initial_class
               ? {
                   savingThrows: data.savingThrows ?? [],
@@ -153,10 +163,12 @@ export class CapabilityService {
                   skillChoices: data.skillChoices ?? [],
                   toolChoices: data.toolChoices ?? [],
                 }
-              : null,
+              : (entryBenefits(row.slug) ?? null),
             message: row.is_initial_class
               ? 'Benefícios descritos para a classe inicial; liberação por nível deve ser conferida'
-              : 'Não copiar os benefícios iniciais: entrada multiclasse requer conferência própria',
+              : entryBenefits(row.slug)
+                ? 'Benefícios de entrada conferidos no SRD 5.2; características de nível 1 são tratadas separadamente'
+                : 'Classe de suplemento sem conferência normativa',
           };
         });
         return { characterId: id, items, rulesVerified: false };
@@ -166,17 +178,20 @@ export class CapabilityService {
   audit(id: number): Finding[] {
     const rows = this.db
       .prepare(
-        "SELECT t.id,t.ability,t.selection_kind,g.acquisition_context,cc.is_initial_class,c.data FROM character_saving_throw t JOIN character_rule_grant g ON g.id=t.grant_id AND g.character_id=t.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id WHERE t.character_id=? AND g.origin_kind='class'"
+        "SELECT t.id,t.ability,t.selection_kind,g.acquisition_context,g.rule_key,cc.id AS class_instance_id,cc.is_initial_class,c.data,e.slug FROM character_saving_throw t JOIN character_rule_grant g ON g.id=t.grant_id AND g.character_id=t.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry e ON e.id=c.catalog_entry_id WHERE t.character_id=? AND g.origin_kind='class'"
       )
       .all(id) as {
       id: number;
+      rule_key: string;
+      class_instance_id: number;
+      slug: string;
       ability: string;
       selection_kind: string;
       acquisition_context: string;
       is_initial_class: number;
       data: string;
     }[];
-    return rows.map((row) => ({
+    const findings: Finding[] = rows.map((row) => ({
       code: 'CLASS_SAVING_THROW_SOURCE',
       entityId: row.id,
       state:
@@ -188,9 +203,74 @@ export class CapabilityService {
             )
             ? 'pass'
             : 'fail'
-          : 'unknown',
+          : row.acquisition_context === 'multiclass_entry' &&
+              row.rule_key === coreEntryKey(row.class_instance_id) &&
+              entryBenefits(row.slug) &&
+              row.selection_kind === 'fixed'
+            ? 'fail'
+            : 'unknown',
       message:
-        'Proficiência em salvaguarda versus origem declarada; entrada multiclasse não é confirmada automaticamente',
+        'Proficiência em salvaguarda versus origem declarada; entrada multiclasse básica não concede salvaguardas',
     }));
+    const armor = this.db
+      .prepare(
+        "SELECT a.id,a.armor_kind,a.selection_kind,g.rule_key,cc.id AS class_instance_id,catalog.slug FROM character_armor_training a JOIN character_rule_grant g ON g.id=a.grant_id AND g.character_id=a.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry catalog ON catalog.id=c.catalog_entry_id WHERE a.character_id=? AND g.origin_kind='class' AND g.acquisition_context='multiclass_entry'"
+      )
+      .all(id) as {
+      id: number;
+      rule_key: string;
+      class_instance_id: number;
+      armor_kind: 'Light' | 'Medium' | 'Heavy' | 'Shield';
+      selection_kind: string;
+      slug: string;
+    }[];
+    for (const row of armor) {
+      const policy = entryBenefits(row.slug);
+      findings.push({
+        code: 'MULTICLASS_ARMOR_SOURCE',
+        entityId: row.id,
+        state:
+          policy &&
+          row.selection_kind === 'fixed' &&
+          row.rule_key === coreEntryKey(row.class_instance_id)
+            ? policy.armorTraining.some((a) => a.kind === row.armor_kind)
+              ? 'pass'
+              : 'fail'
+            : 'unknown',
+        message: 'Treinamento em armadura versus benefícios de entrada no SRD 5.2',
+        evidence: { class: row.slug, armorKind: row.armor_kind },
+      });
+    }
+
+    const weapons = this.db
+      .prepare(
+        "SELECT t.id,t.category,t.selection_kind,g.rule_key,cc.id AS class_instance_id,w.category AS item_category,e.slug FROM character_weapon_training t JOIN character_rule_grant g ON g.id=t.grant_id AND g.character_id=t.character_id JOIN character_class cc ON cc.id=g.origin_character_class_id JOIN lib_class c ON c.id=cc.class_id JOIN catalog_entry e ON e.id=c.catalog_entry_id LEFT JOIN lib_weapon_definition w ON w.item_id=t.weapon_item_id WHERE t.character_id=? AND g.origin_kind='class' AND g.acquisition_context='multiclass_entry'"
+      )
+      .all(id) as {
+      id: number;
+      rule_key: string;
+      class_instance_id: number;
+      category: string | null;
+      item_category: string | null;
+      selection_kind: string;
+      slug: string;
+    }[];
+    for (const row of weapons) {
+      const policy = entryBenefits(row.slug);
+      findings.push({
+        code: 'MULTICLASS_WEAPON_SOURCE',
+        entityId: row.id,
+        state:
+          policy &&
+          row.selection_kind === 'fixed' &&
+          row.rule_key === coreEntryKey(row.class_instance_id)
+            ? policy.weaponTraining.some((w) => w.category === (row.category ?? row.item_category))
+              ? 'pass'
+              : 'fail'
+            : 'unknown',
+        message: 'Categoria de arma versus benefícios de entrada no SRD 5.2',
+      });
+    }
+    return findings;
   }
 }
