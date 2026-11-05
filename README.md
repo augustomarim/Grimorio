@@ -1,3 +1,5 @@
+> Cálculos derivados disponíveis em `GET /characters/:id/derived`: atributos, proficiência, perícias, testes de resistência, iniciativa, CA e PV modelados. Contrato e limites: [cálculos derivados](docs/calculos-derivados-backend.md). Sem nova migração; schema 6.
+
 > Atualização vigente — efeitos estruturados: schema 6, base e bônus separados, projeção dos 13 campos de Feat.effects, escolhas estritas e pré-requisitos sem autovalidação por bônus. Consulte [efeitos-regras-consolidados.md](docs/efeitos-regras-consolidados.md). Os incrementos descritos abaixo são históricos; texto de combate e condições de mesa não são executados automaticamente.
 
 # Grimorio — backend v0.1

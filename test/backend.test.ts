@@ -3944,3 +3944,171 @@ describe('Motor consolidado de efeitos estruturados', () => {
     expect(db.prepare('SELECT count(*) n FROM character_ability_boost').get()).toEqual({ n: 0 });
   });
 });
+
+describe('Cálculos derivados da ficha pela API', () => {
+  async function setup(payload = character()) {
+    await register();
+    const cookie = cookies(await login());
+    const response = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload,
+    });
+    expect(response.statusCode).toBe(201);
+    const id = response.json().id;
+    const report = async () => {
+      const r = await app.inject({ url: `/characters/${id}/derived`, headers: { cookie } });
+      expect(r.statusCode).toBe(200);
+      return r.json();
+    };
+    const item = async (slug: string, quantity = 1) => {
+      const r = await app.inject({
+        method: 'POST',
+        url: `/characters/${id}/items`,
+        headers: { origin, cookie },
+        payload: { itemId: localId('item', slug), quantity, equipped: true },
+      });
+      expect(r.statusCode).toBe(201);
+      return r.json();
+    };
+    return { id, cookie, report, item };
+  }
+  it('calcula atributos, perícias, resistências e PV sem modificar o banco', async () => {
+    const x = await setup();
+    const before = db.prepare('SELECT * FROM dnd_character WHERE character_id=?').get(x.id);
+    const r = await x.report();
+    expect(r).toMatchObject({
+      totalLevel: 1,
+      proficiencyBonus: 2,
+      attributes: { modifiers: { strength: 0, dexterity: 2, intelligence: 3 } },
+      armorClass: { value: 12 },
+      initiative: { modeledBonus: 2 },
+      hitPoints: { historyComplete: true, base: 8, modeledMaximum: 8 },
+    });
+    expect(
+      r.savingThrows.find((s: { ability: string }) => s.ability === 'intelligence')
+    ).toMatchObject({ proficient: true, bonus: 5 });
+    expect(r.skills.find((s: { name: string }) => s.name === 'Arcana')).toMatchObject({
+      bonus: 3,
+      proficiencyRank: 0,
+    });
+    expect(db.prepare('SELECT * FROM dnd_character WHERE character_id=?').get(x.id)).toEqual(
+      before
+    );
+  });
+  it('não revela ficha privada nem aceita id inválido', async () => {
+    const x = await setup();
+    expect((await app.inject(`/characters/${x.id}/derived`)).statusCode).toBe(404);
+    expect((await app.inject('/characters/0/derived')).statusCode).toBe(400);
+  });
+  it('calcula armadura pesada, ignora escudo sem treino e explicita penalidades', async () => {
+    const x = await setup();
+    await x.item('chain-mail');
+    await x.item('shield');
+    const r = await x.report();
+    expect(r.armorClass).toMatchObject({ value: 16, shieldBonus: 0 });
+    expect(r.armorClass.penalties).toEqual(
+      expect.arrayContaining([
+        'ARMOR_UNTRAINED_STR_DEX_DISADVANTAGE_AND_NO_SPELLCASTING',
+        'SHIELD_UNTRAINED_NO_AC_BONUS',
+        'STRENGTH_REQUIREMENT_13',
+        'STEALTH_DISADVANTAGE',
+      ])
+    );
+  });
+  it('aplica escudo treinado e compara o requisito com Força ímpar exata', async () => {
+    const payload = character();
+    payload.attributes.strength = 13;
+    payload.classes = [{ classId: localId('class', 'fighter'), level: 1, initial: true }];
+    const x = await setup(payload);
+    await x.item('chain-mail');
+    await x.item('shield');
+    const r = await x.report();
+    expect(r.armorClass).toMatchObject({ value: 18, shieldBonus: 2 });
+    expect(r.armorClass.penalties).not.toContain('STRENGTH_REQUIREMENT_13');
+    expect(r.armorClass.penalties).not.toContain(
+      'ARMOR_UNTRAINED_STR_DEX_DISADVANTAGE_AND_NO_SPELLCASTING'
+    );
+  });
+  it('adiciona Alert à iniciativa uma vez e não duplica perícias fixas', async () => {
+    const x = await setup();
+    const g = await app.inject({
+      method: 'POST',
+      url: `/characters/${x.id}/grants`,
+      headers: { origin, cookie: x.cookie },
+      payload: {
+        originKind: 'background',
+        originId: character().backgroundId,
+        acquisitionContext: 'background',
+        ruleKey: 'alert-test',
+        acquiredAtLevel: 1,
+      },
+    });
+    for (let i = 0; i < 2; i++) {
+      const added = await app.inject({
+        method: 'POST',
+        url: `/characters/${x.id}/benefits`,
+        headers: { origin, cookie: x.cookie },
+        payload: {
+          kind: 'feat',
+          localId: localId('feat', 'alert'),
+          grantId: g.json().id,
+          selectionKind: 'fixed',
+        },
+      });
+      expect(added.statusCode).toBe(201);
+    }
+    const r = await x.report();
+    expect(r.initiative).toMatchObject({ base: 2, alertContribution: 2, modeledBonus: 4 });
+    expect(r.skills.find((s: { name: string }) => s.name === 'Stealth')).toMatchObject({
+      bonus: 4,
+      proficiencyRank: 1,
+    });
+  });
+  it('não soma duas armaduras nem escolhe silenciosamente uma delas', async () => {
+    const x = await setup();
+    await x.item('chain-mail');
+    await x.item('leather-armor');
+    const r = await x.report();
+    expect(r.armorClass.value).toBeNull();
+    expect(r.armorClass.issues).toContain('MULTIPLE_ARMOR_OR_SHIELDS');
+  });
+  it('marca magia de armadura sem base definida como inconclusiva', async () => {
+    const x = await setup();
+    await x.item('plus-1-armor');
+    const r = await x.report();
+    expect(r.armorClass.value).toBeNull();
+    expect(r.armorClass.issues).toContain('MAGIC_EQUIPMENT_REQUIRES_REVIEW');
+  });
+  it('usa meia proficiência do bardo somente nas perícias sem proficiência', async () => {
+    const payload = character();
+    payload.classes = [{ classId: localId('class', 'bard'), level: 2, initial: true }];
+    const x = await setup(payload),
+      r = await x.report();
+    expect(r.skills.find((s: { name: string }) => s.name === 'Arcana')).toMatchObject({
+      bonus: 4,
+      jackOfAllTrades: true,
+    });
+    expect(r.initiative.modeledBonus).toBe(2);
+    expect(r.hitPoints).toMatchObject({ historyComplete: false, modeledMaximum: null });
+  });
+  it('não soma as defesas sem armadura de monge e bárbaro', async () => {
+    const payload = character();
+    payload.attributes.wisdom = 18;
+    payload.attributes.constitution = 16;
+    payload.classes = [
+      { classId: localId('class', 'monk'), level: 1, initial: true },
+      { classId: localId('class', 'barbarian'), level: 1, initial: false },
+    ];
+    const x = await setup(payload),
+      r = await x.report();
+    expect(r.armorClass.modeledValue).toBe(16);
+    expect(r.armorClass.candidates).toEqual(
+      expect.arrayContaining([
+        { source: 'monk:unarmored-defense', value: 16 },
+        { source: 'barbarian:unarmored-defense', value: 15 },
+      ])
+    );
+  });
+});
