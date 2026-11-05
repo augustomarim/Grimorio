@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 import type { AuthService } from '../auth/service.js';
+import { AppError } from '../errors.js';
 import { ACCESS } from '../routes/auth.js';
 import { CharacterService, type CharacterInput } from './service.js';
 const id = { type: 'integer', minimum: 1 };
@@ -120,17 +121,38 @@ export function characterRoutes(app: FastifyInstance, db: Database.Database, aut
       req.cookies[ACCESS] ? auth.authenticate(req.cookies[ACCESS]) : undefined
     )
   );
-  app.patch<{ Params: { id: number }; Body: CharacterInput }>(
-    '/characters/:id',
+  app.post<{ Params: { id: number }; Body: CharacterInput }>(
+    '/characters/:id/changes/preview',
     {
       schema: {
         params,
         body: { type: 'object', minProperties: 1, additionalProperties: false, properties },
       },
     },
+    (req) => service.previewChanges(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.body)
+  );
+  app.patch<{ Params: { id: number }; Body: CharacterInput & { confirmationToken?: string } }>(
+    '/characters/:id',
+    {
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          minProperties: 1,
+          additionalProperties: false,
+          properties: {
+            ...properties,
+            confirmationToken: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+          },
+        },
+      },
+    },
     (req) => {
       const user = auth.authenticate(req.cookies[ACCESS]);
-      service.update(req.params.id, user, req.body);
+      const { confirmationToken, ...changes } = req.body;
+      if (!Object.keys(changes).length)
+        throw new AppError(400, 'INVALID_INPUT', 'Informe a alteração além do token');
+      service.update(req.params.id, user, changes, confirmationToken);
       return service.detail(req.params.id, user);
     }
   );

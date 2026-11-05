@@ -2425,3 +2425,492 @@ describe('Benefícios de entrada e espaços comuns segundo o SRD anexado', () =>
     ).toBe('unknown');
   });
 });
+
+describe('Prévia e confirmação de alterações com dependências', () => {
+  async function setup() {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    const grant = await post(`/characters/${sheet.id}/grants`, {
+      originKind: 'species',
+      originId: localId('species', 'human'),
+      acquisitionContext: 'species',
+      ruleKey: 'human.origin',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    const feat = await post(`/characters/${sheet.id}/benefits`, {
+      kind: 'feat',
+      localId: localId('feat', 'skilled'),
+      grantId: grant.json().id,
+      selectionKind: 'fixed',
+    });
+    expect(feat.statusCode).toBe(201);
+    const derived = await post(`/characters/${sheet.id}/grants`, {
+      originKind: 'feat',
+      originId: feat.json().id,
+      acquisitionContext: 'feat',
+      ruleKey: 'human.skilled',
+      acquiredAtLevel: 1,
+    });
+    expect(derived.statusCode).toBe(201);
+    const skill = await post(`/characters/${sheet.id}/benefits`, {
+      kind: 'skill',
+      localId: localId('skill', 'skill-arcana'),
+      grantId: derived.json().id,
+      selectionKind: 'chosen',
+      choiceKey: 'toolChoices:benefit-1',
+      proficiencyRank: 1,
+    });
+    expect(skill.statusCode).toBe(201);
+    const item = db.prepare('SELECT id FROM lib_item LIMIT 1').get() as { id: number };
+    expect((await post(`/characters/${sheet.id}/items`, { itemId: item.id })).statusCode).toBe(201);
+    return { cookie, id: sheet.id, post, changes: { speciesId: localId('species', 'elf') } };
+  }
+  it('simula cascatas sem persistir e aplica somente após confirmação, preservando inventário e narrativa', async () => {
+    const { cookie, id, post, changes } = await setup();
+    const before = db.prepare('SELECT * FROM character WHERE id=?').get(id),
+      audit = db.prepare('SELECT count(*) AS n FROM audit_log').get();
+    const first = await post(`/characters/${id}/changes/preview`, changes);
+    expect(first.statusCode).toBe(200);
+    const plan = first.json();
+    expect(plan.requiresConfirmation).toBe(true);
+    expect(
+      plan.removals.find((r: { table: string }) => r.table === 'character_ability').count
+    ).toBe(1);
+    expect(plan.removals.find((r: { table: string }) => r.table === 'character_skill').count).toBe(
+      1
+    );
+    expect(
+      plan.removals.find((r: { table: string }) => r.table === 'character_rule_grant').count
+    ).toBe(2);
+    expect(db.prepare('SELECT * FROM character WHERE id=?').get(id)).toEqual(before);
+    expect(db.prepare('SELECT count(*) AS n FROM audit_log').get()).toEqual(audit);
+    const again = await post(`/characters/${id}/changes/preview`, changes);
+    expect(again.json()).toEqual(plan);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: changes,
+        })
+      ).statusCode
+    ).toBe(409);
+    const applied = await app.inject({
+      method: 'PATCH',
+      url: `/characters/${id}`,
+      headers: { origin, cookie },
+      payload: { ...changes, confirmationToken: plan.confirmationToken },
+    });
+    expect(applied.statusCode).toBe(200);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_ability WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_skill WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_item WHERE character_id=?').get(id)
+    ).toEqual({ n: 1 });
+    expect(
+      db.prepare('SELECT backstory FROM character_narrative WHERE character_id=?').get(id)
+    ).toEqual({ backstory: 'Aprendiz de magia' });
+    expect(
+      db.prepare("SELECT count(*) AS n FROM audit_log WHERE action='character.reconcile'").get()
+    ).toEqual({ n: 1 });
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+  it('recusa token antigo ou de outra alteração depois de editar uma dependência', async () => {
+    const { cookie, id, post, changes } = await setup();
+    const plan = (await post(`/characters/${id}/changes/preview`, changes)).json();
+    const feat = db.prepare('SELECT id FROM character_ability WHERE character_id=?').get(id) as {
+      id: number;
+    };
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}/benefits/feat/${feat.id}`,
+          headers: { origin, cookie },
+          payload: { notes: 'Alteração posterior' },
+        })
+      ).statusCode
+    ).toBe(200);
+    for (const input of [changes, { speciesId: localId('species', 'dwarf') }]) {
+      const result = await app.inject({
+        method: 'PATCH',
+        url: `/characters/${id}`,
+        headers: { origin, cookie },
+        payload: { ...input, confirmationToken: plan.confirmationToken },
+      });
+      expect(result.statusCode).toBe(409);
+      expect(result.json().error.code).toBe('CHANGE_PREVIEW_STALE');
+    }
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_ability WHERE character_id=?').get(id)
+    ).toEqual({ n: 1 });
+  });
+  it('protege permissões e reverte tudo se a gravação final falhar', async () => {
+    const { cookie, id, post, changes } = await setup();
+    await register('outsider@example.invalid', 'outsider');
+    const outsider = cookies(await login('outsider@example.invalid'));
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/characters/${id}/changes/preview`,
+          headers: { origin, cookie: outsider },
+          payload: changes,
+        })
+      ).statusCode
+    ).toBe(404);
+    const plan = (await post(`/characters/${id}/changes/preview`, changes)).json();
+    db.exec(
+      "CREATE TRIGGER reject_reconcile BEFORE INSERT ON audit_log WHEN NEW.action='character.reconcile' BEGIN SELECT RAISE(ABORT,'audit failed'); END"
+    );
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { ...changes, confirmationToken: plan.confirmationToken },
+        })
+      ).statusCode
+    ).toBe(400);
+    expect(db.prepare('SELECT species_id FROM dnd_character WHERE character_id=?').get(id)).toEqual(
+      { species_id: localId('species', 'human') }
+    );
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_skill WHERE character_id=?').get(id)
+    ).toEqual({ n: 1 });
+    expect(
+      (await post(`/characters/${id}/changes/preview`, { speciesId: 999999 })).statusCode
+    ).toBe(400);
+  });
+  it('mantém edições sem remoções no PATCH existente sem exigir confirmação', async () => {
+    const { cookie, id, post } = await setup();
+    const plan = await post(`/characters/${id}/changes/preview`, { name: 'Novo nome' });
+    expect(plan.statusCode).toBe(200);
+    expect(plan.json().requiresConfirmation).toBe(false);
+    expect(plan.json().removals).toEqual([]);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { name: 'Novo nome' },
+        })
+      ).statusCode
+    ).toBe(200);
+  });
+  it('remove o antecedente e suas magias sem tocar nos benefícios da espécie', async () => {
+    const { cookie, id, post } = await setup();
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'background',
+      originId: localId('background', 'criminal'),
+      acquisitionContext: 'background',
+      ruleKey: 'criminal.origin',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          spellId: localId('spell', 'magic-missile'),
+          originKind: 'background',
+          originId: localId('background', 'criminal'),
+          preparationMode: 'granted',
+        })
+      ).statusCode
+    ).toBe(201);
+    const changes = { backgroundId: null },
+      plan = await post(`/characters/${id}/changes/preview`, changes);
+    expect(plan.statusCode).toBe(200);
+    expect(
+      plan.json().removals.find((r: { table: string }) => r.table === 'character_spell').count
+    ).toBe(1);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { ...changes, confirmationToken: plan.json().confirmationToken },
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      db.prepare('SELECT background_id FROM dnd_character WHERE character_id=?').get(id)
+    ).toEqual({ background_id: null });
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_ability WHERE character_id=?').get(id)
+    ).toEqual({ n: 1 });
+  });
+  it('troca a subclasse removendo apenas sua origem, preservando magias da classe e grimório', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const wizard = localId('class', 'wizard');
+    const subs = db
+      .prepare('SELECT id FROM lib_subclass WHERE class_id=? ORDER BY id LIMIT 2')
+      .all(wizard) as { id: number }[];
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: {
+        ...character(),
+        classes: [{ classId: wizard, level: 3, initial: true, subclassId: subs[0]!.id }],
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(id) as {
+      id: number;
+    };
+    for (const originKind of ['class', 'subclass'])
+      expect(
+        (
+          await post(`/characters/${id}/spells`, {
+            spellId: localId('spell', 'magic-missile'),
+            originKind,
+            originId: cc.id,
+            preparationMode: 'selectable',
+          })
+        ).statusCode
+      ).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/spellbook`, {
+          spellId: localId('spell', 'magic-missile'),
+          characterClassId: cc.id,
+        })
+      ).statusCode
+    ).toBe(201);
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'subclass',
+      originId: cc.id,
+      acquisitionContext: 'class_progression',
+      ruleKey: 'subclass.feature',
+      acquiredAtLevel: 3,
+    });
+    expect(grant.statusCode).toBe(201);
+    const changes = {
+      classes: [{ classId: wizard, level: 3, initial: true, subclassId: subs[1]!.id }],
+      progression: [
+        { classId: wizard, hpMethod: 'first_max' },
+        { classId: wizard, hpMethod: 'average' },
+        { classId: wizard, hpMethod: 'average' },
+      ],
+    };
+    const plan = await post(`/characters/${id}/changes/preview`, changes);
+    expect(plan.statusCode).toBe(200);
+    expect(
+      plan.json().removals.find((r: { table: string }) => r.table === 'character_spell').count
+    ).toBe(1);
+    expect(
+      plan.json().removals.find((r: { table: string }) => r.table === 'character_spellbook_entry')
+    ).toBeUndefined();
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { ...changes, confirmationToken: plan.json().confirmationToken },
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      db.prepare('SELECT origin_kind FROM character_spell WHERE character_id=?').all(id)
+    ).toEqual([{ origin_kind: 'class' }]);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_spellbook_entry WHERE character_id=?').get(id)
+    ).toEqual({ n: 1 });
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+  it('expõe a reinicialização por redução de nível e não perde nada sem confirmação', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const wizard = localId('class', 'wizard');
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: { ...character(), classes: [{ classId: wizard, level: 2, initial: true }] },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(id) as {
+      id: number;
+    };
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    expect(
+      (
+        await post(`/characters/${id}/spellbook`, {
+          spellId: localId('spell', 'magic-missile'),
+          characterClassId: cc.id,
+        })
+      ).statusCode
+    ).toBe(201);
+    const changes = { classes: [{ classId: wizard, level: 1, initial: true }] };
+    const plan = await post(`/characters/${id}/changes/preview`, changes);
+    expect(plan.statusCode).toBe(200);
+    expect(plan.json().requiresConfirmation).toBe(true);
+    expect(
+      plan.json().removals.find((r: { table: string }) => r.table === 'character_spellbook_entry')
+        .count
+    ).toBe(1);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: changes,
+        })
+      ).statusCode
+    ).toBe(409);
+    expect(db.prepare('SELECT level FROM character_class WHERE id=?').get(cc.id)).toEqual({
+      level: 2,
+    });
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { ...changes, confirmationToken: plan.json().confirmationToken },
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_spellbook_entry WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+  });
+  it('concilia a troca da classe inicial e a remoção de uma classe sem apagar magias da outra', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const wizard = localId('class', 'wizard'),
+      cleric = localId('class', 'cleric');
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: {
+        ...character(),
+        classes: [
+          { classId: wizard, level: 1, initial: true },
+          { classId: cleric, level: 1, initial: false },
+        ],
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const cc = db
+      .prepare('SELECT id,class_id FROM character_class WHERE character_id=? ORDER BY id')
+      .all(id) as { id: number; class_id: number }[];
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    for (const row of cc) {
+      const initial = row.class_id === wizard;
+      expect(
+        (
+          await post(`/characters/${id}/grants`, {
+            originKind: 'class',
+            originId: row.id,
+            acquisitionContext: initial ? 'initial_class' : 'multiclass_entry',
+            ruleKey: `initial.${row.id}`,
+            acquiredAtLevel: initial ? 1 : 2,
+          })
+        ).statusCode
+      ).toBe(201);
+    }
+    const clericRow = cc.find((c) => c.class_id === cleric)!,
+      wizardRow = cc.find((c) => c.class_id === wizard)!;
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          spellId: localId('spell', 'light'),
+          originKind: 'class',
+          originId: clericRow.id,
+          preparationMode: 'cantrip',
+        })
+      ).statusCode
+    ).toBe(201);
+    const swap = {
+      classes: [
+        { classId: wizard, level: 1, initial: false },
+        { classId: cleric, level: 1, initial: true },
+      ],
+      progression: [
+        { classId: cleric, hpMethod: 'first_max' },
+        { classId: wizard, hpMethod: 'average' },
+      ],
+    };
+    const plan = await post(`/characters/${id}/changes/preview`, swap);
+    expect(plan.statusCode).toBe(200);
+    expect(
+      plan.json().removals.find((r: { table: string }) => r.table === 'character_rule_grant').count
+    ).toBe(2);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { ...swap, confirmationToken: plan.json().confirmationToken },
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          spellId: localId('spell', 'magic-missile'),
+          originKind: 'class',
+          originId: wizardRow.id,
+          preparationMode: 'selectable',
+        })
+      ).statusCode
+    ).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/spellbook`, {
+          spellId: localId('spell', 'magic-missile'),
+          characterClassId: wizardRow.id,
+        })
+      ).statusCode
+    ).toBe(201);
+    const changes = { classes: [{ classId: cleric, level: 1, initial: true }] },
+      removal = await post(`/characters/${id}/changes/preview`, changes);
+    expect(removal.statusCode).toBe(200);
+    expect(removal.json().requiresConfirmation).toBe(true);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}`,
+          headers: { origin, cookie },
+          payload: { ...changes, confirmationToken: removal.json().confirmationToken },
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      db
+        .prepare('SELECT origin_character_class_id FROM character_spell WHERE character_id=?')
+        .all(id)
+    ).toEqual([{ origin_character_class_id: clericRow.id }]);
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_spellbook_entry WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+});

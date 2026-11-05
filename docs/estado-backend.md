@@ -39,7 +39,7 @@ Núcleo comum e perfil D&D são criados na mesma transação. Há nome/retrato, 
 
 Valida faixas, duplicidade de classe, exatamente uma inicial, soma até 20, classe da subclasse, nível indicado pelo catálogo para adquiri-la, correspondência do histórico e limite da rolagem ao dado real. Não implementa todos os requisitos normativos de multiclasse. Alterações de classes exigem histórico completo de PV para não descartar rolagens. Sem histórico em fichas de nível maior que 1, PV é null até completar, e não zero apresentado como máximo válido.
 
-Alterações de narrativa e conteúdo atualizam a identidade da ficha e a referência de revisão do último salvamento. Concessões dependentes já presentes podem bloquear mudança de espécie/antecedente/subclasse pelas FKs; o incremento seguinte precisa de conciliação explícita em vez de apagar silenciosamente escolhas.
+Alterações de narrativa e conteúdo atualizam a identidade da ficha e a referência de revisão do último salvamento. Alterações estruturais agora possuem prévia e confirmação explícita quando excluem dependências. Veja reconciliacao-personagens.md; as FKs continuam ativas.
 
 Dono edita/exclui; visitantes consultam somente públicas elegíveis; administrador consulta e modera, sem poder editar fichas alheias. A exclusão remove os filhos sem afetar o catálogo. A moderação bloqueia republicação até liberação, sem republicar automaticamente.
 

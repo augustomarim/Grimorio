@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { User } from '../auth/service.js';
+import { Reconciliation } from './reconciliation.js';
 import { AppError } from '../errors.js';
 export interface ClassChoice {
   classId: number;
@@ -215,7 +216,21 @@ export class CharacterService {
       })
       .immediate();
   }
-  update(id: number, user: User, input: CharacterInput) {
+  previewChanges(id: number, user: User, input: CharacterInput) {
+    this.requireOwner(id, user);
+    return new Reconciliation(this.db).preview(id, input, () => this.applyUpdate(id, user, input));
+  }
+  update(id: number, user: User, input: CharacterInput, confirmationToken?: string) {
+    this.requireOwner(id, user);
+    return new Reconciliation(this.db).apply(
+      id,
+      user.id,
+      input,
+      () => this.applyUpdate(id, user, input),
+      confirmationToken
+    );
+  }
+  private applyUpdate(id: number, user: User, input: CharacterInput) {
     this.db
       .transaction(() => {
         this.requireOwner(id, user);
