@@ -762,3 +762,7 @@ UNIQUE de apoio em character_choice(character_id,id). Índice character_spell(ch
 ## Convenção adicional de character_choice
 
 choice_id também admite a projeção local app:magic-initiate e option_id a configuração lista:atributo. Não são propriedades adicionadas ao pacote. Os campos físicos e suas restrições permanecem os da versão 5. A configuração passa a ser a fonte única de lista e atributo das magias vinculadas dessa instância do talento. Ver magic-initiate-backend.md.
+
+## Projeção genérica dos efeitos de magia
+
+character_choice admite choice_id=app:feat-spells e option_id=catalog para o vínculo técnico de efeitos diretos de talentos. O esquema físico permanece na versão 5. A resposta de criação da concessão informa spellChoiceInstanceId, que é o id de character_choice. Ver motor-efeitos-magias.md.

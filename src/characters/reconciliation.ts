@@ -46,7 +46,7 @@ class PreviewRollback extends Error {
 export class Reconciliation {
   constructor(
     private db: Database.Database,
-    private context?: { scope: string; root: { table: string; id: number } }
+    private context?: { scope: string; root: { table: string; id: number }; previewPath?: string }
   ) {}
   private snapshot(id: number) {
     const result: Record<string, Row[]> = {};
@@ -214,7 +214,7 @@ export class Reconciliation {
           throw new AppError(
             409,
             'DEPENDENCIES_REQUIRE_CONFIRMATION',
-            'A alteração remove dependências; consulte POST /characters/:id/changes/preview e confirme o token no PATCH'
+            `A alteração remove dependências; consulte POST ${this.context?.previewPath ?? `/characters/${id}/changes/preview`} e confirme o token na operação original`
           );
         this.cleanup(id, input);
         operation();

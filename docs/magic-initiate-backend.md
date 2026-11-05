@@ -54,7 +54,7 @@ A configuração é imutável como as demais opções. Excluí-la quando tem mag
 
 O SRD permite substituir uma magia ao ganhar um nível. O CRUD permite remover/adicionar uma magia elegível, mas ainda não condiciona a troca ao evento de subida de nível: a ficha é editável, não um controlador completo do histórico de progressão. A conjuração gratuita uma vez por descanso longo não é consumida por esta versão; consumo de recursos fica para a ficha interativa.
 
-Outros efeitos de talentos, modificações de atributos, ataques de reação e exceções ainda não cobertas não foram declarados prontos. Outras escolhas diretas de magias de talentos não são automaticamente projetadas: precisam de políticas que respeitem seus próprios requisitos cruzados.
+Outros efeitos de talentos, modificações de atributos, ataques de reação e exceções ainda não cobertas não foram declarados prontos. Atualização: os campos estruturados de magias dos demais talentos são projetados pelo motor genérico em motor-efeitos-magias.md. Requisitos cruzados e outros efeitos que não estejam representados permanecem inconclusivos.
 
 ## Verificação
 

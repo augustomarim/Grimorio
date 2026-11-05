@@ -1,6 +1,9 @@
 import type Database from 'better-sqlite3';
 import type { User } from '../auth/service.js';
+import { Reconciliation } from '../characters/reconciliation.js';
 import { CharacterService } from '../characters/service.js';
+import { BenefitAudit, type Grant } from '../rules/benefits.js';
+import { sourceChoices, featSpellEffectsChoice } from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 import { sources } from '../catalog/routes.js';
 
@@ -108,8 +111,38 @@ export class BenefitService {
             input.ruleKey,
             input.acquiredAtLevel
           );
+        const grantId = Number(result.lastInsertRowid);
+        let spellChoiceInstanceId: number | undefined;
+        if (input.originKind === 'feat') {
+          const grant = this.db
+            .prepare('SELECT * FROM character_rule_grant WHERE character_id=? AND id=?')
+            .get(id, grantId) as Grant;
+          const source = new BenefitAudit(this.db).source(id, grant);
+          if (
+            source &&
+            sourceChoices(source).some((choice) => choice.id === featSpellEffectsChoice)
+          ) {
+            const existing = this.db
+              .prepare(
+                "SELECT c.id FROM character_choice c JOIN character_rule_grant g ON g.id=c.grant_id AND g.character_id=c.character_id WHERE c.character_id=? AND g.origin_kind='feat' AND g.origin_character_ability_id=? AND c.choice_id=? LIMIT 1"
+              )
+              .get(id, input.originId, featSpellEffectsChoice) as { id: number } | undefined;
+            spellChoiceInstanceId =
+              existing?.id ??
+              Number(
+                this.db
+                  .prepare(
+                    'INSERT INTO character_choice(character_id,grant_id,choice_id,option_id) VALUES(?,?,?,?)'
+                  )
+                  .run(id, grantId, featSpellEffectsChoice, 'catalog').lastInsertRowid
+              );
+          }
+        }
         this.saved(id, user, 'benefit.grant');
-        return { id: Number(result.lastInsertRowid) };
+        return {
+          id: grantId,
+          ...(spellChoiceInstanceId === undefined ? {} : { spellChoiceInstanceId }),
+        };
       })
       .immediate();
   }
@@ -249,7 +282,39 @@ export class BenefitService {
       })
       .immediate();
   }
-  remove(id: number, user: User, kind: BenefitInput['kind'], instanceId: number) {
+  private removalContext(kind: BenefitInput['kind'], instanceId: number) {
+    return {
+      scope: `benefit.remove:${kind}:${instanceId}`,
+      root: { table: kind === 'skill' ? 'character_skill' : 'character_ability', id: instanceId },
+    };
+  }
+  previewRemoval(id: number, user: User, kind: BenefitInput['kind'], instanceId: number) {
+    this.characters.requireOwner(id, user);
+    return new Reconciliation(this.db, {
+      ...this.removalContext(kind, instanceId),
+      previewPath: `/characters/${id}/benefits/${kind}/${instanceId}/removal-preview`,
+    }).preview(id, {}, () => this.applyRemoval(id, user, kind, instanceId));
+  }
+  remove(
+    id: number,
+    user: User,
+    kind: BenefitInput['kind'],
+    instanceId: number,
+    confirmationToken?: string
+  ) {
+    this.characters.requireOwner(id, user);
+    return new Reconciliation(this.db, {
+      ...this.removalContext(kind, instanceId),
+      previewPath: `/characters/${id}/benefits/${kind}/${instanceId}/removal-preview`,
+    }).apply(
+      id,
+      user.id,
+      {},
+      () => this.applyRemoval(id, user, kind, instanceId),
+      confirmationToken
+    );
+  }
+  private applyRemoval(id: number, user: User, kind: BenefitInput['kind'], instanceId: number) {
     this.db
       .transaction(() => {
         this.characters.requireOwner(id, user);

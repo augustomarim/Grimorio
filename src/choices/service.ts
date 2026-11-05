@@ -5,7 +5,12 @@ import { BenefitAudit, type Grant } from '../rules/benefits.js';
 import type { Finding } from '../rules/validation.js';
 import { NestedSpells } from '../spells/nested.js';
 import { Reconciliation } from '../characters/reconciliation.js';
-import { sourceChoices, magicConfiguration, magicInitiateChoice } from '../rules/source-choices.js';
+import {
+  sourceChoices,
+  magicConfiguration,
+  magicInitiateChoice,
+  featSpellEffectsChoice,
+} from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 export interface ChoiceInput {
   grantId: number;
@@ -59,6 +64,7 @@ export class ChoiceService {
         options.push({
           grantId: grant.id,
           choiceId: choice.id,
+          automatic: choice.id === featSpellEffectsChoice,
           name: choice.name,
           pick: choice.pick ?? 1,
           requiredLevel: choice.level ?? 1,
@@ -113,6 +119,15 @@ export class ChoiceService {
         evidence: { choiceId: row.choice_id, optionId: row.option_id },
       });
       if (!source || !choice || !option || !grant) continue;
+      if (row.choice_id === featSpellEffectsChoice)
+        findings.push({
+          code: 'FEAT_SPELL_EFFECTS_PARTIAL',
+          state: 'unknown',
+          entityId: row.id,
+          message:
+            'Critérios estruturados de magias disponíveis; atributo e relações descritas apenas em texto ainda precisam de resolução',
+          evidence: { feat: source.featSlug },
+        });
       findings.push({
         code: 'NESTED_OPTION_LEVEL',
         state: source.level >= (choice.level ?? 1) ? 'pass' : 'fail',
@@ -302,6 +317,7 @@ export class ChoiceService {
     new CharacterService(this.db).requireOwner(id, user);
     return new Reconciliation(this.db, {
       scope: `choice.remove:${instanceId}`,
+      previewPath: `/characters/${id}/choices/${instanceId}/removal-preview`,
       root: { table: 'character_choice', id: instanceId },
     }).preview(id, {}, () => this.applyRemoval(id, user, instanceId));
   }
@@ -309,6 +325,7 @@ export class ChoiceService {
     new CharacterService(this.db).requireOwner(id, user);
     return new Reconciliation(this.db, {
       scope: `choice.remove:${instanceId}`,
+      previewPath: `/characters/${id}/choices/${instanceId}/removal-preview`,
       root: { table: 'character_choice', id: instanceId },
     }).apply(id, user.id, {}, () => this.applyRemoval(id, user, instanceId), confirmationToken);
   }

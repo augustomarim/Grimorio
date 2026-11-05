@@ -68,3 +68,7 @@ Testes executam simulação repetível sem persistência, confirmação e recusa
 ## Extensão para opções com magias
 
 A confirmação agora também atende DELETE de opção com magias vinculadas. A prévia fica em POST /characters/:id/choices/:instanceId/removal-preview e o DELETE recebe confirmationToken na query. A confirmação é específica à opção, e a exclusão da opção sozinha não exige confirmação extra. Ver magias-escolhas-aninhadas.md.
+
+## Exclusão de talentos e outros benefícios
+
+POST /characters/:id/benefits/:kind/:instanceId/removal-preview permite revisar as cascatas antes do DELETE. Talentos com magias ou outros filhos exigem confirmationToken na query; as outras instâncias e catálogos são preservados. Ver motor-efeitos-magias.md.

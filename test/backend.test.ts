@@ -1281,11 +1281,16 @@ describe('Benefícios com origem', () => {
       (await app.inject({ url: `/characters/${id}/benefits`, headers: { cookie } })).json()
         .skills[0].proficiencyRank
     ).toBe(2);
+    const removalPreview = await post(
+      `/characters/${id}/benefits/feat/${featResponse.json().id}/removal-preview`,
+      {}
+    );
+    expect(removalPreview.statusCode).toBe(200);
     expect(
       (
         await app.inject({
           method: 'DELETE',
-          url: `/characters/${id}/benefits/feat/${featResponse.json().id}`,
+          url: `/characters/${id}/benefits/feat/${featResponse.json().id}?confirmationToken=${removalPreview.json().confirmationToken}`,
           headers: { origin, cookie },
         })
       ).statusCode
@@ -3467,5 +3472,216 @@ describe('Magic Initiate — escolhas diretas do talento', () => {
     expect(
       report.findings.find((f: { code: string }) => f.code === 'NESTED_SPELL_SELECTION').state
     ).toBe('fail');
+  });
+});
+
+describe('Motor genérico de efeitos de magias de talentos', () => {
+  async function setup(slug: string) {
+    await register();
+    const cookie = cookies(await login());
+    const wizard = localId('class', 'wizard');
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: { ...character(), classes: [{ classId: wizard, level: 4, initial: true }] },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const cc = db.prepare('SELECT id FROM character_class WHERE character_id=?').get(id) as {
+      id: number;
+    };
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    const parent = await post(`/characters/${id}/grants`, {
+      originKind: 'class',
+      originId: cc.id,
+      acquisitionContext: 'class_progression',
+      ruleKey: 'wizard.feat-4',
+      acquiredAtLevel: 4,
+    });
+    expect(parent.statusCode).toBe(201);
+    const feat = await post(`/characters/${id}/benefits`, {
+      kind: 'feat',
+      localId: localId('feat', slug),
+      grantId: parent.json().id,
+      selectionKind: 'chosen',
+      choiceKey: 'featChoices:feat-4',
+    });
+    expect(feat.statusCode).toBe(201);
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: 'feat',
+      originId: feat.json().id,
+      acquisitionContext: 'feat',
+      ruleKey: `feat.${slug}`,
+      acquiredAtLevel: 4,
+    });
+    expect(grant.statusCode).toBe(201);
+    expect(grant.json().spellChoiceInstanceId).toBeTypeOf('number');
+    const base = {
+      originKind: 'feat',
+      originId: feat.json().id,
+      choiceInstanceId: grant.json().spellChoiceInstanceId,
+      preparationMode: 'always_prepared',
+    };
+    return {
+      id,
+      cookie,
+      post,
+      featId: feat.json().id,
+      grantId: grant.json().id,
+      choiceId: grant.json().spellChoiceInstanceId,
+      base,
+      wizard,
+    };
+  }
+  it.each([
+    ['fey-touched', 'misty-step', 'fey-magic', 'detect-magic', 'magic-missile'],
+    ['shadow-touched', 'invisibility', 'shadow-magic', 'silent-image', 'detect-magic'],
+  ])(
+    'interpreta magias fixas e escolas de %s sem regra codificada por talento',
+    async (slug, fixed, key, allowed, denied) => {
+      const { id, cookie, post, choiceId, base } = await setup(slug);
+      const options = (
+        await app.inject({ url: `/characters/${id}/choices`, headers: { cookie } })
+      ).json();
+      expect(options.selected.find((c: { id: number }) => c.id === choiceId).choice_id).toBe(
+        'app:feat-spells'
+      );
+      expect(
+        (
+          await post(`/characters/${id}/spells`, {
+            ...base,
+            spellId: localId('spell', fixed),
+            nestedChoiceKey: `spellsFixed:${fixed}`,
+          })
+        ).statusCode
+      ).toBe(201);
+      expect(
+        (
+          await post(`/characters/${id}/spells`, {
+            ...base,
+            spellId: localId('spell', denied),
+            nestedChoiceKey: `spellChoices:${key}`,
+          })
+        ).statusCode
+      ).toBe(400);
+      expect(
+        (
+          await post(`/characters/${id}/spells`, {
+            ...base,
+            spellId: localId('spell', allowed),
+            nestedChoiceKey: `spellChoices:${key}`,
+          })
+        ).statusCode
+      ).toBe(201);
+      const report = (
+        await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+      ).json();
+      expect(
+        report.findings
+          .filter((f: { code: string }) => f.code === 'NESTED_SPELL_SELECTION')
+          .every((f: { state: string }) => f.state === 'pass')
+      ).toBe(true);
+      expect(
+        report.findings.find((f: { code: string }) => f.code === 'FEAT_SPELL_EFFECTS_PARTIAL').state
+      ).toBe('unknown');
+      expect(report.rulesVerified).toBe(false);
+    }
+  );
+  it('aplica ritual, nível e orçamento dinâmico sem multiplicá-lo por concessões', async () => {
+    const { id, cookie, post, featId, choiceId, base, wizard } = await setup('ritual-caster');
+    const payload = { ...base, nestedChoiceKey: 'spellChoices:ritual-spells' };
+    for (const slug of ['mage-armor', 'augury'])
+      expect(
+        (await post(`/characters/${id}/spells`, { ...payload, spellId: localId('spell', slug) }))
+          .statusCode
+      ).toBe(400);
+    for (const slug of ['detect-magic', 'identify'])
+      expect(
+        (await post(`/characters/${id}/spells`, { ...payload, spellId: localId('spell', slug) }))
+          .statusCode
+      ).toBe(201);
+    const extra = await post(`/characters/${id}/grants`, {
+      originKind: 'feat',
+      originId: featId,
+      acquisitionContext: 'feat',
+      ruleKey: 'ritual.other',
+      acquiredAtLevel: 4,
+    });
+    expect(extra.statusCode).toBe(201);
+    expect(extra.json().spellChoiceInstanceId).toBe(choiceId);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...payload,
+          spellId: localId('spell', 'unseen-servant'),
+        })
+      ).statusCode
+    ).toBe(400);
+    const updated = await app.inject({
+      method: 'PATCH',
+      url: `/characters/${id}`,
+      headers: { origin, cookie },
+      payload: {
+        classes: [{ classId: wizard, level: 5, initial: true }],
+        progression: [
+          { classId: wizard, hpMethod: 'first_max' },
+          ...Array.from({ length: 4 }, () => ({ classId: wizard, hpMethod: 'average' })),
+        ],
+      },
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...payload,
+          spellId: localId('spell', 'unseen-servant'),
+        })
+      ).statusCode
+    ).toBe(201);
+  });
+  it('revoga o grupo e as magias junto com o talento sem afetar o catálogo', async () => {
+    const { id, cookie, post, featId, choiceId, base } = await setup('fey-touched');
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...base,
+          spellId: localId('spell', 'misty-step'),
+          nestedChoiceKey: 'spellsFixed:misty-step',
+        })
+      ).statusCode
+    ).toBe(201);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}/benefits/feat/${featId}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(409);
+    const preview = await post(`/characters/${id}/benefits/feat/${featId}/removal-preview`, {});
+    expect(preview.statusCode).toBe(200);
+    expect(
+      preview.json().removals.find((r: { table: string }) => r.table === 'character_spell').count
+    ).toBe(1);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/characters/${id}/benefits/feat/${featId}?confirmationToken=${preview.json().confirmationToken}`,
+          headers: { origin, cookie },
+        })
+      ).statusCode
+    ).toBe(204);
+    expect(db.prepare('SELECT id FROM character_choice WHERE id=?').get(choiceId)).toBeUndefined();
+    expect(
+      db.prepare('SELECT count(*) AS n FROM character_spell WHERE character_id=?').get(id)
+    ).toEqual({ n: 0 });
+    expect(
+      db.prepare('SELECT id FROM lib_spell WHERE id=?').get(localId('spell', 'misty-step'))
+    ).toBeTruthy();
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   });
 });

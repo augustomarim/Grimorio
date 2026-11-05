@@ -65,3 +65,7 @@ GET /characters/:id/benefits/options expõe escolhas diretas para origens já re
 ## Traços de entrada multiclasse confirmados
 
 Use coreGrantRuleKey retornado por GET /characters/:id/class-benefits para identificar os traços de entrada de uma nova classe. A implementação baseada no PDF SRD 5.2 está em multiclasse-progressao-srd52.md. As auditorias não alteram o contrato de gravação de rascunhos.
+
+## Exclusão com dependências
+
+DELETE de benefício agora exige confirmação quando a remoção apaga outras concessões, magias ou escolhas. A prévia fica em POST /characters/:id/benefits/:kind/:instanceId/removal-preview; envie confirmationToken na query do DELETE. Remoções sem dependentes continuam diretas. Ver motor-efeitos-magias.md.

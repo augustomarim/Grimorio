@@ -115,10 +115,38 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         req.body
       )
   );
-  app.delete<{ Params: { id: number; kind: BenefitInput['kind']; instanceId: number } }>(
+  app.post<{ Params: { id: number; kind: BenefitInput['kind']; instanceId: number } }>(
+    '/characters/:id/benefits/:kind/:instanceId/removal-preview',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'kind', 'instanceId'],
+          properties: { id, kind, instanceId: id },
+        },
+      },
+    },
+    (req) =>
+      service.previewRemoval(
+        req.params.id,
+        auth.authenticate(req.cookies[ACCESS]),
+        req.params.kind,
+        req.params.instanceId
+      )
+  );
+  app.delete<{
+    Params: { id: number; kind: BenefitInput['kind']; instanceId: number };
+    Querystring: { confirmationToken?: string };
+  }>(
     '/characters/:id/benefits/:kind/:instanceId',
     {
       schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { confirmationToken: { type: 'string', pattern: '^[a-f0-9]{64}$' } },
+        },
         params: {
           type: 'object',
           additionalProperties: false,
@@ -132,7 +160,8 @@ export function benefitRoutes(app: FastifyInstance, db: Database.Database, auth:
         req.params.id,
         auth.authenticate(req.cookies[ACCESS]),
         req.params.kind,
-        req.params.instanceId
+        req.params.instanceId,
+        req.query.confirmationToken
       );
       return reply.code(204).send();
     }

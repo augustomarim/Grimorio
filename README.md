@@ -203,3 +203,5 @@ Edição estrutural: [prévia e confirmação das dependências](docs/reconcilia
 Magias de opções: [vínculo, validação e migração 0005](docs/magias-escolhas-aninhadas.md).
 
 Magic Initiate: [lista compartilhada, atributo e limites](docs/magic-initiate-backend.md).
+
+Motor geral de concessões de magia: [campos interpretados, vínculos e limites](docs/motor-efeitos-magias.md).

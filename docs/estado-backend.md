@@ -1,3 +1,5 @@
+> Efeitos de magia: projeção genérica dos campos estruturados de 52 talentos e política de Magic Initiate, com exclusão confirmada de benefícios dependentes. Isso não certifica os efeitos completos de todos os talentos; ver motor-efeitos-magias.md.
+
 > Magic Initiate: configuração compartilhada de lista/atributo, repetição por lista e vínculo de legados implementados. Outros efeitos de talentos permanecem pendentes; ver magic-initiate-backend.md.
 
 > Novo vínculo de magia com opção, atribuição explícita de legados e exclusão com prévia: magias-escolhas-aninhadas.md. Não representa fechamento integral das regras da ficha.
