@@ -1,6 +1,8 @@
+> Novo vínculo de magia com opção, atribuição explícita de legados e exclusão com prévia: magias-escolhas-aninhadas.md. Não representa fechamento integral das regras da ficha.
+
 > Atualização vigente: capacidades comuns e benefícios de entrada das 12 classes básicas conferidos no PDF oficial fornecido. Ver multiclasse-progressao-srd52.md; limitações de suplementos, subclasses e certificação integral permanecem.
 
-> Estado atual: schema versão 4; módulos de talentos, magias, grimório, escolhas e auditoria implementados. As contagens abaixo são registros históricos de cada incremento. Capacidades individuais de conjuração e limites desta etapa estão em capacidades-classes-backend.md.
+> Estado atual: schema versão 5; módulos de talentos, magias, grimório, escolhas e auditoria implementados. As contagens abaixo são registros históricos de cada incremento. Capacidades individuais de conjuração e limites desta etapa estão em capacidades-classes-backend.md.
 
 # Backend v0.1 — estado da implementação
 

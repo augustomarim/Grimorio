@@ -3,6 +3,8 @@ import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
 import { BenefitAudit, type Grant } from '../rules/benefits.js';
 import type { Finding } from '../rules/validation.js';
+import { NestedSpells } from '../spells/nested.js';
+import { Reconciliation } from '../characters/reconciliation.js';
 import { AppError } from '../errors.js';
 export interface ChoiceInput {
   grantId: number;
@@ -66,6 +68,7 @@ export class ChoiceService {
         });
       }
     }
+    const nestedFindings = new NestedSpells(this.db).audit(id);
     for (const row of selected) {
       const grant = grants.find((g) => g.id === row.grant_id),
         source = grant ? audit.source(id, grant) : undefined;
@@ -103,9 +106,9 @@ export class ChoiceService {
           grant.origin_character_ability_id;
         const instances = this.db
           .prepare(
-            `SELECT s.id FROM character_spell s JOIN lib_spell l ON l.id=s.lib_spell_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE s.character_id=? AND s.origin_kind=? AND s.${column}=? AND e.slug=?`
+            `SELECT s.id FROM character_spell s JOIN lib_spell l ON l.id=s.lib_spell_id JOIN catalog_entry e ON e.id=l.catalog_entry_id WHERE s.character_id=? AND s.origin_kind=? AND s.${column}=? AND e.slug=? AND s.choice_instance_id=? AND s.nested_choice_key=?`
           )
-          .all(id, grant.origin_kind, origin, spell.id);
+          .all(id, grant.origin_kind, origin, spell.id, row.id, `spellsFixed:${spell.id}`);
         const unlocked = source.level >= (spell.level ?? 1);
         findings.push({
           code: 'NESTED_FIXED_SPELL',
@@ -128,16 +131,30 @@ export class ChoiceService {
           },
         });
       }
-      if (option.spellChoices?.length)
+      if (option.spellChoices?.length) {
+        const linked = nestedFindings.filter(
+          (f) =>
+            (f.evidence as { choiceInstanceId?: number; nestedChoiceKey?: string })
+              ?.choiceInstanceId === row.id &&
+            (f.evidence as { nestedChoiceKey?: string })?.nestedChoiceKey?.startsWith(
+              'spellChoices:'
+            )
+        );
         findings.push({
           code: 'NESTED_SPELL_CHOICES',
-          state: 'unknown',
+          state: linked.some((f) => f.state === 'fail')
+            ? 'fail'
+            : linked.length && linked.every((f) => f.state === 'pass')
+              ? 'pass'
+              : 'unknown',
           entityId: row.id,
           message:
-            'Escolhas de magias expostas, mas as instâncias ainda não identificam qual escolha aninhada as concedeu',
+            'Critérios das magias explicitamente vinculadas; escolhas vazias não certificam preenchimento',
           evidence: option.spellChoices,
         });
+      }
     }
+    findings.push(...nestedFindings);
     return { selected, options, findings };
   }
   list(id: number, user?: User) {
@@ -207,7 +224,21 @@ export class ChoiceService {
       })
       .immediate();
   }
-  remove(id: number, user: User, instanceId: number) {
+  previewRemoval(id: number, user: User, instanceId: number) {
+    new CharacterService(this.db).requireOwner(id, user);
+    return new Reconciliation(this.db, {
+      scope: `choice.remove:${instanceId}`,
+      root: { table: 'character_choice', id: instanceId },
+    }).preview(id, {}, () => this.applyRemoval(id, user, instanceId));
+  }
+  remove(id: number, user: User, instanceId: number, confirmationToken?: string) {
+    new CharacterService(this.db).requireOwner(id, user);
+    return new Reconciliation(this.db, {
+      scope: `choice.remove:${instanceId}`,
+      root: { table: 'character_choice', id: instanceId },
+    }).apply(id, user.id, {}, () => this.applyRemoval(id, user, instanceId), confirmationToken);
+  }
+  private applyRemoval(id: number, user: User, instanceId: number) {
     this.db
       .transaction(() => {
         new CharacterService(this.db).requireOwner(id, user);

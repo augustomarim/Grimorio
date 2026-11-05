@@ -1,3 +1,5 @@
+> Atualização: a associação explícita de magias e a exclusão confirmada estão implementadas na migração 0005. Ver magias-escolhas-aninhadas.md; as limitações abaixo registram a etapa anterior.
+
 # Escolhas aninhadas: registro e auditoria
 
 ## Origem dos dados

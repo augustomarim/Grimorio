@@ -32,6 +32,7 @@ interface FeatRow {
 interface SpellRow {
   id: number;
   lib_spell_id: number;
+  choice_instance_id: number | null;
   origin_kind: string;
   origin_character_class_id: number | null;
   preparation_mode: string;
@@ -150,14 +151,17 @@ export class ValidationService {
     }
     const spells = this.db
       .prepare(
-        'SELECT s.id,s.lib_spell_id,s.origin_kind,s.origin_character_class_id,s.preparation_mode,s.is_prepared,l.data FROM character_spell s JOIN lib_spell l ON l.id=s.lib_spell_id WHERE s.character_id=? ORDER BY s.id'
+        'SELECT s.id,s.lib_spell_id,s.choice_instance_id,s.origin_kind,s.origin_character_class_id,s.preparation_mode,s.is_prepared,l.data FROM character_spell s JOIN lib_spell l ON l.id=s.lib_spell_id WHERE s.character_id=? ORDER BY s.id'
       )
       .all(id) as SpellRow[];
     for (const cls of classes) {
       const data = JSON.parse(cls.data) as ContentItem;
       const casting = data.casting;
       const direct = spells.filter(
-        (s) => s.origin_kind === 'class' && s.origin_character_class_id === cls.id
+        (s) =>
+          s.origin_kind === 'class' &&
+          s.origin_character_class_id === cls.id &&
+          s.choice_instance_id === null
       );
       for (const instance of direct) {
         const spell = JSON.parse(instance.data) as Spell;

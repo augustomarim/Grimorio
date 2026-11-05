@@ -64,3 +64,7 @@ Não há certificação integral das regras de D&D, undo ou restauração autom�
 ## Verificação
 
 Testes executam simulação repetível sem persistência, confirmação e recusa sem token, token desatualizado, troca de corpo, permissões, rollback de auditoria, cascata espécie → talento → perícia, retirada de antecedente, troca de subclasse, redução de nível, troca de classe inicial e remoção de classe com preservação de magias da outra classe. Asserções incluem integridade de FKs. Nenhum banco ou conta local do usuário é usado: as suítes criam fixtures temporárias.
+
+## Extensão para opções com magias
+
+A confirmação agora também atende DELETE de opção com magias vinculadas. A prévia fica em POST /characters/:id/choices/:instanceId/removal-preview e o DELETE recebe confirmationToken na query. A confirmação é específica à opção, e a exclusão da opção sozinha não exige confirmação extra. Ver magias-escolhas-aninhadas.md.

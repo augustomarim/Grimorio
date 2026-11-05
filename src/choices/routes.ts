@@ -32,8 +32,8 @@ export function choiceRoutes(app: FastifyInstance, db: Database.Database, auth: 
         .code(201)
         .send(service.add(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.body))
   );
-  app.delete<{ Params: { id: number; instanceId: number } }>(
-    '/characters/:id/choices/:instanceId',
+  app.post<{ Params: { id: number; instanceId: number } }>(
+    '/characters/:id/choices/:instanceId/removal-preview',
     {
       schema: {
         params: {
@@ -44,8 +44,40 @@ export function choiceRoutes(app: FastifyInstance, db: Database.Database, auth: 
         },
       },
     },
+    (req) =>
+      service.previewRemoval(
+        req.params.id,
+        auth.authenticate(req.cookies[ACCESS]),
+        req.params.instanceId
+      )
+  );
+  app.delete<{
+    Params: { id: number; instanceId: number };
+    Querystring: { confirmationToken?: string };
+  }>(
+    '/characters/:id/choices/:instanceId',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { confirmationToken: { type: 'string', pattern: '^[a-f0-9]{64}$' } },
+        },
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'instanceId'],
+          properties: { id, instanceId: id },
+        },
+      },
+    },
     (req, reply) => {
-      service.remove(req.params.id, auth.authenticate(req.cookies[ACCESS]), req.params.instanceId);
+      service.remove(
+        req.params.id,
+        auth.authenticate(req.cookies[ACCESS]),
+        req.params.instanceId,
+        req.query.confirmationToken
+      );
       return reply.code(204).send();
     }
   );

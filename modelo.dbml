@@ -269,6 +269,8 @@ Table character_ability {
 }
 
 Table character_spell {
+  choice_instance_id integer [note: 'Nulo em magia legada/independente; FK composta assegura o mesmo personagem']
+  nested_choice_key text [note: 'Preenchida junto com choice_instance_id; spellsFixed:<slug> ou spellChoices:<id>']
   id integer [pk, increment, note: 'id INTEGER PRIMARY KEY AUTOINCREMENT']
   character_id integer [not null, note: 'character_id INTEGER NOT NULL REFERENCES dnd_character(character_id) ON DELETE CASCADE']
   lib_spell_id integer [not null, note: 'lib_spell_id INTEGER NOT NULL REFERENCES lib_spell(id) ON DELETE RESTRICT']
@@ -284,6 +286,10 @@ Table character_spell {
   casting_ability_choice text [note: 'casting_ability_choice TEXT CHECK (casting_ability_choice IN (\'strength\',\'dexterity\',\'constitution\',\'intelligence\',\'wisdom\',\'charisma\'))']
   notes text [note: 'notes TEXT']
   Note: 'CHECK ((origin_kind = \'class\' AND origin_character_class_id IS NOT NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'subclass\' AND origin_character_class_id IS NOT NULL AND origin_subclass_id IS NOT NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'species\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NOT NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'background\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NOT NULL AND origin_character_ability_id IS NULL AND origin_feat_id IS NULL) OR (origin_kind = \'feat\' AND origin_character_class_id IS NULL AND origin_subclass_id IS NULL AND origin_species_id IS NULL AND origin_background_id IS NULL AND origin_character_ability_id IS NOT NULL AND origin_feat_id IS NOT NULL)); CHECK (is_prepared = 0 OR preparation_mode = \'selectable\'); FOREIGN KEY (character_id, origin_character_class_id) REFERENCES character_class(character_id, id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_character_class_id, origin_subclass_id) REFERENCES character_class(character_id, id, subclass_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_species_id) REFERENCES dnd_character(character_id, species_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_background_id) REFERENCES dnd_character(character_id, background_id) ON DELETE CASCADE; FOREIGN KEY (character_id, origin_character_ability_id, origin_feat_id) REFERENCES character_ability(character_id, id, lib_feat_id) ON DELETE CASCADE'
+  indexes {
+    (character_id, choice_instance_id, nested_choice_key, lib_spell_id) [unique, note: 'Unicidade da magia dentro da escolha vinculada; SQL possui também índices parciais para origens legadas']
+  }
+
 }
 
 Table character_spellbook_entry {
@@ -683,3 +689,20 @@ Ref: refresh_token.(session_id, parent_token_id) > refresh_token.(session_id, id
 
 // Índices parciais de refresh e auth_token no SQL.
 // Política de acesso é do serviço; publication_blocked_at impede republicação após moderação.
+
+Table character_choice {
+  id integer [pk, increment]
+  character_id integer [not null]
+  grant_id integer [not null]
+  choice_id text [not null, note: 'id ItemChoice do pacote; 1–200 caracteres não vazios']
+  option_id text [not null, note: 'id ChoiceOption da opção; 1–200 caracteres não vazios']
+  created_at text [not null, note: 'ISO 8601 UTC; padrão gerado pelo SQLite']
+  indexes {
+    (character_id, id) [unique]
+    (grant_id, choice_id, option_id) [unique]
+    (character_id, grant_id)
+  }
+}
+Ref: character_choice.(character_id, grant_id) > character_rule_grant.(character_id, id) [delete: cascade]
+
+Ref: character_spell.(character_id, choice_instance_id) > character_choice.(character_id, id) [delete: cascade]

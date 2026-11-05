@@ -1,3 +1,5 @@
+> Atualização de associação: magias ligadas a opções usam campos próprios e unicidade por escolha; consultar magias-escolhas-aninhadas.md.
+
 # Magias e grimório
 
 Incremento de gerenciamento, usando as tabelas character_spell e character_spellbook_entry existentes. Nenhuma migração ou dependência nova. Sem consumo de espaços de magia.

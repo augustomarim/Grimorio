@@ -121,7 +121,7 @@ class AccountPolicyTest(unittest.TestCase):
             old.execute("INSERT INTO auth_token(user_id,purpose,token_hash,expires_at) VALUES(1,'password_reset','legacy','2031-01-01T00:00:00.000Z')")
             old.commit()
             before=old.execute('SELECT version,name,checksum_sha256 FROM schema_migration ORDER BY version').fetchall()
-            self.assertEqual(migrate(old,ROOT/'migrations'),[3,4])
+            self.assertEqual(migrate(old,ROOT/'migrations'),[3,4,5])
             self.assertEqual(old.execute('SELECT is_public FROM character WHERE id=1').fetchone(),(0,))
             self.assertEqual(old.execute('SELECT count(*) FROM auth_token').fetchone(),(0,))
             self.assertEqual(old.execute('SELECT version,name,checksum_sha256 FROM schema_migration WHERE version<=2 ORDER BY version').fetchall(),before)

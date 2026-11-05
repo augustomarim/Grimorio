@@ -749,3 +749,12 @@ Requisitos completos estão em contas-permissoes.md, autenticacao-refresh-token.
 | created_at | TEXT NOT NULL; UTC gerado por strftime |
 
 Tabela STRICT. FK (character_id,grant_id) → character_rule_grant(character_id,id), ON DELETE CASCADE. UNIQUE (grant_id,choice_id,option_id). Índice (character_id,grant_id). Elegibilidade, nível e orçamento compartilhado entre concessões da mesma origem são conferidos pelo serviço. Não armazena JSON nem copia o texto da regra. Excluir a escolha não exclui magias ou itens registrados separadamente.
+
+## Complemento de character_spell — migração 0005
+
+| Coluna nova | Definição |
+|---|---|
+| choice_instance_id | INTEGER opcional; junto com character_id referencia character_choice(character_id,id), ON DELETE CASCADE |
+| nested_choice_key | TEXT opcional, 1–200 caracteres não vazios; preenchida junto com choice_instance_id |
+
+UNIQUE de apoio em character_choice(character_id,id). Índice character_spell(character_id,choice_instance_id). Magias legadas continuam únicas por origem sob WHERE choice_instance_id IS NULL. Para magias vinculadas, UNIQUE(character_id,choice_instance_id,nested_choice_key,lib_spell_id) WHERE choice_instance_id IS NOT NULL. A associação de origem e critérios do JSON é conferida na aplicação; a FK garante mesmo personagem. A API exige confirmação para excluir uma opção com magias dependentes. Detalhes em magias-escolhas-aninhadas.md.

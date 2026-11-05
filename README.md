@@ -1,6 +1,6 @@
 # Grimorio — backend v0.1
 
-API em **Node.js 24, TypeScript, Fastify e SQLite**, sem frontend. O primeiro incremento implementa autenticação, catálogo e CRUD básico de fichas D&D. As migrações SQL e os artefatos da modelagem permanecem versionados..
+API em **Node.js 24, TypeScript, Fastify e SQLite**, sem frontend. O primeiro incremento implementa autenticação, catálogo e CRUD básico de fichas D&D. As migrações SQL e os artefatos da modelagem permanecem versionados.
 
 ## O que já funciona
 
@@ -11,6 +11,7 @@ API em **Node.js 24, TypeScript, Fastify e SQLite**, sem frontend. O primeiro in
 - Importação da biblioteca **0.5.1** usando sua API pública e IndexedDB em memória; consultas posteriores usam somente SQLite.
 - Catálogo paginado por tipo, detalhe, fontes e consulta de sistemas habilitados.
 - Criar, consultar, pesquisar, editar e excluir ficha básica; narrativa, atributos, multiclasse e histórico de PV.
+- Inventário: adicionar itens do catálogo, listar/filtrar, alterar quantidade/equipamento/notas e remover instâncias com permissões e auditoria.
 - Publicação apenas com e-mail confirmado e moderação administrativa, sem permitir edição de ficha alheia.
 
 O backend **não valida todas as regras de D&D 2024**. Respostas de ficha informam `validation.rulesVerified: false`. As verificações já feitas incluem limites de atributos, soma de níveis, classe/subclasse, histórico de PV e opções depreciadas. Requisitos completos de multiclasse e conjuração ainda dependem da conferência normativa documentada.
@@ -133,7 +134,32 @@ Ao alterar classes via PATCH, envie o histórico completo para não apagar escol
 
 O dono edita e exclui. A consulta pública e a galeria exigem publicação liberada, conta ativa e e-mail confirmado. APIs de moderação mantêm bloqueio até liberação administrativa. Nenhuma ficha recebe selo automático de legalidade completa.
 
+
+### Inventário
+
+Rotas GET/POST `/characters/:id/items` e GET/PATCH/DELETE `/characters/:id/items/:itemInstanceId` estão implementadas. POST usa `itemId` igual ao `localId` de `/catalog/item`, não o id comum do catálogo. Quantidade mínima 1; equipamento booleano; notas opcionais. Duas linhas do mesmo item podem ter estados distintos. Apenas o dono modifica; a leitura acompanha a visibilidade da ficha.
+
+Não é preciso recriar o banco ou aplicar migração para esse incremento. Contrato e limites em [inventario-backend.md](docs/inventario-backend.md).
+
 Veja rotas e limites em [estado do backend](docs/estado-backend.md).
+
+## Verificação automática com um comando
+
+No Windows:
+
+```powershell
+npm.cmd run verify
+```
+
+Esse comando faz typecheck, compila, executa os testes HTTP e percorre o fluxo completo de uso sozinho, por uma conexão HTTP real. Ele cria um servidor em **porta temporária**, banco, chaves, contas e caixa de e-mail temporários. Confirma e-mails, administra cookies, recupera senha, verifica permissões e cria/edita/publica/exclui fichas sem intervenção no Thunder Client.
+
+**Não altera seu `.env`, não usa sua conta e não altera `data/grimorio.db`.** Você pode manter `npm.cmd run dev` aberto em outro terminal. Os dados temporários são removidos ao final. O relatório atual, sem senhas/tokens, fica em `reports/smoke.json`; o executor remove o relatório anterior antes de iniciar para não confundir um resultado antigo com o atual.
+
+Não precisa de Python para esse comando. Os testes Python anteriores continuam opcionais localmente (`npm.cmd run test:model`) e são executados também no workflow do GitHub.
+
+Para apenas o fluxo real por socket: `npm.cmd run test:smoke` (também compila antes).
+
+A automação do GitHub está preparada em `.github/workflows/verify.yml`, para push/pull request. Sua execução remota depende de os arquivos serem enviados ao repositório; criar o workflow aqui não comprova execução no GitHub.
 
 ## Testes e resultados
 
@@ -168,6 +194,24 @@ tests/              testes anteriores do modelo e protocolos
 
 ## Limites deste incremento
 
-Sem frontend, hospedagem, provedor de e-mail ou agendamento externo de backups. Ainda faltam endpoints de edição de inventário, talentos/proficiências, concessões de magia e grimório; cálculo completo de conjuração; conciliação de dependências ao mudar escolhas e teste de implantação real. O schema já tem essas estruturas, mas isso não significa que todos os seus endpoints estejam implementados.
+Sem frontend, hospedagem, provedor de e-mail ou agendamento externo de backups. Ainda faltam endpoints de edição de talentos/proficiências, concessões de magia e grimório; cálculo completo de conjuração; conciliação de dependências ao mudar escolhas e teste de implantação real. O schema já tem essas estruturas, mas isso não significa que todos os seus endpoints estejam implementados.
 
 A ficha interativa de partida fica para a v1.5. Confira o histórico de decisões em [docs/modelagem.md](docs/modelagem.md) e as pendências normativas em [docs/fechamento-modelagem-v1.md](docs/fechamento-modelagem-v1.md).
+
+Benefícios de personagem: [rotas, exemplos e limites](docs/beneficios-backend.md).
+
+Magias e grimório: [rotas, exemplos e limites](docs/magias-backend.md).
+
+Auditoria das regras disponíveis: [escopo e limitações](docs/validacao-regras-backend.md).
+
+Escolhas de benefícios: [associação ao catálogo e auditoria](docs/escolhas-beneficios-backend.md).
+
+Escolhas aninhadas: [registro, migração 4 e limites da auditoria](docs/escolhas-aninhadas-backend.md).
+
+Capacidades por classe: [rotas e limites de multiclasse](docs/capacidades-classes-backend.md).
+
+Multiclasse confirmada no SRD anexado: [benefícios de entrada e espaços comuns](docs/multiclasse-progressao-srd52.md).
+
+Edição estrutural: [prévia e confirmação das dependências](docs/reconciliacao-personagens.md).
+
+Magias de opções: [vínculo, validação e migração 0005](docs/magias-escolhas-aninhadas.md).

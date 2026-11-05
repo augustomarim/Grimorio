@@ -2,9 +2,12 @@ import type Database from 'better-sqlite3';
 import type { User } from '../auth/service.js';
 import { CharacterService } from '../characters/service.js';
 import { AppError } from '../errors.js';
+import { NestedSpells, type NestedOrigin } from './nested.js';
 import { sources } from '../catalog/routes.js';
 export interface SpellInput {
   spellId: number;
+  choiceInstanceId?: number;
+  nestedChoiceKey?: string;
   originKind: 'class' | 'subclass' | 'species' | 'background' | 'feat';
   originId: number;
   preparationMode: 'cantrip' | 'selectable' | 'always_prepared' | 'granted';
@@ -143,9 +146,16 @@ export class SpellService {
             'INVALID_PREPARATION',
             'Apenas magias selecionáveis aceitam preparação manual'
           );
+        if ((input.choiceInstanceId !== undefined) !== (input.nestedChoiceKey !== undefined))
+          throw new AppError(400, 'INVALID_NESTED_ORIGIN', 'Informe opção e chave juntas');
+        if (input.choiceInstanceId !== undefined)
+          new NestedSpells(this.db).check(id, input.spellId, input, {
+            choiceInstanceId: input.choiceInstanceId,
+            nestedChoiceKey: input.nestedChoiceKey!,
+          });
         const result = this.db
           .prepare(
-            'INSERT INTO character_spell(character_id,lib_spell_id,origin_kind,origin_character_class_id,origin_subclass_id,origin_species_id,origin_background_id,origin_character_ability_id,origin_feat_id,preparation_mode,is_prepared,casting_ability_choice,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            'INSERT INTO character_spell(character_id,lib_spell_id,origin_kind,origin_character_class_id,origin_subclass_id,origin_species_id,origin_background_id,origin_character_ability_id,origin_feat_id,preparation_mode,is_prepared,casting_ability_choice,notes,choice_instance_id,nested_choice_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
           )
           .run(
             id,
@@ -155,10 +165,67 @@ export class SpellService {
             input.preparationMode,
             Number(input.isPrepared ?? false),
             input.castingAbilityChoice ?? null,
-            input.notes ?? null
+            input.notes ?? null,
+            input.choiceInstanceId ?? null,
+            input.nestedChoiceKey ?? null
           );
         this.saved(id, user, 'spell.add');
         return { id: Number(result.lastInsertRowid) };
+      })
+      .immediate();
+  }
+  bindChoice(id: number, user: User, instanceId: number, link: NestedOrigin) {
+    return this.db
+      .transaction(() => {
+        this.characters.requireOwner(id, user);
+        this.profile(id);
+        const row = this.db
+          .prepare('SELECT * FROM character_spell WHERE character_id=? AND id=?')
+          .get(id, instanceId) as
+          | {
+              lib_spell_id: number;
+              origin_kind: string;
+              origin_character_class_id: number | null;
+              origin_species_id: number | null;
+              origin_background_id: number | null;
+              origin_character_ability_id: number | null;
+              preparation_mode: string;
+              choice_instance_id: number | null;
+              nested_choice_key: string | null;
+            }
+          | undefined;
+        if (!row) throw new AppError(404, 'SPELL_NOT_FOUND', 'Magia não encontrada');
+        if (
+          row.choice_instance_id !== null &&
+          (row.choice_instance_id !== link.choiceInstanceId ||
+            row.nested_choice_key !== link.nestedChoiceKey)
+        )
+          throw new AppError(
+            409,
+            'SPELL_ALREADY_LINKED',
+            'Magia já vinculada; remova e registre novamente para corrigir a origem'
+          );
+        new NestedSpells(this.db).check(
+          id,
+          row.lib_spell_id,
+          {
+            originKind: row.origin_kind,
+            originId: (row.origin_character_class_id ??
+              row.origin_species_id ??
+              row.origin_background_id ??
+              row.origin_character_ability_id)!,
+            preparationMode: row.preparation_mode,
+          },
+          link,
+          instanceId
+        );
+        this.db
+          .prepare(
+            'UPDATE character_spell SET choice_instance_id=?,nested_choice_key=? WHERE character_id=? AND id=?'
+          )
+          .run(link.choiceInstanceId, link.nestedChoiceKey, id, instanceId);
+        this.saved(id, user, 'spell.link-choice');
+        return { id: instanceId };
       })
       .immediate();
   }

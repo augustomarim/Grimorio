@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 import type { AuthService } from '../auth/service.js';
 import { ACCESS } from '../routes/auth.js';
+import type { NestedOrigin } from './nested.js';
 import { SpellService, type SpellInput, type BookInput, type SpellChanges } from './service.js';
 const id = { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
 const notes = { type: ['string', 'null'], maxLength: 10000 };
@@ -24,6 +25,30 @@ const instanceParams = {
 };
 export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: AuthService) {
   const service = new SpellService(db);
+  app.post<{ Params: { id: number; instanceId: number }; Body: NestedOrigin }>(
+    '/characters/:id/spells/:instanceId/nested-origin',
+    {
+      schema: {
+        params: instanceParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['choiceInstanceId', 'nestedChoiceKey'],
+          properties: {
+            choiceInstanceId: id,
+            nestedChoiceKey: { type: 'string', minLength: 1, maxLength: 200, pattern: '\\S' },
+          },
+        },
+      },
+    },
+    (req) =>
+      service.bindChoice(
+        req.params.id,
+        auth.authenticate(req.cookies[ACCESS]),
+        req.params.instanceId,
+        req.body
+      )
+  );
   for (const book of [false, true]) {
     const path = book ? '/characters/:id/spellbook' : '/characters/:id/spells';
     app.get<{ Params: { id: number }; Querystring: { page: number; limit: number } }>(
@@ -63,6 +88,8 @@ export function spellRoutes(app: FastifyInstance, db: Database.Database, auth: A
           required: ['spellId', 'originKind', 'originId', 'preparationMode'],
           properties: {
             spellId: id,
+            choiceInstanceId: id,
+            nestedChoiceKey: { type: 'string', minLength: 1, maxLength: 200, pattern: '\\S' },
             originKind: {
               type: 'string',
               enum: ['class', 'subclass', 'species', 'background', 'feat'],

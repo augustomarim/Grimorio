@@ -44,7 +44,10 @@ class PreviewRollback extends Error {
   }
 }
 export class Reconciliation {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private context?: { scope: string; root: { table: string; id: number } }
+  ) {}
   private snapshot(id: number) {
     const result: Record<string, Row[]> = {};
     for (const table of tables) {
@@ -163,9 +166,13 @@ export class Reconciliation {
         }
         const plan: Plan = {
           confirmationToken: createHash('sha256')
-            .update(stable({ id, input, before }))
+            .update(stable({ scope: this.context?.scope ?? 'character.update', id, input, before }))
             .digest('hex'),
-          requiresConfirmation: removals.length > 0,
+          requiresConfirmation: removals.some((r) =>
+            r.ids.some(
+              (id) => !(r.table === this.context?.root.table && id === this.context.root.id)
+            )
+          ),
           removals,
           progressionReplacement: input.classes
             ? {
