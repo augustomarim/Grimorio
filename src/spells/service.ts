@@ -148,11 +148,12 @@ export class SpellService {
           );
         if ((input.choiceInstanceId !== undefined) !== (input.nestedChoiceKey !== undefined))
           throw new AppError(400, 'INVALID_NESTED_ORIGIN', 'Informe opção e chave juntas');
+        let castingAbilityChoice = input.castingAbilityChoice ?? null;
         if (input.choiceInstanceId !== undefined)
-          new NestedSpells(this.db).check(id, input.spellId, input, {
+          castingAbilityChoice = new NestedSpells(this.db).check(id, input.spellId, input, {
             choiceInstanceId: input.choiceInstanceId,
             nestedChoiceKey: input.nestedChoiceKey!,
-          });
+          }).castingAbilityChoice;
         const result = this.db
           .prepare(
             'INSERT INTO character_spell(character_id,lib_spell_id,origin_kind,origin_character_class_id,origin_subclass_id,origin_species_id,origin_background_id,origin_character_ability_id,origin_feat_id,preparation_mode,is_prepared,casting_ability_choice,notes,choice_instance_id,nested_choice_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -164,7 +165,7 @@ export class SpellService {
             ...origin,
             input.preparationMode,
             Number(input.isPrepared ?? false),
-            input.castingAbilityChoice ?? null,
+            castingAbilityChoice,
             input.notes ?? null,
             input.choiceInstanceId ?? null,
             input.nestedChoiceKey ?? null
@@ -190,6 +191,7 @@ export class SpellService {
               origin_background_id: number | null;
               origin_character_ability_id: number | null;
               preparation_mode: string;
+              casting_ability_choice: string | null;
               choice_instance_id: number | null;
               nested_choice_key: string | null;
             }
@@ -205,7 +207,7 @@ export class SpellService {
             'SPELL_ALREADY_LINKED',
             'Magia já vinculada; remova e registre novamente para corrigir a origem'
           );
-        new NestedSpells(this.db).check(
+        const resolved = new NestedSpells(this.db).check(
           id,
           row.lib_spell_id,
           {
@@ -215,15 +217,24 @@ export class SpellService {
               row.origin_background_id ??
               row.origin_character_ability_id)!,
             preparationMode: row.preparation_mode,
+            ...(row.casting_ability_choice === null
+              ? {}
+              : { castingAbilityChoice: row.casting_ability_choice }),
           },
           link,
           instanceId
         );
         this.db
           .prepare(
-            'UPDATE character_spell SET choice_instance_id=?,nested_choice_key=? WHERE character_id=? AND id=?'
+            'UPDATE character_spell SET choice_instance_id=?,nested_choice_key=?,casting_ability_choice=? WHERE character_id=? AND id=?'
           )
-          .run(link.choiceInstanceId, link.nestedChoiceKey, id, instanceId);
+          .run(
+            link.choiceInstanceId,
+            link.nestedChoiceKey,
+            resolved.castingAbilityChoice,
+            id,
+            instanceId
+          );
         this.saved(id, user, 'spell.link-choice');
         return { id: instanceId };
       })
@@ -270,6 +281,14 @@ export class SpellService {
               preparation_mode: string;
               is_prepared: number;
               casting_ability_choice: string | null;
+              lib_spell_id: number;
+              choice_instance_id: number | null;
+              nested_choice_key: string | null;
+              origin_kind: string;
+              origin_character_class_id: number | null;
+              origin_species_id: number | null;
+              origin_background_id: number | null;
+              origin_character_ability_id: number | null;
             }
           | undefined;
         if (!row) throw new AppError(404, 'SPELL_NOT_FOUND', 'Registro não encontrado');
@@ -278,6 +297,23 @@ export class SpellService {
             .prepare('UPDATE character_spellbook_entry SET notes=? WHERE character_id=? AND id=?')
             .run(input.notes === undefined ? row.notes : input.notes, id, instanceId);
         else {
+          if (row.choice_instance_id !== null && input.castingAbilityChoice !== undefined)
+            new NestedSpells(this.db).check(
+              id,
+              row.lib_spell_id,
+              {
+                originKind: row.origin_kind,
+                originId: (row.origin_character_class_id ??
+                  row.origin_species_id ??
+                  row.origin_background_id ??
+                  row.origin_character_ability_id)!,
+                preparationMode: row.preparation_mode,
+                castingAbilityChoice: input.castingAbilityChoice,
+              },
+              { choiceInstanceId: row.choice_instance_id, nestedChoiceKey: row.nested_choice_key! },
+              instanceId,
+              true
+            );
           if (input.isPrepared !== undefined && row.preparation_mode !== 'selectable')
             throw new AppError(400, 'INVALID_PREPARATION', 'Modo não permite preparação manual');
           this.db

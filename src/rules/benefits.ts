@@ -22,6 +22,8 @@ interface Source {
   identity: string;
   deprecatedAt: string | null;
   multiclassVerified: boolean;
+  featSlug: string | null;
+  magicInitiateListConstraint: string | null;
 }
 interface Selection {
   id: number;
@@ -94,8 +96,25 @@ export class BenefitAudit {
       g.rule_key === coreEntryKey(g.origin_character_class_id!)
         ? entryBenefits(raw.id)
         : undefined;
+    let magicInitiateListConstraint: string | null = null;
+    if (g.origin_kind === 'feat' && raw.id === 'magic-initiate') {
+      const parent = this.db
+        .prepare(
+          "SELECT a.selection_kind,b.data FROM character_ability a JOIN character_rule_grant p ON p.id=a.grant_id AND p.character_id=a.character_id JOIN lib_background b ON b.id=p.origin_background_id WHERE a.character_id=? AND a.id=? AND p.origin_kind='background'"
+        )
+        .get(characterId, g.origin_character_ability_id) as
+        { selection_kind: string; data: string } | undefined;
+      if (parent?.selection_kind === 'fixed') {
+        const note = (JSON.parse(parent.data) as ContentItem).featsFixed?.find(
+          (f) => f.id === 'magic-initiate'
+        )?.note;
+        if (note?.trim()) magicInitiateListConstraint = note.trim().toLowerCase();
+      }
+    }
     return {
       multiclassVerified: !!entry,
+      featSlug: g.origin_kind === 'feat' ? raw.id : null,
+      magicInitiateListConstraint,
       deprecatedAt: record.deprecated_at,
       data:
         g.origin_kind === 'feat'

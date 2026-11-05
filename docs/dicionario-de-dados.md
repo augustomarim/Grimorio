@@ -758,3 +758,7 @@ Tabela STRICT. FK (character_id,grant_id) → character_rule_grant(character_id,
 | nested_choice_key | TEXT opcional, 1–200 caracteres não vazios; preenchida junto com choice_instance_id |
 
 UNIQUE de apoio em character_choice(character_id,id). Índice character_spell(character_id,choice_instance_id). Magias legadas continuam únicas por origem sob WHERE choice_instance_id IS NULL. Para magias vinculadas, UNIQUE(character_id,choice_instance_id,nested_choice_key,lib_spell_id) WHERE choice_instance_id IS NOT NULL. A associação de origem e critérios do JSON é conferida na aplicação; a FK garante mesmo personagem. A API exige confirmação para excluir uma opção com magias dependentes. Detalhes em magias-escolhas-aninhadas.md.
+
+## Convenção adicional de character_choice
+
+choice_id também admite a projeção local app:magic-initiate e option_id a configuração lista:atributo. Não são propriedades adicionadas ao pacote. Os campos físicos e suas restrições permanecem os da versão 5. A configuração passa a ser a fonte única de lista e atributo das magias vinculadas dessa instância do talento. Ver magic-initiate-backend.md.

@@ -694,8 +694,8 @@ Table character_choice {
   id integer [pk, increment]
   character_id integer [not null]
   grant_id integer [not null]
-  choice_id text [not null, note: 'id ItemChoice do pacote; 1–200 caracteres não vazios']
-  option_id text [not null, note: 'id ChoiceOption da opção; 1–200 caracteres não vazios']
+  choice_id text [not null, note: 'id ItemChoice do pacote ou chave local de projeção de talento; 1–200 caracteres não vazios']
+  option_id text [not null, note: 'id ChoiceOption ou configuração local lista:atributo; 1–200 caracteres não vazios']
   created_at text [not null, note: 'ISO 8601 UTC; padrão gerado pelo SQLite']
   indexes {
     (character_id, id) [unique]

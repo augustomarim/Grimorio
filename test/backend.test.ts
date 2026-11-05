@@ -3218,3 +3218,254 @@ describe('Magias vinculadas a escolhas aninhadas', () => {
     ).toBe('pass');
   });
 });
+
+describe('Magic Initiate — escolhas diretas do talento', () => {
+  async function setup(background?: string) {
+    await register();
+    const cookie = cookies(await login());
+    const created = await app.inject({
+      method: 'POST',
+      url: '/characters',
+      headers: { origin, cookie },
+      payload: {
+        ...character(),
+        ...(background ? { backgroundId: localId('background', background) } : {}),
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const post = (path: string, payload: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload });
+    const grant = await post(`/characters/${id}/grants`, {
+      originKind: background ? 'background' : 'species',
+      originId: background ? localId('background', background) : localId('species', 'human'),
+      acquisitionContext: background ? 'background' : 'species',
+      ruleKey: 'origin.feat',
+      acquiredAtLevel: 1,
+    });
+    expect(grant.statusCode).toBe(201);
+    async function feat() {
+      const response = await post(`/characters/${id}/benefits`, {
+        kind: 'feat',
+        localId: localId('feat', 'magic-initiate'),
+        grantId: grant.json().id,
+        selectionKind: background ? 'fixed' : 'chosen',
+        ...(!background ? { choiceKey: 'featChoices:versatile' } : {}),
+      });
+      expect(response.statusCode).toBe(201);
+      const featId = response.json().id;
+      const origin = await post(`/characters/${id}/grants`, {
+        originKind: 'feat',
+        originId: featId,
+        acquisitionContext: 'feat',
+        ruleKey: `magic-initiate.${featId}`,
+        acquiredAtLevel: 1,
+      });
+      expect(origin.statusCode).toBe(201);
+      return { featId, grantId: origin.json().id };
+    }
+    return { id, cookie, post, feat };
+  }
+  it('oferece configuração compartilhada e valida duas magias menores e uma de nível 1', async () => {
+    const { id, cookie, post, feat } = await setup();
+    const occurrence = await feat();
+    const options = (
+      await app.inject({ url: `/characters/${id}/choices`, headers: { cookie } })
+    ).json().options;
+    const configured = options.find(
+      (o: { grantId: number; choiceId: string }) =>
+        o.grantId === occurrence.grantId && o.choiceId === 'app:magic-initiate'
+    );
+    expect(configured.options).toHaveLength(9);
+    const choice = await post(`/characters/${id}/choices`, {
+      grantId: occurrence.grantId,
+      choiceId: 'app:magic-initiate',
+      optionId: 'wizard:intelligence',
+    });
+    expect(choice.statusCode).toBe(201);
+    const base = {
+      originKind: 'feat',
+      originId: occurrence.featId,
+      choiceInstanceId: choice.json().id,
+      nestedChoiceKey: 'spellChoices:two-cantrips',
+      preparationMode: 'cantrip',
+    };
+    expect(
+      (await post(`/characters/${id}/spells`, { ...base, spellId: localId('spell', 'guidance') }))
+        .statusCode
+    ).toBe(400);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...base,
+          spellId: localId('spell', 'mage-hand'),
+          castingAbilityChoice: 'wisdom',
+        })
+      ).statusCode
+    ).toBe(400);
+    const first = await post(`/characters/${id}/spells`, {
+      ...base,
+      spellId: localId('spell', 'mage-hand'),
+    });
+    expect(first.statusCode).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/spells`, {
+          ...base,
+          spellId: localId('spell', 'ray-of-frost'),
+        })
+      ).statusCode
+    ).toBe(201);
+    expect(
+      (await post(`/characters/${id}/spells`, { ...base, spellId: localId('spell', 'light') }))
+        .statusCode
+    ).toBe(400);
+    const leveled = {
+      ...base,
+      nestedChoiceKey: 'spellChoices:level-1-spell',
+      spellId: localId('spell', 'magic-missile'),
+      preparationMode: 'selectable',
+    };
+    expect((await post(`/characters/${id}/spells`, leveled)).statusCode).toBe(400);
+    expect(
+      (await post(`/characters/${id}/spells`, { ...leveled, preparationMode: 'always_prepared' }))
+        .statusCode
+    ).toBe(201);
+    expect(
+      db
+        .prepare('SELECT DISTINCT casting_ability_choice FROM character_spell WHERE character_id=?')
+        .all(id)
+    ).toEqual([{ casting_ability_choice: 'intelligence' }]);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}/spells/${first.json().id}`,
+          headers: { origin, cookie },
+          payload: { castingAbilityChoice: 'wisdom' },
+        })
+      ).statusCode
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/characters/${id}/spells/${first.json().id}`,
+          headers: { origin, cookie },
+          payload: { castingAbilityChoice: null },
+        })
+      ).statusCode
+    ).toBe(400);
+    const report = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      report.findings.find((f: { code: string }) => f.code === 'MAGIC_INITIATE_CONFIGURATION').state
+    ).toBe('pass');
+    expect(
+      report.findings
+        .filter((f: { code: string }) => f.code === 'NESTED_SPELL_SELECTION')
+        .every((f: { state: string }) => f.state === 'pass')
+    ).toBe(true);
+  });
+  it('exige lista diferente em cada ocorrência, mesmo com outro atributo ou outra concessão', async () => {
+    const { id, post, feat } = await setup();
+    const first = await feat(),
+      second = await feat();
+    expect(
+      (
+        await post(`/characters/${id}/choices`, {
+          grantId: first.grantId,
+          choiceId: 'app:magic-initiate',
+          optionId: 'wizard:intelligence',
+        })
+      ).statusCode
+    ).toBe(201);
+    const repeated = await post(`/characters/${id}/choices`, {
+      grantId: second.grantId,
+      choiceId: 'app:magic-initiate',
+      optionId: 'wizard:wisdom',
+    });
+    expect(repeated.statusCode).toBe(400);
+    expect(repeated.json().error.code).toBe('MAGIC_INITIATE_LIST_REUSED');
+    expect(
+      (
+        await post(`/characters/${id}/choices`, {
+          grantId: second.grantId,
+          choiceId: 'app:magic-initiate',
+          optionId: 'druid:wisdom',
+        })
+      ).statusCode
+    ).toBe(201);
+  });
+  it('respeita a lista qualificada pelo antecedente no catálogo', async () => {
+    const { id, cookie, post, feat } = await setup('sage');
+    const occurrence = await feat();
+    const options = (await app.inject({ url: `/characters/${id}/choices`, headers: { cookie } }))
+      .json()
+      .options.find((o: { grantId: number }) => o.grantId === occurrence.grantId);
+    expect(options.options.map((o: { id: string }) => o.id)).toEqual([
+      'wizard:intelligence',
+      'wizard:wisdom',
+      'wizard:charisma',
+    ]);
+    expect(
+      (
+        await post(`/characters/${id}/choices`, {
+          grantId: occurrence.grantId,
+          choiceId: 'app:magic-initiate',
+          optionId: 'cleric:wisdom',
+        })
+      ).statusCode
+    ).toBe(400);
+    expect(
+      (
+        await post(`/characters/${id}/choices`, {
+          grantId: occurrence.grantId,
+          choiceId: 'app:magic-initiate',
+          optionId: 'wizard:charisma',
+        })
+      ).statusCode
+    ).toBe(201);
+  });
+  it('atribui atributo ao vincular legado e detecta divergência posterior na auditoria', async () => {
+    const { id, cookie, post, feat } = await setup();
+    const occurrence = await feat();
+    const choice = await post(`/characters/${id}/choices`, {
+      grantId: occurrence.grantId,
+      choiceId: 'app:magic-initiate',
+      optionId: 'wizard:charisma',
+    });
+    expect(choice.statusCode).toBe(201);
+    const legacy = await post(`/characters/${id}/spells`, {
+      spellId: localId('spell', 'mage-hand'),
+      originKind: 'feat',
+      originId: occurrence.featId,
+      preparationMode: 'cantrip',
+      notes: 'Preservar',
+    });
+    expect(legacy.statusCode).toBe(201);
+    expect(
+      (
+        await post(`/characters/${id}/spells/${legacy.json().id}/nested-origin`, {
+          choiceInstanceId: choice.json().id,
+          nestedChoiceKey: 'spellChoices:two-cantrips',
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      db
+        .prepare('SELECT casting_ability_choice,notes FROM character_spell WHERE id=?')
+        .get(legacy.json().id)
+    ).toEqual({ casting_ability_choice: 'charisma', notes: 'Preservar' });
+    db.prepare("UPDATE character_spell SET casting_ability_choice='wisdom' WHERE id=?").run(
+      legacy.json().id
+    );
+    const report = (
+      await app.inject({ url: `/characters/${id}/validation`, headers: { cookie } })
+    ).json();
+    expect(
+      report.findings.find((f: { code: string }) => f.code === 'NESTED_SPELL_SELECTION').state
+    ).toBe('fail');
+  });
+});

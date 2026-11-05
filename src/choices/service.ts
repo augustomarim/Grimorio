@@ -5,6 +5,7 @@ import { BenefitAudit, type Grant } from '../rules/benefits.js';
 import type { Finding } from '../rules/validation.js';
 import { NestedSpells } from '../spells/nested.js';
 import { Reconciliation } from '../characters/reconciliation.js';
+import { sourceChoices, magicConfiguration, magicInitiateChoice } from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 export interface ChoiceInput {
   grantId: number;
@@ -54,7 +55,7 @@ export class ChoiceService {
     for (const grant of grants) {
       const source = audit.source(id, grant);
       if (!source) continue;
-      for (const choice of source.data.choices ?? []) {
+      for (const choice of sourceChoices(source)) {
         options.push({
           grantId: grant.id,
           choiceId: choice.id,
@@ -72,9 +73,38 @@ export class ChoiceService {
     for (const row of selected) {
       const grant = grants.find((g) => g.id === row.grant_id),
         source = grant ? audit.source(id, grant) : undefined;
-      const choice = source?.data.choices?.find((c) => c.id === row.choice_id),
+      const choice = (source ? sourceChoices(source) : []).find((c) => c.id === row.choice_id),
         option = choice?.options.find((o) => o.id === row.option_id);
       const recognized = !!option;
+      const config =
+        source?.featSlug === 'magic-initiate'
+          ? magicConfiguration(row.choice_id, row.option_id)
+          : undefined;
+      if (config) {
+        const same = selected.filter((other) => {
+          const otherGrant = grants.find((g) => g.id === other.grant_id);
+          return (
+            otherGrant &&
+            audit.source(id, otherGrant)?.featSlug === 'magic-initiate' &&
+            magicConfiguration(other.choice_id, other.option_id)?.list === config.list
+          );
+        });
+        findings.push({
+          code: 'MAGIC_INITIATE_CONFIGURATION',
+          state:
+            same.length > 1
+              ? 'fail'
+              : !choice?.options.length
+                ? 'unknown'
+                : recognized
+                  ? 'pass'
+                  : 'fail',
+          entityId: row.id,
+          message: 'Lista compartilhada, atributo e repetição de Magic Initiate',
+          evidence: config,
+        });
+      }
+
       findings.push({
         code: 'NESTED_OPTION',
         state: recognized ? 'pass' : 'unknown',
@@ -154,6 +184,27 @@ export class ChoiceService {
         });
       }
     }
+    const magicInstances = this.db
+      .prepare(
+        "SELECT a.id FROM character_ability a JOIN lib_feat f ON f.id=a.lib_feat_id JOIN catalog_entry e ON e.id=f.catalog_entry_id WHERE a.character_id=? AND e.slug='magic-initiate'"
+      )
+      .all(id) as { id: number }[];
+    for (const feat of magicInstances) {
+      if (
+        !selected.some(
+          (row) =>
+            grants.find((g) => g.id === row.grant_id)?.origin_character_ability_id === feat.id &&
+            magicConfiguration(row.choice_id, row.option_id)
+        )
+      )
+        findings.push({
+          code: 'MAGIC_INITIATE_CONFIGURATION',
+          state: 'unknown',
+          entityId: feat.id,
+          message: 'Lista e atributo desta ocorrência do talento ainda não foram escolhidos',
+          evidence: { entityType: 'character_ability' },
+        });
+    }
     findings.push(...nestedFindings);
     return { selected, options, findings };
   }
@@ -183,7 +234,7 @@ export class ChoiceService {
             'ORIGIN_DEPRECATED',
             'Não é possível adquirir opção de origem depreciada'
           );
-        const choice = source.data.choices?.find((c) => c.id === input.choiceId),
+        const choice = sourceChoices(source).find((c) => c.id === input.choiceId),
           option = choice?.options.find((o) => o.id === input.optionId);
         if (!choice || !option)
           throw new AppError(400, 'INVALID_CHOICE', 'Escolha ou opção não encontrada na origem');
@@ -195,6 +246,29 @@ export class ChoiceService {
             'CHOICE_CONTEXT_UNVERIFIED',
             'Elegibilidade de escolhas na entrada multiclasse ainda não verificada'
           );
+        const config =
+          source.featSlug === 'magic-initiate'
+            ? magicConfiguration(input.choiceId, input.optionId)
+            : undefined;
+        if (config) {
+          const selected = this.db
+            .prepare(
+              'SELECT c.option_id,g.* FROM character_choice c JOIN character_rule_grant g ON g.id=c.grant_id AND g.character_id=c.character_id WHERE c.character_id=? AND c.choice_id=?'
+            )
+            .all(id, magicInitiateChoice) as (Grant & { option_id: string })[];
+          if (
+            selected.some(
+              (row) =>
+                audit.source(id, row)?.featSlug === 'magic-initiate' &&
+                magicConfiguration(magicInitiateChoice, row.option_id)?.list === config.list
+            )
+          )
+            throw new AppError(
+              400,
+              'MAGIC_INITIATE_LIST_REUSED',
+              'Outra ocorrência de Magic Initiate já usa essa lista'
+            );
+        }
         const groupIds = grants
           .filter((g) => audit.source(id, g)?.identity === source.identity)
           .map((g) => g.id);

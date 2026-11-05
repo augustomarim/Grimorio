@@ -71,7 +71,7 @@ A prévia de troca de espécie/antecedente/classe/subclasse também vê a cascat
 
 ## Limites que permanecem
 
-Esta entrega cobre os spellsFixed e spellChoices de opções efetivamente registradas em character_choice. Escolhas diretas de efeitos de talentos, como as escolhas de Magic Initiate em Feat.effects.spellChoices, ainda precisam de associação própria com a concessão e de escolhas compartilhadas de lista/atributo. Não foram artificialmente transformadas em opções aninhadas.
+Esta entrega cobre os spellsFixed e spellChoices de opções efetivamente registradas em character_choice. Atualização: Magic Initiate agora possui uma projeção local explícita de configuração que associa suas escolhas diretas à concessão, compartilhando lista e atributo. O catálogo original não é modificado; ver magic-initiate-backend.md. Outros efeitos diretos continuam pendentes.
 
 Regras descritas apenas em texto, substituições após descanso, requisitos cruzados entre várias escolhas, conjuração gratuita, efeitos completos de talentos e alterações semânticas em atualização de catálogo ainda não são integralmente certificados. A existência do vínculo não torna oficiais os dados de suplemento. Não há recursos da ficha interativa nesta etapa.
 

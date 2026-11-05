@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { Spell } from '@freshmag/one-dndb';
 import { BenefitAudit, type Grant } from '../rules/benefits.js';
 import type { Finding } from '../rules/validation.js';
+import { sourceChoices, magicConfiguration } from '../rules/source-choices.js';
 import { AppError } from '../errors.js';
 export interface NestedOrigin {
   choiceInstanceId: number;
@@ -11,6 +12,7 @@ export interface SpellOrigin {
   originKind: string;
   originId: number;
   preparationMode: string;
+  castingAbilityChoice?: string | null;
 }
 export class NestedSpells {
   constructor(private db: Database.Database) {}
@@ -45,7 +47,7 @@ export class NestedSpells {
         'Magia e opção precisam ter a mesma origem'
       );
     const source = new BenefitAudit(this.db).source(id, grant),
-      definition = source?.data.choices?.find((c) => c.id === choice.choice_id),
+      definition = (source ? sourceChoices(source) : []).find((c) => c.id === choice.choice_id),
       option = definition?.options.find((o) => o.id === choice.option_id);
     if (!source || !option || !definition)
       throw new AppError(409, 'NESTED_RULE_UNAVAILABLE', 'Opção não reconhecida no catálogo atual');
@@ -68,6 +70,27 @@ export class NestedSpells {
         'NESTED_PREPARATION',
         'Modo de preparação incompatível com o nível da magia'
       );
+    const config =
+      source.featSlug === 'magic-initiate'
+        ? magicConfiguration(choice.choice_id, choice.option_id)
+        : undefined;
+    if (config) {
+      if (
+        origin.castingAbilityChoice !== undefined &&
+        origin.castingAbilityChoice !== config.ability
+      )
+        throw new AppError(
+          400,
+          'MAGIC_INITIATE_ABILITY',
+          'Atributo diferente da escolha compartilhada do talento'
+        );
+      if (spell.level > 0 && origin.preparationMode !== 'always_prepared')
+        throw new AppError(
+          400,
+          'MAGIC_INITIATE_PREPARATION',
+          'A magia de nível 1 de Magic Initiate fica sempre preparada'
+        );
+    }
     let maximum: number;
     const fixed = option.spellsFixed?.find((s) => link.nestedChoiceKey === `spellsFixed:${s.id}`);
     if (fixed) {
@@ -125,6 +148,7 @@ export class NestedSpells {
       );
     return {
       maximum,
+      castingAbilityChoice: config?.ability ?? origin.castingAbilityChoice ?? null,
       spell: spell.id,
       choiceInstanceId: link.choiceInstanceId,
       nestedChoiceKey: link.nestedChoiceKey,
@@ -146,6 +170,7 @@ export class NestedSpells {
       origin_background_id: number | null;
       origin_character_ability_id: number | null;
       preparation_mode: string;
+      casting_ability_choice: string | null;
     }[];
     return spells.map((s) => {
       try {
@@ -159,6 +184,7 @@ export class NestedSpells {
               s.origin_background_id ??
               s.origin_character_ability_id)!,
             preparationMode: s.preparation_mode,
+            castingAbilityChoice: s.casting_ability_choice,
           },
           { choiceInstanceId: s.choice_instance_id, nestedChoiceKey: s.nested_choice_key },
           s.id,

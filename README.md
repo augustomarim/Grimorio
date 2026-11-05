@@ -143,23 +143,9 @@ Não é preciso recriar o banco ou aplicar migração para esse incremento. Cont
 
 Veja rotas e limites em [estado do backend](docs/estado-backend.md).
 
-## Verificação automática com um comando
+## Verificação HTTP isolada
 
-No Windows:
-
-```powershell
-npm.cmd run verify
-```
-
-Esse comando faz typecheck, compila, executa os testes HTTP e percorre o fluxo completo de uso sozinho, por uma conexão HTTP real. Ele cria um servidor em **porta temporária**, banco, chaves, contas e caixa de e-mail temporários. Confirma e-mails, administra cookies, recupera senha, verifica permissões e cria/edita/publica/exclui fichas sem intervenção no Thunder Client.
-
-**Não altera seu `.env`, não usa sua conta e não altera `data/grimorio.db`.** Você pode manter `npm.cmd run dev` aberto em outro terminal. Os dados temporários são removidos ao final. O relatório atual, sem senhas/tokens, fica em `reports/smoke.json`; o executor remove o relatório anterior antes de iniciar para não confundir um resultado antigo com o atual.
-
-Não precisa de Python para esse comando. Os testes Python anteriores continuam opcionais localmente (`npm.cmd run test:model`) e são executados também no workflow do GitHub.
-
-Para apenas o fluxo real por socket: `npm.cmd run test:smoke` (também compila antes).
-
-A automação do GitHub está preparada em `.github/workflows/verify.yml`, para push/pull request. Sua execução remota depende de os arquivos serem enviados ao repositório; criar o workflow aqui não comprova execução no GitHub.
+Após compilar com `npm run build`, `node scripts/smoke.mjs` executa o roteiro HTTP em servidor, banco e contas temporários. Não usa seu banco ou `.env` local. Os atalhos `verify` e `test:smoke` e o workflow de CI não são requisitos desta entrega; use apenas comandos presentes no seu package.json. No PowerShell, os comandos npm podem ser executados com `npm.cmd`.
 
 ## Testes e resultados
 
@@ -194,7 +180,7 @@ tests/              testes anteriores do modelo e protocolos
 
 ## Limites deste incremento
 
-Sem frontend, hospedagem, provedor de e-mail ou agendamento externo de backups. Ainda faltam endpoints de edição de talentos/proficiências, concessões de magia e grimório; cálculo completo de conjuração; conciliação de dependências ao mudar escolhas e teste de implantação real. O schema já tem essas estruturas, mas isso não significa que todos os seus endpoints estejam implementados.
+Sem frontend, hospedagem, provedor de e-mail ou agendamento externo de backups. Talentos/proficiências, magias, grimório, escolhas e reconciliação já têm endpoints. Permanecem pendentes efeitos completos de talentos, gerenciamento integral de treinamentos/maestrias/estilos, cálculos derivados, exceções de suplementos e teste de implantação real. A ficha ainda não é certificada integralmente pelas regras.
 
 A ficha interativa de partida fica para a v1.5. Confira o histórico de decisões em [docs/modelagem.md](docs/modelagem.md) e as pendências normativas em [docs/fechamento-modelagem-v1.md](docs/fechamento-modelagem-v1.md).
 
@@ -215,3 +201,5 @@ Multiclasse confirmada no SRD anexado: [benefícios de entrada e espaços comuns
 Edição estrutural: [prévia e confirmação das dependências](docs/reconciliacao-personagens.md).
 
 Magias de opções: [vínculo, validação e migração 0005](docs/magias-escolhas-aninhadas.md).
+
+Magic Initiate: [lista compartilhada, atributo e limites](docs/magic-initiate-backend.md).
