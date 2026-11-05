@@ -33,7 +33,7 @@ Upsert mantém ids e referências; ausência na nova carga deprecia. A lista de 
 
 Núcleo comum e perfil D&D são criados na mesma transação. Há nome/retrato, seis atributos, espécie, antecedente, alinhamento, classes/subclasses, narrativa e histórico de níveis/PV. A soma das classes é o nível total. As respostas usam localIds do catálogo para escolhas e não aceitam owner_id ou role no corpo.
 
-Valida faixas, duplicidade de classe, exatamente uma inicial, soma até 20, classe da subclasse, nível indicado pelo catálogo para adquiri-la, correspondência do histórico e limite da rolagem ao dado real. Não implementa todos os requisitos normativos de multiclasse. Alterações de classes exigem histórico completo de PV para não descartar rolagens. Sem histórico em fichas de nível maior que 1, PV é null até completar, e não zero apresentado como máximo válido.
+Valida faixas, duplicidade de classe, exatamente uma inicial, soma até 20, classe da subclasse, nível indicado pelo catálogo para adquiri-la, correspondência do histórico e limite da rolagem ao dado real. O relatório de validação confere os pré-requisitos de atributos das 12 classes básicas segundo as regras oficiais; veja [multiclasse-2024.md](multiclasse-2024.md). Benefícios de entrada e conjuração multiclasse completa continuam pendentes. Alterações de classes exigem histórico completo de PV para não descartar rolagens. Sem histórico em fichas de nível maior que 1, PV é null até completar, e não zero apresentado como máximo válido.
 
 Alterações de narrativa e conteúdo atualizam a identidade da ficha e a referência de revisão do último salvamento. Concessões dependentes já presentes podem bloquear mudança de espécie/antecedente/subclasse pelas FKs; o incremento seguinte precisa de conciliação explícita em vez de apagar silenciosamente escolhas.
 
@@ -49,7 +49,7 @@ Também foi iniciado o JavaScript compilado e executada uma demonstração em so
 
 ## Incrementos ainda necessários
 
-1. Endpoints e serviços de inventário, talentos/proficiências, concessões de magias e grimório — o schema já os comporta, mas o CRUD básico não edita essas estruturas.
+1. Endpoints e serviços de talentos/proficiências, concessões de magias e grimório. Inventário já está implementado; ver inventario-backend.md.
 2. Mapeamento completo de escolhas, conciliação de dependências, requisitos e cálculo de conjuração; a consulta ao SRD oficial continua com a limitação de rede documentada.
 3. Concorrência de edição da mesma ficha (controle de versão/ETag) antes de colaboração real.
 4. Provedor de e-mail, recuperação de falhas de entrega e limites adicionais por destino; integração com domínio/HTTPS/proxy e segredos da implantação.
@@ -60,3 +60,15 @@ Este incremento é backend local verificável, não conclusão de toda a v1 nem 
 ## Verificação final deste incremento
 
 18 testes Node e 41 testes Python passaram. npm run typecheck, npm run build, npm run format:check e git diff --check também passaram. O servidor compilado final respondeu HTTP 200 em /health com schemaVersion=3, SQLite 3.53.2 e catalogEntries=1905. Os segredos e o banco local são ignorados pelo Git. Nenhuma migração SQL foi modificada.
+
+## Automação integral de verificação
+
+Comando único: npm.cmd run verify no Windows (npm run verify em outros ambientes). O executor faz tipos, build, 21 testes do backend e o roteiro de 60 verificações HTTP reais, com banco/contas/e-mails/porta temporários. A suíte Python de 41 testes também foi executada separadamente e fica no CI. Nenhuma conta ou banco de desenvolvimento do usuário é usado no roteiro.
+
+Resultado executado nesta etapa: todas as verificações passaram. O relatório atual sem credenciais está em docs/resultado-verificacao.json; execuções locais gravam reports/smoke.json e descartam o relatório anterior antes de iniciar. Arquivo de CI pronto em .github/workflows/verify.yml, ainda sem execução remota confirmada. Detalhes em automacao-testes.md.
+
+## Inventário implementado
+
+Rotas em /characters/:id/items e /characters/:id/items/:itemInstanceId com permissões da ficha, instâncias independentes, filtros, atualização parcial, depreciação, auditoria e cascata. Usa as tabelas existentes; schema e dependências não mudaram. A leitura da ficha e do inventário compartilham a política central de acesso.
+
+Verificação do incremento de inventário: 35 testes Node, 76 verificações HTTP em socket real e 41 testes do modelo passaram. Nenhuma migração ou dependência foi adicionada. Relatório em resultado-inventario.json.

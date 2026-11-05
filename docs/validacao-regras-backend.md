@@ -19,9 +19,9 @@ Magias de origem direta class são comparadas a casting.list, casting.maxSpellLe
 
 ## Limites e pendências
 
-Esta é uma auditoria contra @freshmag/one-dndb 0.5.1, não uma confirmação independente contra livro oficial. A inspeção foi feita no pacote instalado: ContentItem.casting, Feat.prereq e Spell.classes existem; não foi inventada uma API de validação de personagens.
+Talentos e magias são auditados contra @freshmag/one-dndb 0.5.1. Os pré-requisitos de atributos de multiclasse usam também conferência independente nas regras gratuitas e no SRD 5.2 oficiais, registrada em [multiclasse-2024.md](multiclasse-2024.md). O campo `basis.officialSources` identifica essas fontes; elas não certificam os demais achados do catálogo.
 
-- Pré-requisitos de multiclasse: inconclusivos quando há múltiplas classes. primaryAbility não informa sozinho limiar nem lógica E/OU; nenhuma regra foi inferida dele.
+- Pré-requisitos de multiclasse: mínimo 13 com lógica E/OU explícita para as 12 classes básicas, incluindo todas as classes atuais. Classes de suplementos não mapeadas continuam inconclusivas. A regra não é inferida de primaryAbility.
 - Elegibilidade na data de aquisição: não avaliada. O relatório usa estado atual; atributos e dependências históricas não estão totalmente representados.
 - Benefícios e quantidades de escolhas: escolhas diretas reconhecidas pela convenção choiceKey `<campo>:<id>` agora são auditadas; escolhas aninhadas, chaves antigas e contextos não confirmados permanecem inconclusivos. Veja escolhas-beneficios-backend.md.
 - Exceções de listas, preparação e limites concedidas por subclasses, talentos e suplementos: pendentes. Magias de origem independente não são tratadas como pertencentes automaticamente à lista da classe.

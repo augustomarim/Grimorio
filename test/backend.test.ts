@@ -1497,6 +1497,53 @@ describe('Magias e grimório', () => {
 });
 
 describe('Auditoria das regras disponíveis no catálogo', () => {
+  it('reavalia multiclasse após editar atributos e classes, sem bloquear ficha parcial', async () => {
+    await register();
+    const cookie = cookies(await login());
+    const sheet = await create(cookie);
+    const wizard = localId('class', 'wizard');
+    const paladin = localId('class', 'paladin');
+    const patch = async (payload: unknown) => {
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/characters/${sheet.id}`,
+        headers: { origin, cookie },
+        payload,
+      });
+      expect(response.statusCode).toBe(200);
+    };
+    const state = async () => {
+      const response = await app.inject({
+        url: `/characters/${sheet.id}/validation`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().rulesVerified).toBe(false);
+      return response
+        .json()
+        .findings.find((f: { code: string }) => f.code === 'MULTICLASS_REQUIREMENTS').state;
+    };
+    await patch({
+      classes: [
+        { classId: wizard, level: 1, initial: true },
+        { classId: paladin, level: 1, initial: false },
+      ],
+      progression: [
+        { classId: wizard, hpMethod: 'first_max' },
+        { classId: paladin, hpMethod: 'average' },
+      ],
+    });
+    expect(await state()).toBe('fail');
+    await patch({ attributes: { ...character().attributes, strength: 13 } });
+    expect(await state()).toBe('pass');
+    await patch({ attributes: { ...character().attributes, strength: 13, intelligence: 12 } });
+    expect(await state()).toBe('fail');
+    await patch({
+      classes: [{ classId: wizard, level: 1, initial: true }],
+      progression: [{ classId: wizard, hpMethod: 'first_max' }],
+    });
+    expect(await state()).toBe('pass');
+  });
   it('combina cláusulas E/OU sem tratar desconhecido como aprovado', () => {
     expect(allStates(['pass', 'unknown'])).toBe('unknown');
     expect(allStates(['fail', 'unknown'])).toBe('fail');

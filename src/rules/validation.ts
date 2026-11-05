@@ -5,6 +5,7 @@ import { CharacterService } from '../characters/service.js';
 import { ChoiceService } from '../choices/service.js';
 import { BenefitAudit } from './benefits.js';
 import { AppError } from '../errors.js';
+import { multiclassRequirements, multiclassSources } from './multiclass.js';
 
 type State = 'pass' | 'fail' | 'unknown';
 export interface Finding {
@@ -249,14 +250,7 @@ export class ValidationService {
         });
       }
     }
-    findings.push({
-      code: 'MULTICLASS_REQUIREMENTS',
-      state: classes.length > 1 ? 'unknown' : 'pass',
-      message:
-        classes.length > 1
-          ? 'Pré-requisitos de multiclasse não foram confirmados em fonte normativa; primaryAbility não define sozinho combinações E/OU'
-          : 'Ficha com uma classe',
-    });
+    findings.push(multiclassRequirements(classes, profile));
     findings.push(...new BenefitAudit(this.db).inspect(id).findings);
     findings.push(...new ChoiceService(this.db).inspect(id).findings);
     for (const code of [
@@ -280,6 +274,7 @@ export class ValidationService {
         characterSavedRevisionId: profile.ruleset_revision_id,
         mode: 'catalog-audit',
         scope: 'current-state',
+        officialSources: multiclassSources,
       },
       rulesVerified: false,
       summary: {
