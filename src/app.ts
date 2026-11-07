@@ -1,3 +1,4 @@
+import { proxyTrust } from './proxy.js';
 import Fastify, { LogController } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
@@ -6,14 +7,15 @@ import rateLimit from '@fastify/rate-limit';
 import type { Database } from './db/database.js';
 import type { Config } from './config.js';
 import type { Mailer } from './auth/mail.js';
-import { DisabledMailer, FileMailer, SmtpMailer } from './auth/mail.js';
+import { DisabledMailer, FileMailer, SmtpMailer, ResendMailer } from './auth/mail.js';
 import { hashPassword, token } from './auth/crypto.js';
 import { AuthService } from './auth/service.js';
 import { openDatabase } from './db/database.js';
-import { migrate, verifyHistory } from './db/migrations.js';
+import { migrate, verifyHistory, requireCurrentSchema } from './db/migrations.js';
 import { AppError } from './errors.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './characters/routes.js';
+import { catalogStatus } from './catalog/status.js';
 import { catalogRoutes } from './catalog/routes.js';
 import { effectsRoutes } from './rules/effects-routes.js';
 import { choiceRoutes } from './choices/routes.js';
@@ -47,17 +49,22 @@ export async function buildApp(options: AppOptions) {
         }
       : false,
     bodyLimit: 128 * 1024,
-    trustProxy: config.trustedProxies?.length ? config.trustedProxies : false,
+    trustProxy: proxyTrust(config.trustedProxies ?? []),
+    forceCloseConnections: 'idle',
     ajv: { customOptions: { removeAdditional: false } },
     logController: new LogController({ disableRequestLogging: true }),
   });
   try {
-    const schemaVersion = await migrate(db);
-    await db
-      .prepare(
-        "INSERT INTO rpg_system(code,name,edition,is_enabled) VALUES('dnd-2024','Dungeons & Dragons','2024',1) ON CONFLICT(code) DO NOTHING"
-      )
-      .run();
+    const schemaVersion =
+      config.environment === 'production' ? await requireCurrentSchema(db) : await migrate(db);
+    if (config.environment === 'production' && !(await catalogStatus(db)).ready)
+      throw new Error('Catálogo incompleto: execute catalog:import antes de iniciar produção');
+    if (config.environment !== 'production')
+      await db
+        .prepare(
+          "INSERT INTO rpg_system(code,name,edition,is_enabled) VALUES('dnd-2024','Dungeons & Dragons','2024',1) ON CONFLICT(code) DO NOTHING"
+        )
+        .run();
     await app.register(cookie);
     await app.register(helmet);
     await app.register(cors, {
@@ -70,20 +77,20 @@ export async function buildApp(options: AppOptions) {
     app.addHook('onRequest', async (req, reply) => {
       if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin !== config.origin)
         throw new AppError(403, 'ORIGIN_DENIED', 'Origem da requisição não permitida');
-      if (
-        req.url.startsWith('/auth') ||
-        req.url.startsWith('/characters') ||
-        req.url.startsWith('/admin')
-      )
-        reply.header('Cache-Control', 'private, no-store');
+    });
+    app.addHook('onSend', async (_req, reply, payload) => {
+      reply.header('Cache-Control', 'private, no-store');
+      return payload;
     });
     const baseMailer =
       options.mailer ??
-      (config.mailMode === 'smtp' && config.smtp
-        ? new SmtpMailer(config.smtp, config.origin)
-        : config.mailMode === 'file'
-          ? new FileMailer(config.mailDirectory)
-          : new DisabledMailer());
+      (config.mailMode === 'resend' && config.resend
+        ? new ResendMailer(config.resend, config.origin)
+        : config.mailMode === 'smtp' && config.smtp
+          ? new SmtpMailer(config.smtp, config.origin)
+          : config.mailMode === 'file'
+            ? new FileMailer(config.mailDirectory)
+            : new DisabledMailer());
     const safeMailer: Mailer = {
       send: async (mail) => {
         try {
@@ -103,57 +110,13 @@ export async function buildApp(options: AppOptions) {
       safeMailer,
       options.now
     );
-    authRoutes(app, auth, config);
-    catalogRoutes(app, db);
-    characterRoutes(app, db, auth);
-    inventoryRoutes(app, db, auth);
-    benefitRoutes(app, db, auth);
-    spellRoutes(app, db, auth);
-    validationRoutes(app, db, auth);
-    choiceRoutes(app, db, auth);
-    effectsRoutes(app, db, auth);
-    app.get('/health', async () => {
-      let current: number;
-      try {
-        current = await verifyHistory(db);
-      } catch {
-        throw new AppError(503, 'SCHEMA_MISMATCH', 'Histórico do banco incompatível');
-      }
-      if (current !== schemaVersion)
-        throw new AppError(503, 'SCHEMA_MISMATCH', 'Versão do banco incompatível');
-      const catalogEntries = (
-        (await db.prepare('SELECT count(*) count FROM catalog_entry').get()) as {
-          count: number;
-        }
-      ).count;
-      if (config.environment === 'production' && catalogEntries === 0)
-        throw new AppError(
-          503,
-          'CATALOG_NOT_LOADED',
-          'Carregue o catálogo antes de receber tráfego'
-        );
-      return {
-        status: 'ok',
-        schemaVersion,
-        databaseEngine: 'postgresql',
-        databaseVersion: (
-          (await db.prepare("SELECT current_setting('server_version') AS version").get()) as {
-            version: string;
-          }
-        ).version,
-        catalogEntries: (
-          (await db.prepare('SELECT count(*) AS count FROM catalog_entry').get()) as {
-            count: number;
-          }
-        ).count,
-      };
-    });
     app.setErrorHandler(async (error, req, reply) => {
       const err = (error instanceof Error ? error : new Error('Erro desconhecido')) as Error & {
         validation?: unknown;
         statusCode?: number;
         code?: string;
       };
+      if (error instanceof AppError && error.statusCode === 503) reply.header('Retry-After', '5');
       if (error instanceof AppError)
         return await reply
           .code(error.statusCode)
@@ -212,6 +175,24 @@ export async function buildApp(options: AppOptions) {
         return await reply
           .code(err.statusCode)
           .send({ error: { code: 'INVALID_REQUEST', message: 'Requisição inválida.' } });
+      if (
+        (err.code &&
+          (['55P03', '57014', '53300', '57P01', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND'].includes(
+            err.code
+          ) ||
+            err.code.startsWith('08'))) ||
+        err.message === 'Query read timeout'
+      )
+        return await reply
+          .header('Retry-After', '5')
+          .code(503)
+          .send({
+            error: {
+              code: 'SERVICE_UNAVAILABLE',
+              message: 'Serviço temporariamente indisponível. Tente novamente.',
+              requestId: req.id,
+            },
+          });
       if (err.code && ['23502', '23503', '23505', '23514', '22P02', '22003'].includes(err.code))
         return await reply.code(400).send({
           error: {
@@ -223,6 +204,62 @@ export async function buildApp(options: AppOptions) {
       return await reply.code(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'Erro interno do servidor', requestId: req.id },
       });
+    });
+    app.setNotFoundHandler(async (_req, reply) =>
+      reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Rota não encontrada' } })
+    );
+
+    await app.register(
+      async (api) => {
+        authRoutes(api, auth, config);
+        catalogRoutes(api, db);
+        characterRoutes(api, db, auth);
+        inventoryRoutes(api, db, auth);
+        benefitRoutes(api, db, auth);
+        spellRoutes(api, db, auth);
+        validationRoutes(api, db, auth);
+        choiceRoutes(api, db, auth);
+        effectsRoutes(api, db, auth);
+        api.get('/admin/runtime', async (req) => {
+          const user = await auth.authenticate(req.cookies.grimorio_access);
+          if (user.role !== 'admin') throw new AppError(403, 'FORBIDDEN', 'Recurso administrativo');
+          return {
+            network: { peerIp: req.raw.socket.remoteAddress, clientIp: req.ip },
+            configuration: {
+              apiPrefix: config.apiPrefix ?? '',
+              cookieSameSite: config.cookieSameSite ?? 'lax',
+              mailMode: config.mailMode,
+            },
+          };
+        });
+      },
+      { prefix: config.apiPrefix ?? '' }
+    );
+    app.get('/live', { config: { rateLimit: false } }, async () => ({ status: 'alive' }));
+    app.get('/health', { config: { rateLimit: false } }, async () => {
+      let current: number;
+      try {
+        current = await verifyHistory(db);
+      } catch (error) {
+        if (error instanceof Error && 'code' in error) throw error;
+        throw new AppError(503, 'SCHEMA_MISMATCH', 'Histórico do banco incompatível');
+      }
+      if (current !== schemaVersion)
+        throw new AppError(503, 'SCHEMA_MISMATCH', 'Versão do banco incompatível');
+      const catalog = await catalogStatus(db);
+      if (config.environment === 'production' && !catalog.ready)
+        throw new AppError(503, 'CATALOG_NOT_LOADED', 'Catálogo incompleto');
+      return {
+        status: 'ok',
+        schemaVersion,
+        databaseEngine: 'postgresql',
+        databaseVersion: (
+          (await db.prepare("SELECT current_setting('server_version') AS version").get()) as {
+            version: string;
+          }
+        ).version,
+        catalogEntries: catalog.total,
+      };
     });
     app.addHook('onClose', async () => {
       await db.close();

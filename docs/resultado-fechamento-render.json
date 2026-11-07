@@ -1,0 +1,79 @@
+{
+  "status": "passed",
+  "executed_at_utc": "2026-11-07",
+  "scope": "Homologação local, sem acesso a contas Neon, Render ou Resend reais",
+  "unit_and_postgresql": {
+    "files": 10,
+    "passed": 97,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "format": "passed",
+  "npm_audit_vulnerabilities": 0,
+  "docker": {
+    "status": "passed",
+    "checks": [
+      "image healthcheck honors PORT=10000 and /live",
+      "process is non-root",
+      "PostgreSQL TLS negotiated as non-superuser",
+      "compiled production API creates multiclasse and inventory",
+      "encrypted backup produced with SHA256",
+      "decrypted archive catalog verifies",
+      "restore validates schema and revokes restored credentials",
+      "restored graph retains 3+4+3 levels and item quantity",
+      "restore refuses a populated source database",
+      "SQLite driver absent in production",
+      "plaintext export temp files removed",
+      "SIGTERM exits gracefully",
+      "logs do not reveal configured secrets"
+    ],
+    "memoryLimit": "512 MiB",
+    "database": "PostgreSQL 17 TLS, non-superuser owner, local test certificate",
+    "externalServices": "no real Neon/Render/Resend account accessed"
+  },
+  "browser": {
+    "status": "passed",
+    "checks": [
+      "register through same-origin HTTPS proxy",
+      "confirm e-mail token",
+      "login with own e-mail/password",
+      "browser accepts Secure HttpOnly access and refresh cookies",
+      "cookie paths remain /api and /api/auth",
+      "authenticated session visible through proxy",
+      "refresh works through proxy",
+      "browser creates private character",
+      "browser reads modeled character",
+      "foreign origin is blocked by CORS and Origin policy",
+      "password recovery accepted",
+      "reset consumes token and clears cookies",
+      "new password works",
+      "logout removes both cookies"
+    ],
+    "browser": "Chromium; HTTPS local with test certificate",
+    "scope": "production configuration with local PostgreSQL; e-mail captured locally"
+  },
+  "tls_trusted": {
+    "status": "passed",
+    "tls": true,
+    "sslMode": "verify-full",
+    "role": "non-superuser"
+  },
+  "tls_untrusted": {
+    "status": "passed",
+    "untrustedCertificateRejected": true,
+    "code": "DEPTH_ZERO_SELF_SIGNED_CERT"
+  },
+  "not_executed": [
+    "Publicação no Render",
+    "Conexão ao Neon do usuário",
+    "Envio real de e-mail ou validação de domínio/remetente",
+    "Ativação de backup no GitHub"
+  ],
+  "schema": {
+    "version": 1,
+    "tables": 51,
+    "views": 9,
+    "new_migration_required": false
+  }
+}

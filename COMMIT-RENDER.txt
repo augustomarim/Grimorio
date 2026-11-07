@@ -1,0 +1,9 @@
+feat: prepara backend para Render com Neon e autenticação própria
+
+- Configura Docker/Render, prefixo da API, cookies seguros e proxies confiáveis.
+- Adiciona envio transacional por HTTPS sem login Google.
+- Verifica schema e catálogo em produção, limita Argon2 e trata indisponibilidade.
+- Implementa backup criptografado e restauração com revogação de credenciais.
+- Inclui importação em lotes, documentação e resultados de homologação.
+
+Validação: 97 testes aprovados, Chromium HTTPS, TLS e Docker com PostgreSQL 17.

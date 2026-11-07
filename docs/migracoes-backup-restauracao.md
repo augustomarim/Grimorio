@@ -1,3 +1,5 @@
+> Fechamento de produção vigente: [PUBLICAR-RENDER.md](../PUBLICAR-RENDER.md) e [homologação](fechamento-backend-render.md). Mensagens transacionais usam HTTPS ou SMTP opcional, sem login Google. Produção verifica schema/catálogo sem DDL; Render usa /live e rotas /api. Referências anteriores divergentes abaixo são históricas.
+
 # Migrações e recuperação — PostgreSQL
 
 A cadeia atual começa em migrations/0001_postgresql.sql. Esta é baseline PostgreSQL v1, independente de SQLite v6. schema.sql instala um banco novo e registra o mesmo checksum. Migrações são aplicadas em transação e protegidas por advisory lock; mudanças de checksum ou sequência incompatível são recusadas. O arquivo SQLite original está arquivado, não deve ser executado no Neon.

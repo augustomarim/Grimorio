@@ -41,6 +41,7 @@ export class Database {
       enableChannelBinding: true,
       max: 5,
       connectionTimeoutMillis: 15000,
+      query_timeout: 70000,
       idleTimeoutMillis: 30000,
       application_name: 'grimorio',
     });
@@ -103,23 +104,32 @@ export class Database {
         }
       }
       const client = await this.pool.connect();
+      let releaseError: Error | undefined;
       try {
         await client.query(readOnly ? 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' : 'BEGIN');
+        await client.query("SET LOCAL lock_timeout='15s'; SET LOCAL statement_timeout='60s'");
         if (!readOnly) await client.query('SELECT pg_advisory_xact_lock(947231062)');
         return await this.context.run({ client, cache: new Map() }, async () => {
-          try {
-            const value = await operation(...args);
-            await client.query('COMMIT');
-            return value;
-          } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-          }
+          const value = await operation(...args);
+          await client.query('COMMIT');
+          return value;
         });
+      } catch (error) {
+        if (error instanceof Error && error.message === 'Query read timeout') {
+          // Destroy an unresponsive connection rather than queue another query on it.
+          releaseError = error;
+        } else
+          try {
+            await client.query('ROLLBACK');
+          } catch {
+            releaseError = new Error('Conexão transacional indisponível');
+          }
+        throw error;
       } finally {
-        client.release();
+        client.release(releaseError);
       }
     };
+
     const execute = (...args: A) => perform(false, ...args);
     return Object.assign(execute, {
       immediate: execute,

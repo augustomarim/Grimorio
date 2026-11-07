@@ -63,3 +63,35 @@ export class SmtpMailer implements Mailer {
     await this.transport.sendMail({ from: this.settings.from, ...mailContent(mail, this.origin) });
   }
 }
+
+// Transactional e-mail over HTTPS; unrelated to OAuth or Google sign-in.
+export class ResendMailer implements Mailer {
+  constructor(
+    private settings: NonNullable<Config['resend']>,
+    private origin: string
+  ) {}
+  async send(mail: Mail) {
+    const content = mailContent(mail, this.origin);
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${this.settings.apiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: this.settings.from,
+        to: [content.to],
+        subject: content.subject,
+        text: content.text,
+      }),
+      signal: AbortSignal.timeout(15000),
+      redirect: 'error',
+    });
+    // Never surface a provider response body, which may contain private recipient details.
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error('Falha na entrega de e-mail por HTTPS');
+    }
+    await response.body?.cancel();
+  }
+}

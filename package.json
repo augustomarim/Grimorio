@@ -16,12 +16,14 @@
     "test:model": "vitest run test/postgres",
     "typecheck": "tsc --noEmit",
     "admin:promote": "node --import tsx src/auth/admin-cli.ts",
-    "format": "prettier --write src test package.json tsconfig.json vitest.config.ts deploy/compose.yaml",
-    "format:check": "prettier --check src test package.json tsconfig.json vitest.config.ts deploy/compose.yaml",
+    "format": "prettier --write src test package.json tsconfig.json vitest.config.ts deploy/compose.yaml render.yaml deploy/vercel-proxy.example.json .github/workflows/backup-neon.yml",
+    "format:check": "prettier --check src test package.json tsconfig.json vitest.config.ts deploy/compose.yaml render.yaml deploy/vercel-proxy.example.json .github/workflows/backup-neon.yml",
     "db:backup": "node --import tsx src/db/backup-cli.ts backup",
     "db:verify-backup": "node --import tsx src/db/backup-cli.ts verify",
     "db:restore": "node --import tsx src/db/backup-cli.ts restore",
-    "db:transfer-sqlite": "node --import tsx src/db/sqlite-transfer-cli.ts"
+    "db:transfer-sqlite": "node --import tsx src/db/sqlite-transfer-cli.ts",
+    "db:backup-encrypted": "node --import tsx src/db/encrypted-backup-cli.ts export",
+    "db:decrypt-backup": "node --import tsx src/db/encrypted-backup-cli.ts decrypt"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",

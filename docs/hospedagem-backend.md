@@ -1,3 +1,5 @@
+> Fechamento de produção vigente: [PUBLICAR-RENDER.md](../PUBLICAR-RENDER.md) e [homologação](fechamento-backend-render.md). Mensagens transacionais usam HTTPS ou SMTP opcional, sem login Google. Produção verifica schema/catálogo sem DDL; Render usa /live e rotas /api. Referências anteriores divergentes abaixo são históricas.
+
 # Hospedagem atual: Render + Neon
 
 A API Node.js roda no Render; o banco é PostgreSQL no Neon. Não há necessidade de disco persistente SQLite, de instalar Docker no PC dos usuários ou de contratar uma VPS apenas por causa do banco. O Dockerfile é usado pelo serviço de hospedagem para construir o backend.

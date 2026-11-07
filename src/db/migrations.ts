@@ -54,3 +54,13 @@ export async function migrate(db: Database, directory = MIGRATIONS_DIRECTORY) {
     })
     .immediate();
 }
+
+export async function requireCurrentSchema(db: Database) {
+  const current = await verifyHistory(db),
+    expected = files(MIGRATIONS_DIRECTORY).length;
+  if (current !== expected)
+    throw new Error(
+      'Banco desatualizado: execute db:migrate com a conexão direta antes de iniciar produção'
+    );
+  return current;
+}

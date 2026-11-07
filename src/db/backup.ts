@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, chmodSync, linkSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { databaseUrl } from '../config.js';
+import { verifyHistory } from './migrations.js';
 import { openDatabase } from './database.js';
 function connectionEnv(connection: string) {
   const url = new URL(databaseUrl(connection));
@@ -64,7 +65,7 @@ export async function restoreDatabase(source: string, connection: string) {
   try {
     const count = await db
       .prepare(
-        "SELECT count(*) n FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"
+        "SELECT count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','S','v','m','f') AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid='pg_class'::regclass AND d.objid=c.oid AND d.deptype='e')"
       )
       .get();
     if (count.n !== 0) throw new Error('Restauração exige banco de destino vazio');
@@ -83,5 +84,43 @@ export async function restoreDatabase(source: string, connection: string) {
     ],
     connectionEnv(connection)
   );
-  return { restored: true };
+  const restored = openDatabase(databaseUrl(connection));
+  try {
+    const schemaVersion = await verifyHistory(restored);
+    if (schemaVersion === 0) throw new Error('Sem histórico');
+    const invalid = await restored
+      .prepare(
+        "SELECT count(*) n FROM pg_constraint WHERE contype='f' AND NOT convalidated AND connamespace='public'::regnamespace"
+      )
+      .get();
+    if (invalid.n) throw new Error('FK não validada');
+    const characters = (await restored.prepare('SELECT count(*) n FROM character').get()).n;
+    await restored
+      .transaction(async () => {
+        const time = new Date().toISOString();
+        await restored.prepare('UPDATE session SET revoked_at=COALESCE(revoked_at,?)').run(time);
+        await restored
+          .prepare('UPDATE refresh_token SET revoked_at=COALESCE(revoked_at,?)')
+          .run(time);
+        await restored
+          .prepare('UPDATE auth_token SET revoked_at=COALESCE(revoked_at,?) WHERE used_at IS NULL')
+          .run(time);
+        await restored
+          .prepare(
+            "INSERT INTO audit_log(action,entity_type,details) VALUES('operations.restore','system',?)"
+          )
+          .run(JSON.stringify({ credentialsRevoked: true }));
+      })
+      .immediate();
+    return { restored: true, schemaVersion, characters, credentialsRevoked: true };
+  } catch {
+    throw Object.assign(
+      new Error(
+        'Restaurado, mas não validado: não aponte a API para o destino antes de investigar'
+      ),
+      { code: 'RESTORE_VERIFICATION_FAILED' }
+    );
+  } finally {
+    await restored.close();
+  }
 }

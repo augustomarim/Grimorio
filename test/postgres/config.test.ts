@@ -33,3 +33,29 @@ describe('Configuração PostgreSQL/Neon', () => {
     expect(() => loadConfig({ ...env, APP_ORIGIN: 'https://example.invalid' })).toThrow('smtp');
   });
 });
+
+describe('Conexão transacional sem resposta', () => {
+  it('descarta a conexão após timeout de leitura sem aguardar outro comando', async () => {
+    const { vi } = await import('vitest');
+    const { openDatabase } = await import('../../src/db/database.js');
+    const db = openDatabase('postgresql://user:secret@127.0.0.1/test?sslmode=disable');
+    const query = vi.fn().mockResolvedValue({ rows: [] }),
+      release = vi.fn();
+    const pool = (db as unknown as { pool: { connect: () => Promise<unknown> } }).pool;
+    const spy = vi.spyOn(pool, 'connect').mockResolvedValue({ query, release });
+    try {
+      await expect(
+        db
+          .transaction(async () => {
+            throw new Error('Query read timeout');
+          })
+          .immediate()
+      ).rejects.toThrow('Query read timeout');
+      expect(query.mock.calls.some((args) => args[0] === 'ROLLBACK')).toBe(false);
+      expect(release).toHaveBeenCalledWith(expect.any(Error));
+    } finally {
+      spy.mockRestore();
+      await db.close();
+    }
+  });
+});

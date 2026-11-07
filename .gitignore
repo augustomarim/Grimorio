@@ -16,3 +16,5 @@ reports/
 /backups/
 # Backups PostgreSQL contêm dados privados
 *.dump
+/private-backups/
+*.dump.enc

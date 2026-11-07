@@ -17,9 +17,14 @@ try {
             file
           );
   console.info(JSON.stringify({ operation, ...result }));
-} catch {
-  console.error(
-    'Operação cancelada. Confira arquivo, conexão, utilitários PostgreSQL 17 e destino de restauração vazio. Nenhuma URL ou credencial é exibida.'
-  );
+} catch (error) {
+  if (error instanceof Error && 'code' in error && error.code === 'RESTORE_VERIFICATION_FAILED')
+    console.error(
+      'O archive foi restaurado no destino vazio, mas a validação do Grimorio falhou. Não aponte a API para esse banco.'
+    );
+  else
+    console.error(
+      'Operação cancelada. Confira arquivo, conexão, utilitários PostgreSQL 17 e destino de restauração vazio. Nenhuma URL ou credencial é exibida.'
+    );
   process.exitCode = 1;
 }

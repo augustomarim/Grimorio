@@ -31,7 +31,7 @@ O importador executa a migração e carrega as 1.905 entradas e 4.631 links do p
 
 ## Preservar o banco SQLite antigo
 
-Não apagar nem renomear o arquivo antigo. Parar o servidor antigo, fazer uma cópia consistente e manter sua AUTH_KEY se quiser preservar sessões ainda válidas. A origem precisa estar no SQLite v6; o importador não presume uma versão de arquivo desconhecida.
+Não apagar nem renomear o arquivo antigo. Parar o servidor antigo, fazer uma cópia consistente e manter sua AUTH_KEY para preservar a identificação dos buckets de tentativas de login. A origem precisa estar no SQLite v6; o importador não presume uma versão de arquivo desconhecida.
 
 **Antes de iniciar a API nova ou importar o catálogo**, configurar DIRECT_DATABASE_URL para um banco PostgreSQL novo e vazio e executar localmente:
 

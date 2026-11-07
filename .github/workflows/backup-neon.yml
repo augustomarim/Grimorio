@@ -1,0 +1,53 @@
+name: Backup criptografado do Neon
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: backup-neon
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: ${{ vars.ENABLE_BACKUPS == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir ferramenta de backup
+        run: docker build -t grimorio-backup .
+      - name: Exportar e criptografar
+        env:
+          DIRECT_DATABASE_URL: ${{ secrets.NEON_BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -eu
+          mkdir -p private-backups
+          python3 - <<'PY'
+          import os
+          keys=['DIRECT_DATABASE_URL','BACKUP_ENCRYPTION_KEY']
+          if any(not os.environ.get(k) for k in keys):
+              raise SystemExit('Configure os dois secrets de backup antes de ativar o job')
+          fd=os.open('.env.backup-job',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+          with os.fdopen(fd,'w') as f:
+              for key in keys:
+                  value=os.environ[key]
+                  if '\n' in value or '\r' in value:
+                      raise SystemExit('Valor de secret inválido')
+                  f.write(key+'='+value+'\n')
+          PY
+          backup_name="grimorio-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker run --rm --user "$(id -u):$(id -g)" --env-file .env.backup-job \
+            --mount "type=bind,src=$PWD/private-backups,dst=/backups" \
+            grimorio-backup node dist/db/encrypted-backup-cli.js export "/backups/${backup_name}.dump.enc" \
+            > "private-backups/${backup_name}.manifest.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neon-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: private-backups/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Remover arquivo de ambiente
+        if: always()
+        run: rm -f .env.backup-job

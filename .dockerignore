@@ -19,3 +19,5 @@ backups
 
 legacy
 **/*.dump
+private-backups
+**/*.dump.enc

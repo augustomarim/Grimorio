@@ -1,3 +1,5 @@
+> Fechamento de produção vigente: [PUBLICAR-RENDER.md](PUBLICAR-RENDER.md) e [homologação](docs/fechamento-backend-render.md). Mensagens transacionais usam HTTPS ou SMTP opcional, sem login Google. Produção verifica schema/catálogo sem DDL; Render usa /live e rotas /api. Referências anteriores divergentes abaixo são históricas.
+
 # Grimorio — backend PostgreSQL / Neon
 
 Node.js 24, TypeScript, Fastify e PostgreSQL 17. O banco agora pode ficar no Neon e a API pode ser hospedada no Render, sem depender de disco SQLite persistente. O frontend será feito depois e poderá ficar na Vercel.

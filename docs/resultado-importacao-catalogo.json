@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "tests": 65,
+  "engine": "PostgreSQL 17 local",
+  "catalogEntries": 1905,
+  "links": 4631,
+  "batchQueryCount": "verified less than 250",
+  "typecheck": "passed",
+  "build": "passed",
+  "format": "passed",
+  "neonProjectConnection": "not tested"
+}

@@ -16,21 +16,27 @@ const object = (properties: Record<string, unknown>, required = Object.keys(prop
 export function authRoutes(app: FastifyInstance, auth: AuthService, config: Config) {
   const cookie = {
     httpOnly: true,
-    secure: config.origin.startsWith('https:'),
-    sameSite: 'lax' as const,
+    secure: (config.apiOrigin ?? config.origin).startsWith('https:'),
+    sameSite: config.cookieSameSite ?? 'lax',
   };
+  const accessPath = config.apiPrefix || '/';
+  const refreshPath = (config.apiPrefix ?? '') + '/auth';
   const set = (reply: FastifyReply, c: Credentials) => {
-    reply.setCookie(ACCESS, c.access, { ...cookie, path: '/', expires: new Date(c.accessExpires) });
+    reply.setCookie(ACCESS, c.access, {
+      ...cookie,
+      path: accessPath,
+      expires: new Date(c.accessExpires),
+    });
     reply.setCookie(REFRESH, c.refresh, {
       ...cookie,
-      path: '/auth',
+      path: refreshPath,
       expires: new Date(c.familyExpires),
     });
     return { user: c.user, accessExpiresAt: c.accessExpires };
   };
   const clear = (reply: FastifyReply) => {
-    reply.clearCookie(ACCESS, { ...cookie, path: '/' });
-    reply.clearCookie(REFRESH, { ...cookie, path: '/auth' });
+    reply.clearCookie(ACCESS, { ...cookie, path: accessPath });
+    reply.clearCookie(REFRESH, { ...cookie, path: refreshPath });
   };
   const generic = { message: 'Se os dados estiverem elegíveis, enviaremos as instruções.' };
   app.post<{

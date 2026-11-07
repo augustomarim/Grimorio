@@ -3,6 +3,7 @@ export default defineConfig({
   test: {
     include: [
       'test/postgres/**/*.test.ts',
+      'test/production-config.test.ts',
       'test/capabilities.test.ts',
       'test/derived.test.ts',
       'test/multiclass*.test.ts',
