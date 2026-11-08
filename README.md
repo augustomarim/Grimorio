@@ -11,7 +11,6 @@ frontend/            espaço reservado para a aplicação web
 scripts/             comandos de verificação do repositório
 deploy/              Compose, Caddy e exemplos de configuração de implantação
 docs/                documentação funcional, técnica e registros de validação
-legacy/sqlite/       implementação SQLite histórica; não usada pela API atual
 .github/workflows/   integração contínua e backup opcional
 Dockerfile           imagem de produção; contexto de build na raiz
 render.yaml          configuração do Render; contexto de build na raiz
@@ -96,3 +95,7 @@ A configuração de cookies/CORS precisa ser conferida com a origem real do fron
 
 O backend ainda não certifica integralmente as regras de D&D 2024;
 `rulesVerified` permanece `false`. Veja o escopo documentado em `docs/`.
+
+A implementação SQLite, seu importador e suas dependências foram removidos.
+Versões anteriores continuam disponíveis no histórico Git. O backend atual usa
+somente PostgreSQL; esta remoção não altera nem apaga dados do banco publicado.

@@ -10,8 +10,8 @@ a aplicação web sem instalar antecipadamente framework ou dependências.
 - `backend/schema.sql`, `backend/sample-data.sql`, `backend/modelo.dbml`: modelo PostgreSQL.
 - `docs/deploy`: roteiro e mensagem histórica da entrega Render.
 - `deploy`, Dockerfile, render.yaml e workflows: implantação e automação na raiz.
-- `legacy/sqlite`: único local do histórico SQLite. As cópias antigas da raiz
-  foram comparadas byte a byte com o arquivo histórico antes da remoção.
+- O backend SQLite, o importador e suas dependências foram removidos. O
+  histórico permanece no Git, sem integrar o checkout atual.
 
 O lockfile é único na raiz, com as mesmas versões e integridades das dependências.
 Os comandos npm da raiz delegam ao backend, mantendo um ponto de entrada comum.
@@ -22,10 +22,10 @@ no JavaScript compilado porque src/dist e migrations foram movidos juntos.
 
 1. O script `scripts/smoke.mjs` da raiz ainda usava SQLite, acesso síncrono ao
    banco e configuração `databasePath`; não era válido para o backend PostgreSQL.
-   A cópia histórica foi preservada em legacy/sqlite/scripts. A verificação atual
+   A cópia histórica está disponível apenas no Git. A verificação atual
    executa os testes PostgreSQL HTTP existentes em vez de esse script obsoleto.
 2. Testes/migrações SQLite duplicados estavam misturados ao código atual. Foram
-   removidas somente as cópias idênticas que já existiam no histórico.
+   removidos os arquivos obsoletos e, posteriormente, toda a implementação antiga.
 3. Não havia CI atual de verificação: o novo workflow usa PostgreSQL 17
    descartável, executa `npm run verify` e constrói a imagem de produção.
    `verify`/`test:integration` falham se TEST_DATABASE_URL estiver ausente;
@@ -82,3 +82,17 @@ configuração do serviço publicado foi alterada por esta reorganização.
 
 Essas verificações são locais. Não houve deploy ou alteração no banco publicado.
 O workflow do GitHub ainda precisa executar na branch/PR após o envio.
+
+## Remoção posterior do SQLite
+
+Removidos `legacy/`, o CLI `db:transfer-sqlite`, better-sqlite3 e seus tipos, além
+dos roteiros SQL antigos com PRAGMA. As consultas PostgreSQL permanecem em
+`docs/validacao-postgresql.sql`. Registros de homologações antigas em docs
+continuam identificados como históricos, sem significar suporte atual a SQLite.
+O teste que rejeita URLs de bancos não PostgreSQL continua necessário. Nenhum
+arquivo SQL de migração PostgreSQL foi modificado.
+
+Validação após a remoção: instalação limpa com 132 pacotes, sem mudanças de
+versão/integridade nas dependências retidas; tipos, build, formatação e os 97
+testes PostgreSQL/regras passaram novamente. A imagem Docker foi reconstruída
+sem o importador SQLite nem as dependências better-sqlite3 e seus tipos.

@@ -17,7 +17,6 @@ coverage
 deploy/.env.production
 backups
 
-legacy
 **/*.dump
 private-backups
 **/*.dump.enc
