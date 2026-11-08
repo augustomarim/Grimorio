@@ -29,21 +29,12 @@ npm.cmd run dev
 
 O importador executa a migração e carrega as 1.905 entradas e 4.631 links do pacote real 0.5.1 em transação. Não cria usuários de exemplo. Outra opção é executar schema.sql uma vez no SQL Editor do Neon antes da importação; não executar o snapshot sobre tabelas já existentes. Não misturar migrations SQLite com PostgreSQL.
 
-## Preservar o banco SQLite antigo
+## Histórico SQLite
 
-Não apagar nem renomear o arquivo antigo. Parar o servidor antigo, fazer uma cópia consistente e manter sua AUTH_KEY para preservar a identificação dos buckets de tentativas de login. A origem precisa estar no SQLite v6; o importador não presume uma versão de arquivo desconhecida.
-
-**Antes de iniciar a API nova ou importar o catálogo**, configurar DIRECT_DATABASE_URL para um banco PostgreSQL novo e vazio e executar localmente:
-
-```powershell
-npm.cmd run db:transfer-sqlite -- C:\caminho\grimorio.db
-```
-
-A ferramenta abre a origem somente para leitura, verifica integridade/FKs, instala a baseline PostgreSQL, recusa destino com dados e transfere as 50 tabelas de dados em uma única transação. O histórico de migrações SQLite não substitui o histórico PostgreSQL. Preserva IDs, relações, narrativa, atributos base, bônus, hashes, datas e contadores de identidade. As FKs são deferidas somente durante essa transferência e validadas antes do commit. Falha reverte a transferência; o arquivo SQLite não é alterado. Pode permanecer apenas a baseline vazia, aplicada antes da transferência.
-
-Depois executar `npm.cmd run catalog:import` para conciliar o catálogo com o pacote atual e iniciar a API. Os registros de catálogo já existentes são conciliados por tipo/slug, sem apagar personagens. Conferir contagens, proprietários e níveis antes de adotar o PostgreSQL como banco principal. Não rodar os dois backends escrevendo bases diferentes como se fossem sincronizadas.
-
-A ferramenta SQLite é de desenvolvimento e roda no seu PC, com npm ci completo; não está disponível na imagem de produção sem dependências de desenvolvimento. Não é preciso instalar PostgreSQL no PC para conectar ao Neon.
+O backend SQLite e a ferramenta `db:transfer-sqlite` foram removidos, incluindo
+suas dependências nativas. A API atual usa somente PostgreSQL. Caso seja
+necessário investigar a migração antiga, consulte o histórico Git; os arquivos
+antigos não devem ser executados no banco atual.
 
 ## Decisões de compatibilidade
 
@@ -59,6 +50,6 @@ A ferramenta SQLite é de desenvolvimento e roda no seu PC, com npm ci completo;
 
 TEST_DATABASE_URL deve apontar para um banco de testes separado, nunca para a produção. Sem credenciais Neon fornecidas/configuradas, não foi possível verificar autenticação, permissões, latência ou limites do seu projeto Neon. A compatibilidade executada é com PostgreSQL 17 real, não com uma simulação em memória.
 
-## Verificação desta migração
+## Registro histórico da migração
 
-60 testes da suíte atual passaram: 17 de integração PostgreSQL, 5 de configuração e 38 de regras puras. Os testes específicos do SQLite anterior estão arquivados e não contam como verificação PostgreSQL. Snapshot e sample-data.sql foram executados em PostgreSQL 17; a fixture transferiu 199 registros de 50 tabelas, comparados campo a campo, e preservou contador de identidade 10000. A imagem final iniciou com PostgreSQL, importou 1.905 entradas e restaurou o archive pg_dump em outro banco vazio. Build, tipos, formatação e auditoria npm passaram. O DBML foi gerado por introspecção, mas não foi renderizado no dbdiagram.io. Detalhes em resultado-neon.json.
+60 testes da suíte atual passaram: 17 de integração PostgreSQL, 5 de configuração e 38 de regras puras. Os testes específicos do SQLite anterior foram removidos e seus resultados históricos não contam como verificação PostgreSQL atual. Snapshot e sample-data.sql foram executados em PostgreSQL 17; a fixture transferiu 199 registros de 50 tabelas, comparados campo a campo, e preservou contador de identidade 10000. A imagem final iniciou com PostgreSQL, importou 1.905 entradas e restaurou o archive pg_dump em outro banco vazio. Build, tipos, formatação e auditoria npm passaram. O DBML foi gerado por introspecção, mas não foi renderizado no dbdiagram.io. Detalhes em resultado-neon.json.

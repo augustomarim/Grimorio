@@ -1,36 +1,101 @@
-> Fechamento de produção vigente: [PUBLICAR-RENDER.md](PUBLICAR-RENDER.md) e [homologação](docs/fechamento-backend-render.md). Mensagens transacionais usam HTTPS ou SMTP opcional, sem login Google. Produção verifica schema/catálogo sem DDL; Render usa /live e rotas /api. Referências anteriores divergentes abaixo são históricas.
+# Grimorio
 
-# Grimorio — backend PostgreSQL / Neon
+API de fichas D&D em **Node.js 24, TypeScript, Fastify e PostgreSQL**. O backend
+pode ser hospedado no Render com banco no Neon. O frontend ainda não foi implementado.
 
-Node.js 24, TypeScript, Fastify e PostgreSQL 17. O banco agora pode ficar no Neon e a API pode ser hospedada no Render, sem depender de disco SQLite persistente. O frontend será feito depois e poderá ficar na Vercel.
+## Organização
 
-**Não foi conectado nem publicado um projeto Neon real.** A migração, o catálogo e a API foram testados em PostgreSQL 17 local. Nenhuma senha ou URL preenchida acompanha o projeto.
+```text
+backend/             API atual, testes, migrações e modelos PostgreSQL
+frontend/            espaço reservado para a aplicação web
+scripts/             comandos de verificação do repositório
+deploy/              Compose, Caddy e exemplos de configuração de implantação
+docs/                documentação funcional, técnica e registros de validação
+.github/workflows/   integração contínua e backup opcional
+Dockerfile           imagem de produção; contexto de build na raiz
+render.yaml          configuração do Render; contexto de build na raiz
+package.json         workspace e comandos de conveniência
+package-lock.json    lockfile único; instalação pela raiz
+```
 
-## Configuração local
+Os arquivos do modelo atual estão em `backend/schema.sql`,
+`backend/sample-data.sql` e `backend/modelo.dbml` (para [dbdiagram.io](https://dbdiagram.io)).
+Migrações executáveis: `backend/migrations/postgresql/`. Não executar o snapshot
+ou dados de exemplo sobre um banco existente ou em produção.
 
-1. Criar um projeto no Neon e obter a conexão PostgreSQL na opção Connect.
-2. Instalar dependências: `npm.cmd ci`.
-3. Editar seu `.env` existente: retirar DATABASE_PATH e preencher DATABASE_URL. Manter AUTH_KEY se desejar preservar sessões transferidas. Usar a conexão pooled na API e a conexão direta em DIRECT_DATABASE_URL para operações administrativas. Não enviar essas URLs ao Git ou ao chat.
-4. Banco novo sem dados antigos: `npm.cmd run catalog:import`, depois `npm.cmd run dev`.
+## Instalar e iniciar
 
-Não substituir um `.env` preenchido por .env.example. MAIL_MODE=file continua exclusivo de desenvolvimento; produção exige SMTP configurado. Leia [Neon e transferência de dados](docs/neon.md) antes de conectar um banco com dados.
+Na raiz, com Node.js 24:
 
-## Artefatos atuais
+```sh
+npm ci
+```
 
-- schema.sql e migrations/postgresql/0001_postgresql.sql: baseline **PostgreSQL v1**, 51 tabelas e 9 views. A numeração PostgreSQL é independente do antigo SQLite v6.
-- modelo.dbml: diagrama PostgreSQL para [dbdiagram.io](https://dbdiagram.io/d).
-- sample-data.sql: dados parciais de exemplo, somente em banco novo de testes. Nunca carregar em produção.
-- [Dicionário de dados](docs/dicionario-de-dados.md), gerado a partir do schema executado.
-- [Hospedagem](docs/hospedagem-backend.md), [backup/restauração](docs/migracoes-backup-restauracao.md) e [estado atual](docs/estado-backend.md).
+Crie **`backend/.env`** a partir de `backend/.env.example`, somente se ainda não
+existir configuração local. Se você já tinha `.env` na raiz antes da reorganização,
+copie-o para `backend/.env`, preservando seus valores. O Git não move arquivos
+ignorados. Não sobrescreva configurações preenchidas nem envie segredos ao Git.
 
-O histórico SQLite foi preservado em legacy/sqlite; ele não é usado pelo servidor atual. O driver better-sqlite3 é dependência de desenvolvimento apenas para a transferência de dados antigos.
+Preencha `DATABASE_URL` e `AUTH_KEY`; a conexão direta pode ser configurada em
+`DIRECT_DATABASE_URL` para migrações/importação. O servidor e os CLIs carregam
+`backend/.env` porque os comandos abaixo executam nesse workspace.
 
-## Desenvolvimento e verificação
+```sh
+npm run db:migrate
+npm run catalog:import
+npm run dev
+```
 
-`npm.cmd run typecheck`, `npm.cmd run build` e `npm.cmd test`.
+Use migração/importação somente quando necessário. Não reimporte um catálogo
+já carregado apenas por causa da mudança de pastas. Configuração local padrão:
+`http://127.0.0.1:3000/health`. No PowerShell com scripts bloqueados, use `npm.cmd`.
 
-A suíte PostgreSQL exige TEST_DATABASE_URL de um banco de testes separado. Cria e remove um schema com nome aleatório, não usa dados de produção. Sem essa variável, o Vitest sinaliza os testes PostgreSQL como ignorados: isso **não** valida a integração. Os testes de regras puras continuam independentes do banco.
+Os comandos antigos continuam disponíveis **na raiz**, incluindo `build`, `start`,
+`db:backup`, `db:restore`, `admin:promote`, `typecheck` e `test`.
+Também é possível executar os scripts diretamente dentro de `backend/`.
 
-## Limites do produto
+## Verificação
 
-Os efeitos estruturados e cálculos modelados continuam disponíveis; regras somente textuais e condições de combate não ganharam automação nesta migração. rulesVerified continua false. Rolagens, consumo de espaços e PV atuais ficam para a ficha interativa.
+```sh
+npm run typecheck
+npm run build
+npm run format:check
+npm test
+```
+
+`npm test` executa testes puros e os de PostgreSQL; estes últimos são ignorados
+se `TEST_DATABASE_URL` não estiver definida. Isso não valida a integração.
+
+Para a verificação completa, defina `TEST_DATABASE_URL` com um PostgreSQL
+**exclusivo de testes**, exportada no terminal (não basta colocá-la no `.env`):
+
+```sh
+npm run verify
+```
+
+Este comando falha sem a variável. Os testes criam schemas aleatórios e os removem
+ao terminar. A CI fornece PostgreSQL 17 descartável e valida também o Dockerfile.
+`npm run test:integration` executa a suíte com o mesmo requisito explícito.
+
+## Produção e frontend
+
+[Publicação no Render](docs/deploy/PUBLICAR-RENDER.md),
+[homologação anterior](docs/fechamento-backend-render.md),
+[organização e revisão atual](docs/organizacao-repositorio.md) e
+[Neon](docs/neon.md).
+
+O Dockerfile e o `render.yaml` continuam na raiz. Não configure Root Directory
+como `backend` no Render: a imagem usa o workspace e o lockfile da raiz.
+As rotas publicadas usam `/api`; `/live` e `/health` permanecem na raiz HTTP.
+O processo de produção verifica schema e catálogo sem aplicar DDL automaticamente.
+
+A futura aplicação web fica neste repositório, em `frontend/`, com deploy
+independente. Nenhuma dependência de interface foi adicionada nesta organização.
+A configuração de cookies/CORS precisa ser conferida com a origem real do frontend.
+
+O backend ainda não certifica integralmente as regras de D&D 2024;
+`rulesVerified` permanece `false`. Veja o escopo documentado em `docs/`.
+
+A implementação SQLite, seu importador e suas dependências foram removidos.
+Versões anteriores continuam disponíveis no histórico Git. O backend atual usa
+somente PostgreSQL; esta remoção não altera nem apaga dados do banco publicado.

@@ -1,0 +1,49 @@
+{
+  "name": "grimorio-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node --watch --import tsx src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "db:migrate": "node --import tsx src/db/migrate-cli.ts",
+    "catalog:import": "node --import tsx src/catalog/import-cli.ts",
+    "test": "vitest run",
+    "test:model": "vitest run test/postgres",
+    "typecheck": "tsc --noEmit",
+    "admin:promote": "node --import tsx src/auth/admin-cli.ts",
+    "format": "prettier --write src test package.json tsconfig.json vitest.config.ts",
+    "format:check": "prettier --check src test package.json tsconfig.json vitest.config.ts",
+    "db:backup": "node --import tsx src/db/backup-cli.ts backup",
+    "db:verify-backup": "node --import tsx src/db/backup-cli.ts verify",
+    "db:restore": "node --import tsx src/db/backup-cli.ts restore",
+    "db:backup-encrypted": "node --import tsx src/db/encrypted-backup-cli.ts export",
+    "db:decrypt-backup": "node --import tsx src/db/encrypted-backup-cli.ts decrypt"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "11.4.0",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@freshmag/one-dndb": "0.5.1",
+    "argon2": "^0.44.0",
+    "dexie": "^4.4.7",
+    "fake-indexeddb": "^6.2.7",
+    "fastify": "^5.12.8",
+    "nodemailer": "^10.3.1",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "5.1.0"
+  }
+}
