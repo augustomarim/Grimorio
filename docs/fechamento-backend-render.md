@@ -10,4 +10,4 @@ A homologação usa PostgreSQL 17 real, certificado de teste confiável e um pro
 
 Assim, o código está preparado para publicação; permanecem como dados/configuração dos seus provedores: URLs privadas do Neon, remetente autorizado e chave de envio, e secrets/ativação de backup. Em Render, conferir os valores observados de proxy e origem. Domínio, entrega na caixa de entrada e integrações dos painéis só podem ser confirmados após configurar esses serviços. Não são apresentados como testes já executados.
 
-A configuração passo a passo está em PUBLICAR-RENDER.md. Resultados executados estão em resultado-fechamento-render.json.
+A configuração passo a passo está em [deploy/PUBLICAR-RENDER.md](deploy/PUBLICAR-RENDER.md). Resultados executados estão em resultado-fechamento-render.json.

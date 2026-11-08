@@ -2,13 +2,21 @@
 
 O código está preparado para a publicação da API. Login próprio por e-mail/senha; **não há login Google/Gmail**. O banco continua no Neon, sem nova migração nesta entrega (PostgreSQL v1, 51 tabelas/9 views).
 
-## Atualizar seus arquivos
+## Estrutura e atualização
 
-Pare o servidor, extraia o ZIP na raiz do Grimorio e mantenha seu `.env` preenchido. Não apague tabelas ou o catálogo já carregado. Execute `npm.cmd ci` para conferir as dependências e `npm.cmd run dev` se quiser continuar localmente. Na configuração local, API_PREFIX vazio mantém as URLs antigas, como /auth/login.
+O backend fica em `backend/`, mas o Dockerfile, `render.yaml` e o lockfile
+continuam na raiz. No Render, mantenha **Root Directory vazio** e contexto Docker
+na raiz. O processo dentro da imagem inicia em `/app/backend`; scripts de backup
+que usam `node dist/db/...` continuam válidos.
 
-O pacote inclui a correção do importador em lotes, com progresso e limites de espera, mesmo que você não tenha usado o ZIP anterior. **Não precisa reimportar o catálogo que já terminou com sucesso.**
+Localmente, execute `npm.cmd ci` e os comandos npm pela raiz. Preserve sua
+configuração em `backend/.env`; se antes usava `.env` na raiz, copie-o sem
+sobrescrever um arquivo existente. A reorganização não altera schema ou dados e
+não exige reimportar catálogo ou executar migração no banco publicado.
 
-Se existir `.github/workflows/verify.yml` de uma entrega antiga, remova esse workflow antes do commit; ele chamava a verificação SQLite arquivada. A rotina nova de backup é separada, opcional e fica desativada até configurar ENABLE_BACKUPS=true.
+O workflow `.github/workflows/verify.yml` agora valida o workspace PostgreSQL
+atual com banco descartável. Não é mais o antigo workflow SQLite. A rotina de
+backup permanece opcional e depende de `ENABLE_BACKUPS=true` e seus secrets.
 
 ## Preparar as mensagens de conta
 
@@ -47,7 +55,7 @@ Não enviar URLs de banco ou chaves ao chat, ao Git, ao frontend ou a variáveis
 
 Seu Neon já recebeu o catálogo. A produção agora **verifica** o schema e o catálogo, sem executar DDL implicitamente na inicialização. Se uma migração ficar pendente, o processo para com instrução de executar db:migrate usando a conexão direta. Antes de futuras migrações, gerar/conferir backup. Para banco novo ainda vazio, executar catalog:import do seu PC antes de subir a API.
 
-Não carregar sample-data.sql em produção. O catálogo mantém origem bibliográfica dos registros; a revisão da biblioteca continua 0.5.1.
+Não carregar backend/sample-data.sql em produção. O catálogo mantém origem bibliográfica dos registros; a revisão da biblioteca continua 0.5.1.
 
 ## Conferir depois da publicação
 

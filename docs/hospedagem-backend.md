@@ -1,4 +1,4 @@
-> Fechamento de produção vigente: [PUBLICAR-RENDER.md](../PUBLICAR-RENDER.md) e [homologação](fechamento-backend-render.md). Mensagens transacionais usam HTTPS ou SMTP opcional, sem login Google. Produção verifica schema/catálogo sem DDL; Render usa /live e rotas /api. Referências anteriores divergentes abaixo são históricas.
+> Fechamento de produção vigente: [PUBLICAR-RENDER.md](deploy/PUBLICAR-RENDER.md) e [homologação](fechamento-backend-render.md). Mensagens transacionais usam HTTPS ou SMTP opcional, sem login Google. Produção verifica schema/catálogo sem DDL; Render usa /live e rotas /api. Referências anteriores divergentes abaixo são históricas.
 
 # Hospedagem atual: Render + Neon
 

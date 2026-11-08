@@ -21,3 +21,10 @@ legacy
 **/*.dump
 private-backups
 **/*.dump.enc
+
+**/node_modules
+**/dist
+**/data
+**/reports
+**/coverage
+frontend

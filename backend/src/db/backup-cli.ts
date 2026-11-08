@@ -24,7 +24,7 @@ try {
     );
   else
     console.error(
-      'Operação cancelada. Confira arquivo, conexão, utilitários PostgreSQL 17 e destino de restauração vazio. Nenhuma URL ou credencial é exibida.'
+      'Operação cancelada. Confira arquivo, conexão, utilitários PostgreSQL compatíveis e destino de restauração vazio. Nenhuma URL ou credencial é exibida.'
     );
   process.exitCode = 1;
 }

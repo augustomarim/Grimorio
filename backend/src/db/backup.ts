@@ -26,7 +26,7 @@ async function command(program: string, args: string[], env = process.env) {
     child.once('error', () =>
       fail(
         new Error(
-          'Instale os utilitários PostgreSQL 17 (pg_dump/pg_restore) ou use a imagem Docker'
+          'Instale os utilitários PostgreSQL compatíveis com o servidor (pg_dump/pg_restore) ou use a imagem Docker'
         )
       )
     );
