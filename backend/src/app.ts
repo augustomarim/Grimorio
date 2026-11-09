@@ -29,6 +29,7 @@ export interface AppOptions {
   mailer?: Mailer;
   now?: () => Date;
   logger?: boolean;
+  verifyDatabase?: boolean;
 }
 export async function buildApp(options: AppOptions) {
   const config = options.config,
@@ -55,11 +56,11 @@ export async function buildApp(options: AppOptions) {
     logController: new LogController({ disableRequestLogging: true }),
   });
   try {
-    const schemaVersion =
-      config.environment === 'production' ? await requireCurrentSchema(db) : await migrate(db);
-    if (config.environment === 'production' && !(await catalogStatus(db)).ready)
-      throw new Error('Catálogo incompleto: execute catalog:import antes de iniciar produção');
-    if (config.environment !== 'production')
+    const verifyDatabase = config.environment === 'production' || options.verifyDatabase;
+    const schemaVersion = verifyDatabase ? await requireCurrentSchema(db) : await migrate(db);
+    if (verifyDatabase && !(await catalogStatus(db)).ready)
+      throw new Error('Catálogo incompleto: execute catalog:import antes de iniciar a API');
+    if (!verifyDatabase)
       await db
         .prepare(
           "INSERT INTO rpg_system(code,name,edition,is_enabled) VALUES('dnd-2024','Dungeons & Dragons','2024',1) ON CONFLICT(code) DO NOTHING"
@@ -247,7 +248,7 @@ export async function buildApp(options: AppOptions) {
       if (current !== schemaVersion)
         throw new AppError(503, 'SCHEMA_MISMATCH', 'Versão do banco incompatível');
       const catalog = await catalogStatus(db);
-      if (config.environment === 'production' && !catalog.ready)
+      if (verifyDatabase && !catalog.ready)
         throw new AppError(503, 'CATALOG_NOT_LOADED', 'Catálogo incompleto');
       return {
         status: 'ok',

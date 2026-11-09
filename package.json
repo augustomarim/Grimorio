@@ -6,10 +6,14 @@
     "node": ">=24 <25"
   },
   "workspaces": [
-    "backend"
+    "backend",
+    "frontend"
   ],
   "scripts": {
     "dev": "npm run dev --workspace backend --",
+    "dev:site": "node --import tsx scripts/dev-site.mjs",
+    "frontend:dev": "npm run dev --workspace frontend --",
+    "frontend:test": "npm run test --workspace frontend --",
     "build": "npm run build --workspace backend --",
     "start": "npm run start --workspace backend --",
     "db:migrate": "npm run db:migrate --workspace backend --",
@@ -18,8 +22,8 @@
     "test:model": "npm run test:model --workspace backend --",
     "typecheck": "npm run typecheck --workspace backend --",
     "admin:promote": "npm run admin:promote --workspace backend --",
-    "format": "npm run format --workspace backend && prettier --write package.json scripts .github/workflows deploy/compose.yaml render.yaml deploy/vercel-proxy.example.json",
-    "format:check": "npm run format:check --workspace backend && prettier --check package.json scripts .github/workflows deploy/compose.yaml render.yaml deploy/vercel-proxy.example.json",
+    "format": "npm run format --workspace backend && prettier --write package.json frontend scripts .github/workflows deploy/compose.yaml render.yaml deploy/vercel-proxy.example.json",
+    "format:check": "npm run format:check --workspace backend && prettier --check package.json frontend scripts .github/workflows deploy/compose.yaml render.yaml deploy/vercel-proxy.example.json",
     "db:backup": "npm run db:backup --workspace backend --",
     "db:verify-backup": "npm run db:verify-backup --workspace backend --",
     "db:restore": "npm run db:restore --workspace backend --",

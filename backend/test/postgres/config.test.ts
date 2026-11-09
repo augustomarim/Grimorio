@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { databaseUrl, loadConfig } from '../../src/config.js';
-import { placeholders } from '../../src/db/database.js';
+import { placeholders, type Database } from '../../src/db/database.js';
+import { MIGRATIONS_DIRECTORY, verifyHistory } from '../../src/db/migrations.js';
 describe('Configuração PostgreSQL/Neon', () => {
   it('exige URL PostgreSQL e não aceita caminho SQLite', () => {
     for (const value of [undefined, './data/grimorio.db', 'http://example.invalid/db'])
@@ -21,6 +25,21 @@ describe('Configuração PostgreSQL/Neon', () => {
     expect(placeholders("SELECT '?' AS literal,? AS value, 'it''s ?' AS quoted WHERE x=?")).toBe(
       "SELECT '?' AS literal,$1 AS value, 'it''s ?' AS quoted WHERE x=$2"
     );
+  });
+  it('aceita histórico registrado com LF ou CRLF e rejeita mudança de conteúdo', async () => {
+    const name = '0001_postgresql.sql';
+    const sql = readFileSync(join(MIGRATIONS_DIRECTORY, name), 'utf8').replaceAll('\r\n', '\n');
+    const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+    const database = (checksum_sha256: string) =>
+      ({
+        prepare: () => ({
+          get: async () => ({ present: 'schema_migration' }),
+          all: async () => [{ version: 1, name, checksum_sha256 }],
+        }),
+      }) as unknown as Database;
+    await expect(verifyHistory(database(hash(sql)))).resolves.toBe(1);
+    await expect(verifyHistory(database(hash(sql.replaceAll('\n', '\r\n'))))).resolves.toBe(1);
+    await expect(verifyHistory(database(hash(sql + 'SELECT 1;')))).rejects.toThrow('incompatível');
   });
   it('preserva proteção HTTPS e SMTP obrigatório em produção', () => {
     const env = {

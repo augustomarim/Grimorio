@@ -1,13 +1,13 @@
 # Grimorio
 
 API de fichas D&D em **Node.js 24, TypeScript, Fastify e PostgreSQL**. O backend
-pode ser hospedado no Render com banco no Neon. O frontend ainda não foi implementado.
+pode ser hospedado no Render com banco no Neon. O construtor web roda em `frontend/`.
 
 ## Organização
 
 ```text
 backend/             API atual, testes, migrações e modelos PostgreSQL
-frontend/            espaço reservado para a aplicação web
+frontend/            aplicação web de criação de personagens
 scripts/             comandos de verificação do repositório
 deploy/              Compose, Caddy e exemplos de configuração de implantação
 docs/                documentação funcional, técnica e registros de validação
@@ -89,9 +89,10 @@ como `backend` no Render: a imagem usa o workspace e o lockfile da raiz.
 As rotas publicadas usam `/api`; `/live` e `/health` permanecem na raiz HTTP.
 O processo de produção verifica schema e catálogo sem aplicar DDL automaticamente.
 
-A futura aplicação web fica neste repositório, em `frontend/`, com deploy
-independente. Nenhuma dependência de interface foi adicionada nesta organização.
-A configuração de cookies/CORS precisa ser conferida com a origem real do frontend.
+Rode `npm run dev:site` para abrir o site e a API de contas em
+http://127.0.0.1:4173. A aplicação usa a mesma versão do catálogo de regras do
+backend e salva rascunhos e fichas no navegador. Consulte o
+[escopo do construtor](frontend/README.md).
 
 O backend ainda não certifica integralmente as regras de D&D 2024;
 `rulesVerified` permanece `false`. Veja o escopo documentado em `docs/`.
