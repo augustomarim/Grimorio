@@ -30,6 +30,8 @@ const files = new Map([
   ['/auth.js', ['auth.js', 'text/javascript']],
   ['/rules.js', ['rules.js', 'text/javascript']],
   ['/spells.js', ['spells.js', 'text/javascript']],
+  ['/compendium.js', ['compendium.js', 'text/javascript']],
+  ['/glossary.js', ['glossary.js', 'text/javascript']],
   ['/pt-BR.json', ['pt-BR.json', 'application/json']],
   ['/styles.css', ['styles.css', 'text/css']],
 ]);

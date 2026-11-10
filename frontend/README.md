@@ -44,14 +44,20 @@ equipamento inicial e o grimório do Mago. As regras adicionais de atributos,
 ordens de Clérigo e Druida, metamagia e invocações básicas do Bruxo vêm das
 [regras básicas de D&D 2024](https://www.dndbeyond.com/sources/dnd/br-2024/character-classes).
 
-O planejamento atual é de classe única. A revisão valida as escolhas modeladas
-pelo construtor. Características disponíveis apenas como texto aparecem para
+Em **Classe e níveis**, escolha a classe de cada avanço até o nível total 20.
+O construtor libera características por nível de classe e verifica os atributos
+atuais da ficha para os pré-requisitos de multiclasse. A revisão valida as
+escolhas modeladas pelo construtor. Características disponíveis apenas como texto aparecem para
 consulta e podem receber anotações na própria habilidade. Algumas delas, como
 os planos do Artífice, ainda dependem desse registro manual. O armazenamento
 desta versão é local ao navegador.
 
 O compêndio e a janela de seleção mostram magias em português brasileiro. A
-busca aceita também o nome em inglês. A ficha, o compêndio e a janela exibem
+busca aceita também o nome em inglês e pode ser combinada com filtros de círculo,
+escola e publicação. O pacote não inclui a publicação nas magias. Para a revisão
+atual, o mapa em `pt-BR.json` usa as listas de suplementos do
+[índice de magias por fonte do catálogo](https://dnd2024.wikidot.com/spell:all)
+e classifica as demais como Livro do Jogador (2024). A ficha, o compêndio e a janela exibem
 o mesmo resumo de conjuração, duração, alcance, dano, cura e resistência, quando
 identificáveis no texto do catálogo. O texto original detalha casos condicionais.
 
@@ -63,6 +69,14 @@ o [glossário de referência](https://d1vzi28wh99zvq.cloudfront.net/pdf_previews
 Os textos traduzidos são adaptações do catálogo e o original em inglês fica
 disponível nas fichas. O [SRD público de 2024](https://www.dndbeyond.com/srd) não
 lista uma edição em português brasileiro.
+
+O pacote fornece as opções de Revelação Celestial e a descrição dos 71
+antecedentes, mas só menciona os blocos do Companheiro Primal no texto da
+subclasse. Os três blocos complementares em `pt-BR.json` seguem o Livro do Jogador
+(2024), conforme as fichas publicadas no Roll20
+([Terra](https://roll20.net/compendium/dnd5e/Monsters%3ABeast%20of%20the%20Land?expansion=32231),
+[Mar](https://roll20.net/compendium/dnd5e/Monsters%3ABeast%20of%20the%20Sea?expansion=32231) e
+[Céu](https://roll20.net/compendium/dnd5e/Monsters%3ABeast%20of%20the%20Sky?expansion=32231)).
 
 This work includes material from the System Reference Document 5.2.1 by Wizards
 of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is

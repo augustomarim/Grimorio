@@ -6,26 +6,26 @@ export const abilities = [
   ['wis', 'Wisdom', 'Sabedoria'],
   ['cha', 'Charisma', 'Carisma'],
 ];
-const skills = [
-  'Acrobatics',
-  'Animal Handling',
-  'Arcana',
-  'Athletics',
-  'Deception',
-  'History',
-  'Insight',
-  'Intimidation',
-  'Investigation',
-  'Medicine',
-  'Nature',
-  'Perception',
-  'Performance',
-  'Persuasion',
-  'Religion',
-  'Sleight of Hand',
-  'Stealth',
-  'Survival',
-];
+const skills = {
+  Acrobatics: 'Acrobacia',
+  'Animal Handling': 'Lidar com Animais',
+  Arcana: 'Arcanismo',
+  Athletics: 'Atletismo',
+  Deception: 'Enganação',
+  History: 'História',
+  Insight: 'Intuição',
+  Intimidation: 'Intimidação',
+  Investigation: 'Investigação',
+  Medicine: 'Medicina',
+  Nature: 'Natureza',
+  Perception: 'Percepção',
+  Performance: 'Atuação',
+  Persuasion: 'Persuasão',
+  Religion: 'Religião',
+  'Sleight of Hand': 'Prestidigitação',
+  Stealth: 'Furtividade',
+  Survival: 'Sobrevivência',
+};
 
 export const labels = {
   human: 'Humano',
@@ -56,15 +56,72 @@ export const labels = {
   'druidic-warrior': 'Guerreiro Druídico (Druidic Warrior)',
   'blessed-warrior': 'Guerreiro Abençoado (Blessed Warrior)',
 };
-export const displayName = (entry) => labels[entry.id] ?? entry.translation?.name ?? entry.name;
+export const skillName = (name) => skills[name] ?? name;
+// Usos resumidos a partir da tabela de perícias das regras básicas de D&D 2024.
+const skillUses = {
+  Acrobatics: ['Destreza', 'Mantenha o equilíbrio em terreno instável ou faça uma acrobacia.'],
+  'Animal Handling': ['Sabedoria', 'Acalme, conduza ou treine um animal.'],
+  Arcana: ['Inteligência', 'Recorde conhecimentos sobre magia, artefatos e planos de existência.'],
+  Athletics: ['Força', 'Supere obstáculos físicos, como uma correnteza ou um salto difícil.'],
+  Deception: ['Carisma', 'Convença alguém de uma mentira ou sustente um disfarce.'],
+  History: ['Inteligência', 'Recorde acontecimentos, povos e personagens do passado.'],
+  Insight: ['Sabedoria', 'Interprete o comportamento e as intenções de alguém.'],
+  Intimidation: ['Carisma', 'Use ameaças ou sua presença para pressionar alguém.'],
+  Investigation: [
+    'Inteligência',
+    'Junte pistas, pesquise informações ou deduza como algo funciona.',
+  ],
+  Medicine: ['Sabedoria', 'Reconheça doenças ou investigue a causa de uma morte recente.'],
+  Nature: [
+    'Inteligência',
+    'Identifique plantas e animais ou recorde informações sobre terrenos e clima.',
+  ],
+  Perception: ['Sabedoria', 'Use os sentidos para perceber algo discreto ou escondido.'],
+  Performance: ['Carisma', 'Entretenha um público com atuação, música, dança ou histórias.'],
+  Persuasion: ['Carisma', 'Convença alguém com argumentos e tato.'],
+  Religion: ['Inteligência', 'Reconheça divindades, ritos e símbolos religiosos.'],
+  'Sleight of Hand': ['Destreza', 'Manipule ou esconda um objeto pequeno sem chamar atenção.'],
+  Stealth: ['Destreza', 'Mova-se em silêncio ou esconda-se para passar despercebido.'],
+  Survival: ['Sabedoria', 'Siga rastros, encontre comida e evite perigos naturais.'],
+};
+export const displayName = (entry) =>
+  entry.id?.startsWith('skill:')
+    ? skillName(entry.name)
+    : (labels[entry.id] ?? entry.translation?.name ?? entry.name);
 const byId = (entries) => new Map(entries.map((entry) => [entry.id, entry]));
 const opt = (id, name = id, extra) => ({ id, name, ...extra });
 const named = (names) => names.map((name) => opt(name));
 const abi = (name) => abilities.find(([id, english]) => id === name || english === name)?.[0];
 const rank = (rule) => rule.level ?? 1;
-const skillOptions = (names) => (names ?? skills).map((name) => opt(`skill:${name}`, name));
+const skillOptions = (names) =>
+  (names ?? Object.keys(skills)).map((name) => {
+    const [ability, body] = skillUses[name] ?? [];
+    return opt(`skill:${name}`, name, { ability, translation: { body } });
+  });
 const compare = (a, b) => displayName(a).localeCompare(displayName(b), 'pt-BR');
 export const pointCosts = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+export const pointBudget = 27;
+export const standardScores = { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 };
+
+export const pointsSpent = (scores) =>
+  Object.values(scores).reduce((total, score) => total + (pointCosts[score] ?? 0), 0);
+
+export function canAdjustScore(scores, id, delta) {
+  const current = scores[id];
+  const next = current + delta;
+  return (
+    Object.hasOwn(pointCosts, next) &&
+    (delta < 0 || pointsSpent(scores) - pointCosts[current] + pointCosts[next] <= pointBudget)
+  );
+}
+
+export function rollAbilityScore(random = Math.random) {
+  const dice = Array.from({ length: 4 }, () => 1 + Math.floor(random() * 6));
+  const discarded = Math.min(...dice);
+  const score = dice.reduce((sum, die) => sum + die, 0) - discarded;
+  return { dice, discarded, score };
+}
+
 const metamagic = named([
   'Careful Spell',
   'Distant Spell',
@@ -135,13 +192,37 @@ const spellChoiceNames = {
   'Shadow Magic': 'Magia das Sombras',
   'Vampire Magic': 'Magia Vampírica',
 };
+const choiceNames = {
+  'Skill Proficiencies': 'Perícias',
+  'Ability Score Improvement': 'Aumento no Valor de Atributo',
+  'Ativar equipamento': 'Equipamento inicial',
+  'Deft Explorer': 'Explorador Hábil',
+};
 
 export function indexCatalog(raw, localization) {
   const locale = localization && localization.revision === raw.revision ? localization : {};
   const localized = (entry, translation) => (translation ? { ...entry, translation } : entry);
+  const localizedFeature = (entry, translation) => ({
+    ...localized(entry, translation),
+    ...(translation?.level ? { level: translation.level } : {}),
+    options: entry.options?.map((option) => localized(option, translation?.options?.[option.id])),
+  });
+  const publications = new Map(
+    Object.entries(locale.spellPublications?.supplements ?? {}).flatMap(([book, ids]) =>
+      ids.map((id) => [id, book])
+    )
+  );
   raw = {
     ...raw,
-    spells: raw.spells.map((spell) => localized(spell, locale.spells?.[spell.id])),
+    spells: raw.spells.map((spell) =>
+      localized(
+        {
+          ...spell,
+          publication: spell.source ?? publications.get(spell.id) ?? locale.spellPublications?.core,
+        },
+        locale.spells?.[spell.id]
+      )
+    ),
     feats: raw.feats.map((feat) => localized(feat, locale.feats?.[feat.id])),
     content: raw.content.map((entry) => {
       const translation = locale.content?.[entry.id];
@@ -149,9 +230,11 @@ export function indexCatalog(raw, localization) {
       return {
         ...entry,
         translation,
-        traits: entry.traits?.map((trait, index) => localized(trait, translation.traits?.[index])),
+        traits: entry.traits?.map((trait, index) =>
+          localizedFeature(trait, translation.traits?.[index])
+        ),
         features: entry.features?.map((feature, index) =>
-          localized(feature, translation.features?.[index])
+          localizedFeature(feature, translation.features?.[index])
         ),
         choices: entry.choices?.map((rule, index) => {
           const choice = translation.choices?.[index];
@@ -193,12 +276,73 @@ export function newCharacter(id) {
     level: 1,
     campaign: '',
     method: 'array',
-    scores: { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 },
+    scores: { ...standardScores },
     selected: {},
     featureNotes: {},
     notes: '',
     saved: false,
   };
+}
+
+export function classPlan(draft) {
+  return (
+    draft.classPlan ??
+    Array.from(
+      { length: Math.min(20, Math.max(1, Number(draft.level) || 1)) },
+      () => draft.class || ''
+    )
+  );
+}
+
+export function plannedClasses(draft, catalog) {
+  const classes = new Map();
+  for (const [index, id] of classPlan(draft).entries()) {
+    const entry = catalog.byContent.get(id);
+    if (entry?.collection !== 'classes') continue;
+    if (!classes.has(id)) classes.set(id, { entry, levels: [] });
+    classes.get(id).levels.push(index + 1);
+  }
+  return [...classes.values()];
+}
+
+// Starting proficiencies from SRD 5.2 and Eberron: Forge of the Artificer.
+const multiclassArmor = {
+  artificer: ['Leves', 'Médias', 'Escudos'],
+  barbarian: ['Escudos'],
+  bard: ['Leves'],
+  cleric: ['Leves', 'Médias', 'Escudos'],
+  druid: ['Leves', 'Escudos'],
+  fighter: ['Leves', 'Médias', 'Escudos'],
+  paladin: ['Leves', 'Médias', 'Escudos'],
+  ranger: ['Leves', 'Médias', 'Escudos'],
+  rogue: ['Leves'],
+  warlock: ['Leves'],
+};
+const martialMulticlass = new Set(['barbarian', 'fighter', 'paladin', 'ranger']);
+const multiclassAbilities = {
+  artificer: [['int']],
+  barbarian: [['str']],
+  bard: [['cha']],
+  cleric: [['wis']],
+  druid: [['wis']],
+  fighter: [['str', 'dex']],
+  monk: [['dex'], ['wis']],
+  paladin: [['str'], ['cha']],
+  ranger: [['dex'], ['wis']],
+  rogue: [['dex']],
+  sorcerer: [['cha']],
+  warlock: [['cha']],
+  wizard: [['int']],
+};
+
+export function unmetMulticlassRequirements(classes, scores) {
+  if (classes.length < 2) return [];
+  return classes.flatMap(({ entry }) => {
+    const missing = multiclassAbilities[entry.id]
+      .filter((options) => !options.some((id) => scores[id] >= 13))
+      .map((options) => options.map((id) => abilities.find(([key]) => key === id)[2]).join(' ou '));
+    return missing.length ? [`${displayName(entry)} precisa de 13 em ${missing.join(' e ')}`] : [];
+  });
 }
 
 function increases(keys, points, perAbility) {
@@ -246,18 +390,28 @@ function featAllowed(feat, level, context, scores, features, taken) {
 export function projectCharacter(draft, catalog) {
   const species = catalog.byContent.get(draft.species);
   const background = catalog.byContent.get(draft.background);
-  const cls = catalog.byContent.get(draft.class);
-  const level = Number(draft.level);
-  const pickedSubclass = draft.selected[`class/${cls?.id}/subclass`]?.[0];
-  const subclass =
-    level >= cls?.subclassLevel
-      ? catalog.subclasses.find((entry) => entry.id === pickedSubclass && entry.class === cls.name)
-      : undefined;
+  const totalLevel = classPlan(draft).length;
+  const classes = plannedClasses(draft, catalog).map(({ entry, levels }) => {
+    const id = draft.selected[`class/${entry.id}/subclass`]?.[0];
+    const subclass =
+      levels.length >= entry.subclassLevel
+        ? catalog.subclasses.find((item) => item.id === id && item.class === entry.name)
+        : undefined;
+    return { entry, levels, subclass };
+  });
+  const sections = [
+    ...[species, background].filter(Boolean).map((entry) => ({ entry })),
+    ...classes.flatMap((track) => [
+      { entry: track.entry, track },
+      ...(track.subclass ? [{ entry: track.subclass, track }] : []),
+    ]),
+  ];
   const result = {
     species,
     background,
-    cls,
-    subclass,
+    classes,
+    cls: classes[0]?.entry,
+    subclass: classes[0]?.subclass,
     groups: [],
     features: [],
     facts: [],
@@ -276,17 +430,26 @@ export function projectCharacter(draft, catalog) {
   const takenFeats = new Map();
   const seenSpells = new Set();
   const expertiseChoices = [];
+  let level = totalLevel;
   const active = (entry) => rank(entry) <= level;
-  const sections = [species, background, cls, subclass].filter(Boolean);
-  for (const entry of sections) {
-    for (const feature of (entry.features ?? []).filter(active)) {
+  const characterLevel = (meta, at) => meta.track?.levels[at - 1] ?? at;
+  const weaponTraining = classes.flatMap(({ entry, levels }) => {
+    if (levels[0] === 1) return entry.weaponTraining ?? [];
+    return martialMulticlass.has(entry.id) ? [{ category: 'Martial' }] : [];
+  });
+  for (const { entry, track } of sections) {
+    const entryLevel = track?.levels.length ?? totalLevel;
+    for (const feature of (entry.features ?? []).filter((item) => rank(item) <= entryLevel)) {
       const name = feature.name.toLowerCase();
-      featureNames.set(name, Math.min(featureNames.get(name) ?? Infinity, rank(feature)));
+      const at = track?.levels[rank(feature) - 1] ?? rank(feature);
+      featureNames.set(name, Math.min(featureNames.get(name) ?? Infinity, at));
     }
     for (const skill of entry.skillsFixed ?? []) result.skills.add(skill);
   }
-  for (const entry of sections) {
-    for (const fixed of (entry.featsFixed ?? []).filter(active)) {
+  for (const { entry, track } of sections) {
+    for (const fixed of (entry.featsFixed ?? []).filter(
+      (item) => rank(item) <= (track?.levels.length ?? totalLevel)
+    )) {
       const feat = catalog.byFeat.get(fixed.id);
       if (feat) takenFeats.set(feat.id, feat);
     }
@@ -296,12 +459,12 @@ export function projectCharacter(draft, catalog) {
   const addFacts = (source, entries) => {
     for (const [name, value] of entries) if (value) result.facts.push({ source, name, value });
   };
-  const noteSpell = (id, source) => {
+  const noteSpell = (id, grantedBy) => {
     const spell = catalog.bySpell.get(id);
-    const key = `${source}/${id}`;
+    const key = `${grantedBy}/${id}`;
     if (!spell || seenSpells.has(key)) return;
     seenSpells.add(key);
-    result.spells.push({ ...spell, source });
+    result.spells.push({ ...spell, grantedBy });
   };
   const group = (key, name, count, options, meta, apply) => {
     if (!(count > 0)) return;
@@ -313,8 +476,9 @@ export function projectCharacter(draft, catalog) {
     result.validSelections[key] = selected;
     result.groups.push({
       ...meta,
+      characterLevel: characterLevel(meta, meta.level),
       key,
-      name: labels[meta.ruleId] ?? name,
+      name: labels[meta.ruleId] ?? choiceNames[name] ?? name,
       count,
       options: unique,
       selected,
@@ -348,7 +512,7 @@ export function projectCharacter(draft, catalog) {
         `${key}/spell/${rule.id}`,
         spellChoiceNames[rule.name] ??
           rule.name.replace(/^Mystic Arcanum \(level (\d+)\)$/, 'Arcano Místico ($1º círculo)'),
-        rule.pickProficiency ? 2 + Math.floor((level - 1) / 4) : rule.pick,
+        rule.pickProficiency ? 2 + Math.floor((totalLevel - 1) / 4) : rule.pick,
         spellOptions(rule),
         { ...meta, level: Math.max(meta.level, rank(rule)), spellPicker: true },
         (option) => noteSpell(option.id, meta.source)
@@ -362,7 +526,7 @@ export function projectCharacter(draft, catalog) {
           (!groups?.length || groups.includes(tool.group)) &&
           (upgrades || !result.tools.has(tool.id))
       )
-      .map((tool) => opt(`tool:${tool.id}`, tool.name)),
+      .map((tool) => ({ ...tool, id: `tool:${tool.id}` })),
     ...(includeSkills ? skillOptions().filter((option) => !result.skills.has(option.name)) : []),
   ];
   const toolOrSkill = (option) => {
@@ -501,7 +665,7 @@ export function projectCharacter(draft, catalog) {
               feat.category === 'General') &&
             featAllowed(
               feat,
-              rank(rule),
+              characterLevel(meta, Math.max(meta.level, rank(rule))),
               { campaign: draft.campaign || background?.setting },
               result.scores,
               featureNames,
@@ -621,7 +785,7 @@ export function projectCharacter(draft, catalog) {
         }
       );
     }
-    spellChoices([{ ...preparedRule, from: book }], key, meta);
+    spellChoices([{ ...preparedRule, from: book, level }], key, meta);
   }
 
   // Core options described in class features but absent from the catalog's choice arrays.
@@ -631,7 +795,7 @@ export function projectCharacter(draft, catalog) {
     const column = table.header.indexOf('Eldritch Invocations');
     const count = Number(table.rows[level - 1]?.[column]);
     const known = new Set();
-    const spells = result.spells.filter((spell) => spell.source === meta.source);
+    const spells = result.spells.filter((spell) => spell.grantedBy === meta.source);
     for (let index = 1; index <= count; index++) {
       const at = table.rows.findIndex((row) => Number(row[column]) >= index) + 1;
       const options = invocations
@@ -653,7 +817,7 @@ export function projectCharacter(draft, catalog) {
             !takenFeats.has(feat.id) &&
             featAllowed(
               feat,
-              at,
+              characterLevel(meta, at),
               { campaign: draft.campaign || background?.setting },
               result.scores,
               featureNames,
@@ -747,7 +911,7 @@ export function projectCharacter(draft, catalog) {
             addFacts(option.name, [['Bônus de Sabedoria', order.skill]]);
             const known = new Set(
               result.spells
-                .filter((spell) => spell.level === 0 && spell.source === meta.source)
+                .filter((spell) => spell.level === 0 && spell.grantedBy === meta.source)
                 .map(({ id }) => id)
             );
             const options = spellOptions({ list: entry.id, spellLevel: 0 }).filter(
@@ -813,7 +977,10 @@ export function projectCharacter(draft, catalog) {
       );
     }
   }
-  for (const entry of sections) {
+  for (const { entry, track } of sections) {
+    const cls = track?.entry;
+    const subclass = track?.subclass;
+    level = track?.levels.length ?? totalLevel;
     const classEntry = entry === cls || entry === subclass;
     const section = classEntry ? 'progressao' : 'origem';
     const prefix =
@@ -825,7 +992,13 @@ export function projectCharacter(draft, catalog) {
             ? 'species'
             : 'background';
     const source = displayName(entry);
-    const meta = { section, source, level: entry === subclass ? cls.subclassLevel : 1, depth: 0 };
+    const meta = {
+      section,
+      source,
+      track,
+      level: entry === subclass ? cls.subclassLevel : 1,
+      depth: 0,
+    };
     const key = `${prefix}/${entry.id}`;
     for (const [index, feature] of [...(entry.traits ?? []), ...(entry.features ?? [])].entries()) {
       if (active(feature))
@@ -854,11 +1027,20 @@ export function projectCharacter(draft, catalog) {
       ]);
     }
     if (entry === cls) {
+      const initial = track.levels[0] === 1;
       addFacts(source, [
         ['Dado de vida', cls.hitDie],
-        ['Salvaguardas proficientes', cls.savingThrows?.join(', ')],
-        ['Armas', cls.weaponProficiencies],
-        ['Armaduras', cls.armorTraining?.map((item) => item.kind).join(', ')],
+        ['Salvaguardas proficientes', initial && cls.savingThrows?.join(', ')],
+        [
+          'Armas',
+          initial ? cls.weaponProficiencies : martialMulticlass.has(cls.id) && 'Armas marciais',
+        ],
+        [
+          'Armaduras',
+          initial
+            ? cls.armorTraining?.map((item) => item.kind).join(', ')
+            : multiclassArmor[cls.id]?.join(', '),
+        ],
       ]);
       if (level >= cls.subclassLevel) {
         group(
@@ -882,7 +1064,7 @@ export function projectCharacter(draft, catalog) {
             .filter(
               (item) =>
                 item.weapon?.mastery &&
-                cls.weaponTraining?.some(
+                weaponTraining.some(
                   (training) =>
                     training.item === item.id ||
                     (training.category === item.weapon.category &&
@@ -892,14 +1074,51 @@ export function projectCharacter(draft, catalog) {
                         )))
                 )
             )
-            .map((item) => opt(item.id, `${item.name} · ${item.mastery}`)),
+            .map((item) => ({ ...item, name: `${item.name} · ${item.mastery}` })),
           meta
         );
       }
     }
     if (classEntry) classSpells(entry, key, meta);
     if (entry === cls) coreClassChoices(entry, key, meta);
-    effects(entry, key, meta);
+    if (entry === cls && track.levels[0] !== 1) {
+      const skill = ['artificer', 'bard', 'ranger', 'rogue'].includes(cls.id)
+        ? [
+            {
+              id: 'multiclass-training',
+              name: 'Perícia de multiclasse',
+              pick: 1,
+              from: cls.id === 'bard' ? undefined : cls.skillChoices?.[0]?.from,
+            },
+          ]
+        : [];
+      effects(
+        {
+          ...entry,
+          skillsFixed: [],
+          skillChoices: [...skill, ...(entry.skillChoices ?? []).filter((rule) => rank(rule) > 1)],
+          toolsFixed: { artificer: ['tinkers-tools'], rogue: ['thieves-tools'] }[cls.id] ?? [],
+          toolChoices: [
+            ...(cls.id === 'bard'
+              ? [
+                  {
+                    id: 'multiclass-instrument',
+                    name: 'Instrumento musical',
+                    pick: 1,
+                    group: 'instrument',
+                  },
+                ]
+              : []),
+            ...(entry.toolChoices ?? []).filter((rule) => rank(rule) > 1),
+          ],
+          choices: entry.choices?.filter(
+            (choice) => !choice.options?.some((option) => option.equipment)
+          ),
+        },
+        key,
+        meta
+      );
+    } else effects(entry, key, meta);
   }
   const characterMeta = { section: 'origem', source: 'Personagem', level: 1, depth: 0 };
   group(
