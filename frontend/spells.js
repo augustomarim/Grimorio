@@ -40,19 +40,19 @@ export const spellSchools = {
   Transmutation: 'Transmutação',
 };
 const damageTypes = {
-  acid: 'ácido',
-  bludgeoning: 'contundente',
-  cold: 'frio',
-  fire: 'fogo',
-  force: 'energia',
-  lightning: 'elétrico',
-  necrotic: 'necrótico',
-  piercing: 'perfurante',
-  poison: 'veneno',
-  psychic: 'psíquico',
-  radiant: 'radiante',
-  slashing: 'cortante',
-  thunder: 'trovejante',
+  acid: 'Ácido',
+  bludgeoning: 'Contundente',
+  cold: 'Frio',
+  fire: 'Fogo',
+  force: 'Energia',
+  lightning: 'Elétrico',
+  necrotic: 'Necrótico',
+  piercing: 'Perfurante',
+  poison: 'Veneno',
+  psychic: 'Psíquico',
+  radiant: 'Radiante',
+  slashing: 'Cortante',
+  thunder: 'Trovejante',
 };
 const attributes = {
   Strength: 'Força',
@@ -93,7 +93,7 @@ const otherDamage = {
   'swift-quiver': ['piercing'],
   'true-strike': ['radiant', 'weapon'],
 };
-const damageTypeLabels = { ...damageTypes, force: 'energia (força)', weapon: 'tipo da arma' };
+const damageTypeLabels = { ...damageTypes, weapon: 'Tipo da Arma' };
 export const damageTypeLabel = (type) => damageTypeLabels[type];
 export const spellDamageTypes = (spell) => {
   const base = baseSpellText(spell);
