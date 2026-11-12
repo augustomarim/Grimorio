@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 export interface Mail {
   to: string;
-  purpose: 'email_verification' | 'password_reset';
+  purpose: 'password_reset';
   token: string;
 }
 export interface Mailer {
@@ -28,13 +28,12 @@ export class FileMailer implements Mailer {
   }
 }
 export function mailContent(mail: Mail, origin: string) {
-  const reset = mail.purpose === 'password_reset';
-  const link = new URL(reset ? '/reset-password' : '/verify-email', origin);
+  const link = new URL('/reset-password', origin);
   link.hash = new URLSearchParams({ token: mail.token }).toString();
   return {
     to: mail.to,
-    subject: reset ? 'Grimorio — redefinir senha' : 'Grimorio — confirmar e-mail',
-    text: `${reset ? 'Para redefinir sua senha' : 'Para confirmar seu e-mail'}, abra:\n${link.toString()}\n\nSe você não solicitou esta ação, ignore esta mensagem.`,
+    subject: 'Grimorio — redefinir senha',
+    text: `Para redefinir sua senha, abra:\n${link.toString()}\n\nSe você não solicitou esta ação, ignore esta mensagem.`,
   };
 }
 export class SmtpMailer implements Mailer {
@@ -64,7 +63,15 @@ export class SmtpMailer implements Mailer {
   }
 }
 
-// Transactional e-mail over HTTPS; unrelated to OAuth or Google sign-in.
+export class ResendDeliveryError extends Error {
+  constructor(
+    readonly reason: 'timeout' | 'connection' | 'rejected' | 'test_recipient' | 'unverified_domain',
+    readonly status?: number
+  ) {
+    super('Falha na entrega de e-mail por HTTPS');
+  }
+}
+
 export class ResendMailer implements Mailer {
   constructor(
     private settings: NonNullable<Config['resend']>,
@@ -72,6 +79,7 @@ export class ResendMailer implements Mailer {
   ) {}
   async send(mail: Mail) {
     const content = mailContent(mail, this.origin);
+    const signal = AbortSignal.timeout(15000);
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -84,13 +92,22 @@ export class ResendMailer implements Mailer {
         subject: content.subject,
         text: content.text,
       }),
-      signal: AbortSignal.timeout(15000),
+      signal,
       redirect: 'error',
+    }).catch(() => {
+      throw new ResendDeliveryError(signal.aborted ? 'timeout' : 'connection');
     });
-    // Never surface a provider response body, which may contain private recipient details.
     if (!response.ok) {
-      await response.body?.cancel();
-      throw new Error('Falha na entrega de e-mail por HTTPS');
+      let reason: ResendDeliveryError['reason'] = 'rejected';
+      if (response.status === 403) {
+        // Map known provider messages to fixed codes without logging private details.
+        const body = await response.json().catch(() => undefined);
+        const message = typeof body?.message === 'string' ? body.message : '';
+        if (/only send testing emails to your own email address/i.test(message))
+          reason = 'test_recipient';
+        else if (/domain is not verified/i.test(message)) reason = 'unverified_domain';
+      } else await response.body?.cancel().catch(() => {});
+      throw new ResendDeliveryError(reason, response.status);
     }
     await response.body?.cancel();
   }

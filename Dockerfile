@@ -25,6 +25,7 @@ COPY --from=build --chown=node:node /app/node_modules /app/node_modules
 COPY --from=build --chown=node:node /app/backend/dist ./dist
 COPY --chown=node:node backend/package.json ./package.json
 COPY --chown=node:node backend/migrations ./migrations
+COPY --chown=node:node frontend/package.json frontend/publication.mjs frontend/validation.js frontend/rules.js frontend/mechanics.js frontend/spells.js frontend/glossary.js frontend/pt-BR.json frontend/reference.json /app/frontend/
 RUN mkdir /backups && chown node:node /backups
 USER node
 EXPOSE 3000

@@ -56,8 +56,8 @@ export function loadConfig(env = process.env): Config {
   const mailMode = env.MAIL_MODE ?? 'disabled';
   if (!['disabled', 'file', 'smtp', 'resend'].includes(mailMode))
     throw new Error('MAIL_MODE inválido');
-  if (environment === 'production' && !['smtp', 'resend'].includes(mailMode))
-    throw new Error('Produção exige MAIL_MODE=resend (HTTPS) ou smtp');
+  if (environment === 'production' && mailMode === 'file')
+    throw new Error('MAIL_MODE=file é permitido apenas fora da produção');
   const trustedProxies = (env.TRUSTED_PROXIES ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -88,13 +88,17 @@ export function loadConfig(env = process.env): Config {
     throw new Error('SameSite=None exige API HTTPS');
   let resend: Config['resend'];
   if (mailMode === 'resend') {
+    const from = env.MAIL_FROM?.trim();
+    const namedSender = from?.match(/^[^<>\r\n]+ <([^<>\r\n]+)>$/);
+    const address = namedSender?.[1] ?? from;
     if (
       !env.RESEND_API_KEY ||
-      !env.MAIL_FROM ||
-      !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(env.MAIL_FROM)
+      !from ||
+      !address ||
+      !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(address)
     )
       throw new Error('Configure RESEND_API_KEY e MAIL_FROM verificado no provedor');
-    resend = { apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM };
+    resend = { apiKey: env.RESEND_API_KEY, from };
   }
   let smtp: Config['smtp'];
   if (mailMode === 'smtp') {

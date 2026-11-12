@@ -101,20 +101,6 @@ export function accountView(view) {
       'Solicitar link',
       '<a href="#login">Voltar para entrar</a>',
     ],
-    reenviar: [
-      'Reenviar confirmação',
-      'Informe o e-mail cadastrado para solicitar outro link.',
-      emailField,
-      'Reenviar',
-      '<a href="#inicio">Voltar ao painel</a>',
-    ],
-    verificar: [
-      'Confirmar e-mail',
-      'Confirme seu endereço para concluir esta etapa da conta.',
-      '',
-      'Confirmar e-mail',
-      '<a href="/#login">Voltar para entrar</a>',
-    ],
     redefinir: [
       'Redefinir senha',
       'Escolha a nova senha para sua conta.',

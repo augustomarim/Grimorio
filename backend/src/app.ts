@@ -7,7 +7,13 @@ import rateLimit from '@fastify/rate-limit';
 import type { Database } from './db/database.js';
 import type { Config } from './config.js';
 import type { Mailer } from './auth/mail.js';
-import { DisabledMailer, FileMailer, SmtpMailer, ResendMailer } from './auth/mail.js';
+import {
+  DisabledMailer,
+  FileMailer,
+  SmtpMailer,
+  ResendMailer,
+  ResendDeliveryError,
+} from './auth/mail.js';
 import { hashPassword, token } from './auth/crypto.js';
 import { AuthService } from './auth/service.js';
 import { openDatabase } from './db/database.js';
@@ -15,6 +21,7 @@ import { migrate, verifyHistory, requireCurrentSchema } from './db/migrations.js
 import { AppError } from './errors.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './characters/routes.js';
+import { builderRoutes } from './characters/builder-routes.js';
 import { catalogStatus } from './catalog/status.js';
 import { catalogRoutes } from './catalog/routes.js';
 import { effectsRoutes } from './rules/effects-routes.js';
@@ -96,10 +103,16 @@ export async function buildApp(options: AppOptions) {
       send: async (mail) => {
         try {
           await baseMailer.send(mail);
-        } catch {
+        } catch (error) {
           app.log.error(
-            { event: 'mail_delivery_failed' },
-            'Falha de entrega de e-mail; reenvio necessário'
+            {
+              event: 'mail_delivery_failed',
+              mailMode: config.mailMode,
+              ...(error instanceof ResendDeliveryError
+                ? { reason: error.reason, providerStatus: error.status }
+                : {}),
+            },
+            'Falha ao enviar e-mail. Solicite o reenvio.'
           );
         }
       },
@@ -215,6 +228,7 @@ export async function buildApp(options: AppOptions) {
         authRoutes(api, auth, config);
         catalogRoutes(api, db);
         characterRoutes(api, db, auth);
+        builderRoutes(api, db, auth);
         inventoryRoutes(api, db, auth);
         benefitRoutes(api, db, auth);
         spellRoutes(api, db, auth);

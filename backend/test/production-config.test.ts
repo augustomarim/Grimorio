@@ -101,23 +101,30 @@ describe('E-mail transacional HTTPS, sem autenticação Google', () => {
   });
   it('não expõe corpo de erro do provedor nem credenciais', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('private-provider-response', { status: 403 })
+      Response.json(
+        { message: 'You can only send testing emails to your own email address (private@example.invalid).' },
+        { status: 403 }
+      )
     );
     await expect(
       new ResendMailer(loadConfig(env).resend!, env.APP_ORIGIN).send({
         to: 'test@example.invalid',
-        purpose: 'email_verification',
+        purpose: 'password_reset',
         token: 'secret-token',
       })
-    ).rejects.toThrow('Falha na entrega');
+    ).rejects.toMatchObject({
+      message: 'Falha na entrega de e-mail por HTTPS',
+      reason: 'test_recipient',
+      status: 403,
+    });
   });
-  it('produz link de confirmação separado do link de senha', () => {
+  it('produz link de redefinição com token no fragmento', () => {
     const content = mailContent(
-      { to: 'test@example.invalid', purpose: 'email_verification', token: 'test-token' },
+      { to: 'test@example.invalid', purpose: 'password_reset', token: 'test-token' },
       env.APP_ORIGIN
     );
-    expect(content.text).toContain('/verify-email#token=');
-    expect(content.subject).toContain('confirmar');
+    expect(content.text).toContain('/reset-password#token=');
+    expect(content.subject).toContain('redefinir');
   });
 });
 describe('Backup autenticado AES-256-GCM', () => {

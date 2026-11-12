@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs';
+import { loadProjectEnv } from './load-env.js';
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
-if (existsSync('.env')) process.loadEnvFile('.env');
+loadProjectEnv();
 const config = loadConfig();
 const { app } = await buildApp({ config, logger: true });
 let closing = false;
@@ -28,5 +28,5 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const)
 await app.listen({ host: config.host, port: config.port });
 if (config.mailMode === 'disabled')
   app.log.warn(
-    'E-mail desabilitado: confirmações/reset não são entregues; configure MAIL_MODE=file apenas no desenvolvimento.'
+    'E-mail desabilitado: a recuperação de senha por e-mail está desativada; configure MAIL_MODE=file apenas no desenvolvimento.'
   );

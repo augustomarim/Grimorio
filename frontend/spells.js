@@ -22,10 +22,64 @@ export function formatDescription(value, glossary = false) {
     )
     .join('');
 }
+export function rulesDescriptionParts(value) {
+  return String(value ?? '')
+    .split(/((?:^\|[^\n]*\|[ \t]*(?:\n|$)){2,})/m)
+    .map((part, index) => {
+      if (index % 2 === 0) return { text: part.trim() };
+      const [columns, divider, ...rows] = part
+        .trim()
+        .replace(/\[\[(?:[^|\[\]\n]+\|)?([^\[\]\n]+)\]\]/g, '$1')
+        .split('\n')
+        .map((line) =>
+          line
+            .trim()
+            .slice(1, -1)
+            .split('|')
+            .map((cell) => cell.trim())
+        );
+      if (divider?.length === columns.length && divider.every((cell) => /^:?-{3,}:?$/.test(cell))) {
+        return { columns, rows };
+      }
+      return { text: part.trim() };
+    });
+}
+
+export function formatRulesDescription(value, glossary = false, lang = 'pt-BR') {
+  return rulesDescriptionParts(value)
+    .map(({ columns, rows, text }) =>
+      columns
+        ? rulesTable(columns, rows, glossary, lang)
+        : text
+          ? `<p class="description" lang="${lang}">${formatDescription(text, glossary)}</p>`
+          : ''
+    )
+    .join('');
+}
+
+export function rulesTable(columns, rows, glossary = false, lang = 'pt-BR') {
+  const cellText = (value) => formatDescription(value, glossary);
+  const heading = columns.filter(Boolean);
+  const statBlock = heading.length === 1;
+  const head = statBlock
+    ? `<th colspan="${columns.length}">${cellText(heading[0])}</th>`
+    : columns.map((name) => `<th scope="col">${cellText(name)}</th>`).join('');
+  return `<div class="wiki-table" role="region" aria-label="${escapeHtml(heading.join(' · '))}" tabindex="0" lang="${lang}">
+    <table><thead><tr>${head}</tr></thead><tbody>${rows
+      .map((row) => {
+        const cells =
+          statBlock && row.length > 1 && row.slice(1).every((cell) => !cell)
+            ? `<td colspan="${columns.length}">${cellText(row[0])}</td>`
+            : row.map((cell) => `<td>${cellText(cell)}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+      })
+      .join('')}</tbody></table></div>`;
+}
+
 export const originalDescription = (name, body, glossary = false) =>
   `<details class="spell-original"><summary>Texto completo em inglês</summary>
     ${name ? `<p lang="en"><strong>${escapeHtml(name)}</strong></p>` : ''}
-    <p class="description" lang="en">${formatDescription(body, glossary)}</p></details>`;
+    ${formatRulesDescription(body, glossary, 'en')}</details>`;
 export const spellName = (spell) => spell.translation?.name ?? spell.name;
 export const spellCircle = (level) => (level === 0 ? 'Truque' : `${level}º círculo`);
 
@@ -94,7 +148,7 @@ const otherDamage = {
   'true-strike': ['radiant', 'weapon'],
 };
 const damageTypeLabels = { ...damageTypes, weapon: 'Tipo da Arma' };
-export const damageTypeLabel = (type) => damageTypeLabels[type];
+export const damageTypeLabel = (type) => damageTypeLabels[String(type).toLowerCase()] ?? type;
 export const spellDamageTypes = (spell) => {
   const base = baseSpellText(spell);
   return [
@@ -198,6 +252,42 @@ export function spellEffects(spell) {
   ].filter(([, value]) => value);
 }
 
+export function spellRolls(spell, characterLevel, slotLevel = spell.level) {
+  const rolls = [];
+  const tier = [5, 11, 17].filter((level) => characterLevel >= level).length;
+  const upgrade = spell.text?.split(/\*\*Cantrip Upgrade\.\*\*/i)[1] ?? '';
+  const higher = spell.text?.split(/\*\*Using a Higher-Level Spell Slot\.\*\*/i)[1] ?? '';
+  const effects = spellEffects(spell);
+  if (effects.some(([label]) => label === 'Ataque') && Number.isFinite(spell.attackBonus)) {
+    const beams = spell.id === 'eldritch-blast' ? 1 + tier : 1;
+    rolls.push({ label: beams > 1 ? 'Ataque por raio' : 'Ataque mágico', count: 1, sides: 20, bonus: spell.attackBonus, repeat: beams });
+  }
+  for (const [label, value] of effects.filter(([label]) => label === 'Dano' || label === 'Cura')) {
+    const kind = label === 'Dano' ? 'damage' : 'healing';
+    const scale = (text) => new RegExp(`\\b${kind} increases by (\\d+)d(\\d+)`, 'i').exec(text);
+    const phrases = value.split(' · ');
+    for (const phrase of phrases) {
+      const match = /^(\d+)d(\d+)(?:\s*([+-])\s*(\d+|modificador de conjuração))?/i.exec(phrase);
+      if (!match) continue;
+      const [, count, sides, sign, modifier] = match;
+      const usesCastingModifier = modifier === 'modificador de conjuração';
+      if (usesCastingModifier && !Number.isFinite(spell.castingModifier)) continue;
+      const increase = scale(spell.level === 0 ? upgrade : higher);
+      const extra = spell.level === 0 ? tier : Math.max(0, slotLevel - spell.level);
+      const added = phrases.length === 1 && increase?.[2] === sides ? Number(increase[1]) * extra : 0;
+      const perHit = { 'eldritch-blast': ' por raio', 'magic-missile': ' por dardo' }[spell.id] ?? '';
+      rolls.push({
+        label: label + perHit,
+        count: Number(count) + added,
+        sides: Number(sides),
+        bonus: modifier ? (sign === '-' ? -1 : 1) * (usesCastingModifier ? spell.castingModifier : Number(modifier)) : 0,
+        type: phrase.slice(match[0].length).trim().replace(/^de /, ''),
+      });
+    }
+  }
+  return rolls;
+}
+
 export function spellDescription(spell, { glossary = false } = {}) {
   const fields = [
     ['Fonte', spell.publication],
@@ -205,6 +295,19 @@ export function spellDescription(spell, { glossary = false } = {}) {
     ['Alcance', translateMeasure(spell.range)],
     ['Duração', translateMeasure(spell.duration)],
     ['Componentes', spell.components?.split('').join(', ')],
+    [
+      'Usos gratuitos',
+      spell.free
+        ? `${spell.free.uses} por ${spell.free.per === 'short' ? 'descanso curto' : 'descanso longo'}`
+        : undefined,
+    ],
+    ['CD de magia', spell.saveDC],
+    [
+      'Ataque mágico',
+      spell.attackBonus != null
+        ? (spell.attackBonus >= 0 ? '+' : '') + spell.attackBonus
+        : undefined,
+    ],
     ...(glossary
       ? [['Tipos de dano', spellDamageTypes(spell).map(damageTypeLabel).join(' · ')]]
       : []),
@@ -223,7 +326,20 @@ export function spellDescription(spell, { glossary = false } = {}) {
     }
     ${spell.material ? `<p><strong>Material</strong> · ${escapeHtml(spell.translation?.material ?? spell.material)}</p>` : ''}
     ${spell.triggered ? `<p><strong>Gatilho</strong> · ${escapeHtml(spell.translation?.triggered ?? spell.triggered)}</p>` : ''}
-    <p class="description" lang="${spell.translation?.text ? 'pt-BR' : 'en'}">${formatDescription(spell.translation?.text ?? spell.text, glossary)}</p>
+    ${formatRulesDescription(spell.translation?.text ?? spell.text, glossary, spell.translation?.text ? 'pt-BR' : 'en')}
+    ${
+      spell.references
+        ?.map(
+          (
+            entry
+          ) => `<details class="entry"><summary><strong>${escapeHtml(entry.translation?.name ?? entry.name)}</strong></summary>
+      ${formatRulesDescription(entry.translation?.body ?? entry.body, glossary)}
+      ${entry.translation?.body && entry.body ? originalDescription(entry.name, entry.body, glossary) : ''}
+    </details>`
+        )
+        .join('') ?? ''
+    }
+    ${spell.creatureReference ? '<p><a href="#compendio/creatures">Consultar as fichas de criaturas para esta transformação</a></p>' : ''}
     ${spell.translation?.text ? originalDescription(spell.name, spell.text, glossary) : ''}
   </div>`;
 }
@@ -233,13 +349,44 @@ export const spellSubtitle = (spell) =>
     .filter(Boolean)
     .join(' · ');
 
-export function spellCard(spell) {
+export const spellTags = (spell) =>
+  [spellSubtitle(spell), ...spellDamageTypes(spell).map(damageTypeLabel), spell.publication].filter(
+    Boolean
+  );
+
+export function gameIcon(id, className = '') {
+  return `<svg class="game-icon ${className}" aria-hidden="true" focusable="false" viewBox="0 0 512 512"><use href="/game-icons.svg#${escapeHtml(id)}"></use></svg>`;
+}
+
+const illustratedSpells = new Set([
+  'alarm', 'cure-wounds', 'fireball', 'ice-knife', 'lightning-bolt', 'magic-missile', 'shield',
+]);
+
+export function spellIcon(spell) {
+  if (spell.localIcon === '/spell-icons/' + spell.id + '.webp') {
+    return `<img class="game-icon game-emblem spell-art" src="${escapeHtml(spell.localIcon)}" alt="" width="32" height="32" loading="lazy" decoding="async">`;
+  }
+  const school = Object.hasOwn(spellSchools, spell.school) ? spell.school.toLowerCase() : 'evocation';
+  return gameIcon(illustratedSpells.has(spell.id) ? spell.id : school, 'game-emblem');
+}
+
+export function spellTagMarkup(spell) {
+  const tag = (label) => label && `<span class="tag">${escapeHtml(label)}</span>`;
+  const damageTags = spellDamageTypes(spell).map((type) => {
+    const icon = type === 'lightning' ? 'lightning-bolt' : type;
+    const symbol = type === 'cold' ? '<span class="damage-snowflake" aria-hidden="true">❄︎</span>' : gameIcon(icon);
+    return `<span class="tag damage-tag" data-damage="${type}">${symbol}${escapeHtml(damageTypeLabel(type))}</span>`;
+  });
+  return [tag(spellSubtitle(spell)), ...damageTags, tag(spell.publication)].filter(Boolean).join(' ');
+}
+
+export function spellCard(spell, actions = '') {
   const headline = spellEffects(spell).find(([label]) => label === 'Dano' || label === 'Cura');
-  return `<details class="entry"><summary><strong>${escapeHtml(spellName(spell))}</strong>
-    <span class="tag">${escapeHtml(spellSubtitle(spell))}</span>
-    ${spell.publication ? `<span class="tag">${escapeHtml(spell.publication)}</span>` : ''}
+  return `<details class="entry"><summary><strong class="icon-label">${spellIcon(spell)}${escapeHtml(spellName(spell))}</strong>
+    ${spellTagMarkup(spell)}
     ${headline ? `<span class="spell-headline">${headline[0]} · ${escapeHtml(headline[1])}</span>` : ''}</summary>
     ${spell.grantedBy ? `<p class="muted">Concedida por ${escapeHtml(spell.grantedBy)}</p>` : ''}
+    ${actions}
     ${spellDescription(spell)}</details>`;
 }
 import { annotateTerms } from './glossary.js';

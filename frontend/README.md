@@ -10,7 +10,9 @@ verifica o schema e o catálogo do banco configurado na inicialização.
 
 Configure o banco e `AUTH_KEY` conforme o [README da raiz](../README.md).
 O comando `dev:site` ajusta a origem local e o prefixo da API em memória.
-Os e-mails de confirmação e recuperação desse modo ficam em `data/mail/`.
+O comando respeita o `MAIL_MODE` configurado. Com `resend` ou `smtp`, a API envia
+as mensagens pelo provedor configurado. Os arquivos em `data/mail/` são gerados
+apenas quando `MAIL_MODE=file` é selecionado. O modo padrão é `disabled`. O cadastro e a publicação de fichas dispensam confirmação de e-mail.
 Se preferir executar `npm run frontend:dev` e `npm run dev` separadamente,
 configure a API de desenvolvimento em `backend/.env`:
 
@@ -25,12 +27,20 @@ outra origem. Abra o frontend no mesmo endereço configurado em `APP_ORIGIN`.
 O backend envia os cookies de sessão e controla o envio dos e-mails.
 
 Depois de entrar, o hub mostra a ficha mais recente, atalhos e o compêndio.
-As fichas do construtor continuam salvas neste navegador, separadas por
-conta. **Usar fichas locais sem conta** mantém acesso aos rascunhos criados
-antes da introdução do login.
+As fichas do construtor são sincronizadas com a conta pela API. O navegador
+mantém uma cópia para preservar edições durante falhas de conexão. Edições
+concorrentes geram um conflito, com opções para preservar a edição como nova
+ficha ou carregar a versão da conta. **Usar fichas locais sem conta** mantém
+os rascunhos apenas neste navegador.
+
+Antes de iniciar a API atualizada, execute `npm run db:migrate`. A migração
+`0002_builder_documents.sql` acrescenta os documentos do construtor sem alterar
+as fichas relacionais existentes. Os documentos usam UUID, propriedade da conta
+e revisão para controle de concorrência. As rotas relacionais anteriores
+continuam independentes desses documentos.
 
 **Criar personagem** abre uma nova aba com um rascunho independente. O painel
-lista as fichas e rascunhos locais. Origem, atributos, classe, progressão e revisão
+lista as fichas e rascunhos da conta, com busca e exclusão. Origem, atributos, classe, progressão e revisão
 podem ser revisitados antes ou depois de salvar.
 
 O catálogo vem de `@freshmag/one-dndb/data` 0.5.1, o mesmo pacote importado pelo
@@ -46,11 +56,32 @@ ordens de Clérigo e Druida, metamagia e invocações básicas do Bruxo vêm das
 
 Em **Classe e níveis**, escolha a classe de cada avanço até o nível total 20.
 O construtor libera características por nível de classe e verifica os atributos
-atuais da ficha para os pré-requisitos de multiclasse. A revisão valida as
-escolhas modeladas pelo construtor. Características disponíveis apenas como texto aparecem para
-consulta e podem receber anotações na própria habilidade. Algumas delas, como
-os planos do Artífice, ainda dependem desse registro manual. O armazenamento
-desta versão é local ao navegador.
+da ficha no momento de entrada de cada classe para os pré-requisitos de multiclasse.
+As escolhas incluem manobras, Disparos Arcanos, planos do Artífice, especialização,
+magias adicionais dos especialistas em escolas de Mago, Magias Características,
+Descobertas Mágicas e atributos de conjuração dos talentos e espécies.
+As magias aprendidas acompanham o nível de aquisição. A progressão registra
+trocas de magias, truques e invocações quando a classe permite ao subir de nível.
+Segredos Mágicos amplia as listas elegíveis nos níveis apropriados.
+
+Configurações escolhidas em ações ou descansos, como Companheiro Primal, modelos
+de Armadura Arcana, terreno do Círculo da Terra e Maestria em Magia, aparecem
+como referências da habilidade. A revisão exige as escolhas de criação e evolução.
+
+Em **Equipamento**, registre itens, quantidades, tipo de item base, equipamento,
+sintonia e observações. O equipamento inicial acompanha as escolhas de origem.
+A ficha apresenta CA, PV máximos, dados de vida, proficiência, iniciativa, perícias,
+testes de resistência, resistências a dano, deslocamento e conjuração. Os campos
+de PV por nível aceitam valores rolados, com média como padrão.
+Em **História**, registre alinhamento e narrativa. Uma ficha salva pode ser
+compartilhada por link público. As fichas publicadas também aparecem na **Galeria pública**.
+
+As fichas salvas abrem em uma aba própria, com seções para combate, magias,
+atributos, inventário, habilidades e anotações. Em **Durante a sessão** é possível registrar dano, cura e PV
+temporários, gastar Dados de Vida durante um descanso curto e recuperar recursos
+nos descansos. Abra uma magia para escolher o recurso de conjuração e rolar os
+efeitos disponíveis. A progressão fica acessível pelo botão **Subir de nível**.
+PV atuais e recursos gastos acompanham a ficha privada.
 
 O compêndio e a janela de seleção mostram magias em português brasileiro. A
 busca aceita também o nome em inglês e pode ser combinada com filtros de círculo,
@@ -69,6 +100,17 @@ o [glossário de referência](https://d1vzi28wh99zvq.cloudfront.net/pdf_previews
 Os textos traduzidos são adaptações do catálogo e o original em inglês fica
 disponível nas fichas. O [SRD público de 2024](https://www.dndbeyond.com/srd) não
 lista uma edição em português brasileiro.
+
+O Compêndio inclui equipamentos, ferramentas, idiomas, regras e criaturas.
+`reference.json` complementa o pacote com o bestiário SRD 5.2.1, blocos das
+magias de invocação, tabelas e os itens específicos dos planos do Artífice.
+Os arquivos de origem e as revisões estão registrados em
+`scripts/reference-source.json`. `node scripts/import-reference.mjs` reproduz
+a importação, aproveitando o cache local em `data/reference/`.
+As traduções complementares são automáticas, com nomes comunitários do
+projeto `decito/dnd5e-pt-br`, e conservam os textos originais para consulta.
+Os cálculos tratam os efeitos permanentes modelados pelo construtor. Condições
+situacionais e decisões durante a partida permanecem descritas nas habilidades.
 
 O pacote fornece as opções de Revelação Celestial e a descrição dos 71
 antecedentes, mas só menciona os blocos do Companheiro Primal no texto da

@@ -4,17 +4,46 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Grimório · D&amp;D 2024</title>
+    <link rel="icon" href="/grimorio-dado.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/#inicio">Grimório</a>
-      <div id="account-menu"></div>
+      <a class="brand" href="/#inicio"><img src="/grimorio-dado.svg" width="32" height="32" alt="" />Grimório</a>
+      <form id="quick-search" class="quick-search" role="search">
+        <label class="sr-only" for="quick-spell-search">Buscar magias</label>
+        <input type="search" id="quick-spell-search" name="query" placeholder="Buscar magias…" required />
+        <button type="submit" class="button secondary">Buscar</button>
+      </form>
+      <details class="header-menu" id="header-menu">
+        <summary class="header-menu-trigger" aria-label="Menu da conta">
+          <span class="profile-icon" aria-hidden="true"></span>
+          <span class="profile-name" id="profile-name">Conta</span>
+          <span class="profile-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="header-menu-panel">
+          <div id="account-menu"></div>
+          <button class="theme-option" id="theme-toggle" type="button" role="switch" aria-checked="false">
+            Modo escuro
+            <span class="theme-track" aria-hidden="true">
+              <span class="theme-thumb"><span class="theme-sun">☀︎</span><span class="theme-moon">☾</span></span>
+            </span>
+          </button>
+        </div>
+      </details>
     </header>
     <main id="main" tabindex="-1"><p>Preparando o Grimório…</p></main>
     <dialog id="choice-picker" aria-labelledby="choice-picker-title"></dialog>
-    <footer>Catálogo one-dndb · <a href="https://www.dndbeyond.com/srd">SRD D&amp;D</a></footer>
+    <div id="dice-board" class="dice-board" aria-hidden="true" hidden></div>
+    <dialog id="dice-popup" class="dice-popup" aria-labelledby="dice-title">
+      <header class="section-heading">
+        <h2 id="dice-title">Resultado da rolagem</h2>
+        <button type="button" class="button secondary" autofocus>Fechar</button>
+      </header>
+      <div id="dice-results"></div>
+    </dialog>
+    <footer>Catálogo one-dndb · <a href="https://www.dndbeyond.com/srd">SRD D&amp;D</a> · <a href="/game-icons-credits.txt">Créditos dos ícones</a></footer>
     <div id="notice" role="status"></div>
   </body>
 </html>

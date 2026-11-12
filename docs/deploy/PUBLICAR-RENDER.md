@@ -20,9 +20,9 @@ backup permanece opcional e depende de `ENABLE_BACKUPS=true` e seus secrets.
 
 ## Preparar as mensagens de conta
 
-As mensagens de confirmação de endereço e recuperação de senha são e-mails transacionais, não autenticação pelo Google. A opção preparada para Render é **MAIL_MODE=resend**, que envia por HTTPS. SMTP continua opcional, sujeito à disponibilidade de portas no provedor/plano.
+O cadastro e a publicação de fichas funcionam com `MAIL_MODE=disabled`. Para habilitar a recuperação de senha por e-mail, configure `MAIL_MODE=resend` para envio por HTTPS ou `MAIL_MODE=smtp` com um servidor SMTP.
 
-No provedor Resend, obter uma API key de envio e cadastrar um remetente autorizado/verificado. Restrições de conta de testes, destinatários, domínio, DNS e cotas devem ser conferidas no painel do provedor. Não se presume envio irrestrito nem domínio gratuito. Informações: https://resend.com/docs/api-reference/emails/send-email.
+Se habilitar o Resend, obtenha uma API key de envio e cadastrar um remetente autorizado/verificado. Restrições de conta de testes, destinatários, domínio, DNS e cotas devem ser conferidas no painel do provedor. Não se presume envio irrestrito nem domínio gratuito. Informações: https://resend.com/docs/api-reference/emails/send-email.
 
 ## Criar o Web Service
 
@@ -38,14 +38,14 @@ O Blueprint já define:
 | COOKIE_SAME_SITE | lax |
 | TRUSTED_PROXIES | loopback e redes privadas explicitamente declaradas no YAML |
 | AUTH_KEY | gerada pelo Render |
-| MAIL_MODE | resend |
+| MAIL_MODE | disabled |
 | Health Check Path | /live |
 
 Preencher nos campos secretos do Render:
 
 - DATABASE_URL: conexão pooled do Neon, com credencial do banco.
-- RESEND_API_KEY: chave do provedor de e-mail.
-- MAIL_FROM: endereço de remetente autorizado/verificado nesse provedor.
+- RESEND_API_KEY: chave do provedor, usada com `MAIL_MODE=resend`.
+- MAIL_FROM: endereço autorizado no Resend, usado com `MAIL_MODE=resend`.
 
 O servidor usa PORT fornecida pelo Render. Não fixe a porta 3000 no painel. RENDER_EXTERNAL_URL fornece automaticamente a origem pública da API; enquanto não houver frontend, ela também será a origem permitida. Depois configure APP_ORIGIN com a URL HTTPS exata do frontend. PUBLIC_API_ORIGIN é opcional se usar domínio próprio para a API.
 

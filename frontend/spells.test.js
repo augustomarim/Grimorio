@@ -9,11 +9,45 @@ import {
   spellCard,
   spellDescription,
   spellEffects,
+  spellRolls,
+  spellTags,
 } from './spells.js';
+import { completeRest, playResources, rollDice, updatePlayHP } from './mechanics.js';
 
 const locale = JSON.parse(readFileSync(new URL('./pt-BR.json', import.meta.url), 'utf8'));
 const catalog = indexCatalog({ ...raw, revision: raw.REVISION }, locale);
 const effects = (id) => Object.fromEntries(spellEffects(catalog.bySpell.get(id)));
+
+test('play tracks temporary HP, Hit Dice, and spell slots across both rests', () => {
+  const calculated = {
+    maximumHP: 18,
+    hitDice: ['2d8', '1d8', '1d10'],
+    commonSlots: [{ level: 1, maximum: 2 }],
+    casting: [{ pact: true, slots: [{ level: 2, maximum: 2 }] }],
+  };
+  let play = updatePlayHP({ temporaryHP: 4 }, 18, 'damage', 10);
+  assert.deepEqual(play, { temporaryHP: 0, damage: 6 });
+  play = { ...play, shortRest: true, hitDice: { 8: 1 }, slots: { 'spell-1': 1, pact: 1 }, free: { 'short:test': 1, 'long:test': 1 } };
+  const short = completeRest(play, 'short');
+  const resources = playResources({ play: short }, calculated);
+  assert.equal(resources.currentHP, 12);
+  assert.deepEqual(resources.hitDice.map(({ remaining }) => remaining), [2, 1]);
+  assert.deepEqual(resources.slots.map(({ remaining }) => remaining), [1, 2]);
+  assert.deepEqual(short.free, { 'long:test': 1 });
+  assert.equal(playResources({ play: completeRest(short, 'long') }, calculated).currentHP, 18);
+  assert.equal(rollDice(2, 6, 3, () => 0.5).total, 11);
+});
+
+test('spell rolls scale common damage and healing, and keep Eldritch Blast beams separate', () => {
+  const fireball = spellRolls(catalog.bySpell.get('fireball'), 7, 4);
+  assert.ok(fireball.some(({ count, sides }) => count === 9 && sides === 6));
+  const healing = spellRolls({ ...catalog.bySpell.get('cure-wounds'), castingModifier: 3 }, 5, 2);
+  assert.ok(healing.some(({ count, sides, bonus }) => count === 4 && sides === 8 && bonus === 3));
+  const bolt = spellRolls({ ...catalog.bySpell.get('fire-bolt'), attackBonus: 5 }, 5);
+  assert.ok(bolt.some(({ count, sides }) => count === 2 && sides === 10));
+  const blast = spellRolls({ ...catalog.bySpell.get('eldritch-blast'), attackBonus: 7 }, 11);
+  assert.ok(blast.some(({ repeat, sides, bonus }) => repeat === 3 && sides === 20 && bonus === 7));
+});
 
 function assertDicePreserved(original, translation, label) {
   const translatedDice = new Set(translation.toLowerCase().match(/\b\d+d\d+\b/g));
@@ -39,7 +73,11 @@ test('spell, feat, trait and class feature translations retain the original dice
         feature.translation?.name && feature.translation?.body,
         `${entry.id}: ${feature.name}`
       );
-      assertDicePreserved(feature.body, feature.translation.body, `${entry.id}: ${feature.name}`);
+      assertDicePreserved(
+        feature.body,
+        [feature.translation.body, ...(feature.translation.statBlocks ?? []).map(({ body }) => body)].join('\n'),
+        `${entry.id}: ${feature.name}`
+      );
     }
   }
 });
@@ -57,14 +95,43 @@ test('Bard translations retain the proficiency and reaction limits', () => {
 });
 
 test('spell effects keep base damage, saving throws and healing separate', () => {
-  assert.deepEqual(effects('fireball'), { Dano: '8d6 de fogo', Resistência: 'Destreza' });
-  assert.deepEqual(effects('acid-splash'), { Dano: '1d6 de ácido', Resistência: 'Destreza' });
+  assert.deepEqual(effects('fireball'), { Dano: '8d6 de Fogo', Resistência: 'Destreza' });
+  assert.deepEqual(effects('acid-splash'), { Dano: '1d6 de Ácido', Resistência: 'Destreza' });
   assert.deepEqual(effects('cure-wounds'), { Cura: '2d8 + modificador de conjuração' });
   assert.deepEqual(effects('guidance'), {});
   assert.deepEqual(effects('friends'), { Resistência: 'Sabedoria' });
-  assert.deepEqual(effects('armor-of-agathys'), { Dano: '5 de frio' });
+  assert.deepEqual(effects('armor-of-agathys'), { Dano: '5 de Frio' });
   assert.doesNotMatch(spellCard(catalog.bySpell.get('friends')), /spell-headline/);
   assert.match(effects('chromatic-orb').Dano, /3d8 do tipo escolhido/);
+});
+
+test('damage filters and tags agree for spells with a choice of damage types', () => {
+  const orb = catalog.bySpell.get('chromatic-orb');
+  const options = [orb, catalog.bySpell.get('fireball'), catalog.bySpell.get('guidance')];
+  assert.deepEqual(filterSpells(options, { damage: 'cold' }), [orb]);
+  assert.ok(spellTags(orb).includes('Frio'));
+  assert.ok(spellTags(orb).includes('Fogo'));
+  assert.match(spellCard(orb), /data-damage="cold"[^>]*>.*❄.*Frio<\/span>/);
+  assert.ok(!spellTags(options[2]).includes('Frio'));
+});
+
+test('translated feat names reach the builder and the compendium', () => {
+  const artist = catalog.byFeat.get('arcane-artist');
+  const draft = { ...newCharacter('test'), species: 'human' };
+  const originFeat = projectCharacter(draft, catalog).groups.find(({ key }) =>
+    key.endsWith('/versatile')
+  );
+  assert.equal(
+    displayName(originFeat.options.find(({ id }) => id === artist.id)),
+    'Artista Arcano'
+  );
+  assert.match(artist.translation.text, /aprende Ilusão Menor/);
+  assert.match(artist.translation.text, /30 pés/);
+  assert.equal(displayName(catalog.byFeat.get('war-caster')), 'Conjurador de Guerra');
+  assert.equal(
+    displayName(catalog.styles.find(({ id }) => id === 'blind-fighting')),
+    'Combate às Cegas'
+  );
 });
 
 test('species, backgrounds and subclasses have localized names without changing catalog IDs', () => {

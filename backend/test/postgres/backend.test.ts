@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import * as rulesData from '@freshmag/one-dndb/data';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
@@ -66,20 +68,18 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({
       databaseEngine: 'postgresql',
-      schemaVersion: 1,
+      schemaVersion: 2,
       catalogEntries: 1905,
     });
   });
-  it('cadastra, confirma e autentica por HTTP', async () => {
+  it('cadastra e autentica por HTTP sem enviar e-mail', async () => {
     let r = await post('/auth/register', {
       email: 'pg-owner@example.invalid',
       username: 'pg-owner',
       password,
     });
     expect(r.statusCode).toBe(202);
-    expect(messages).toHaveLength(1);
-    r = await post('/auth/email-verification/confirm', { token: messages[0]!.token });
-    expect(r.statusCode).toBe(204);
+    expect(messages).toHaveLength(0);
     r = await post('/auth/login', { email: 'PG-OWNER@example.invalid', password });
     expect(r.statusCode).toBe(200);
     cookie = r.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
@@ -104,6 +104,105 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(r.statusCode, r.body).toBe(201);
     id = r.json().id;
     cc = (await db.prepare('SELECT id FROM character_class WHERE character_id=?').get(id)).id;
+  });
+  it('salva, reabre, edita e publica uma ficha com escolhas aninhadas', async () => {
+    const root = new URL('../../../frontend/', import.meta.url);
+    const read = (file: string) => JSON.parse(readFileSync(new URL(file, root), 'utf8'));
+    const { indexCatalog, newCharacter, projectCharacter } = await import(
+      new URL('rules.js', root).href
+    );
+    const catalog = indexCatalog(
+      { ...rulesData, revision: rulesData.REVISION, languagePick: rulesData.reference.languagePick },
+      read('pt-BR.json'),
+      read('reference.json')
+    );
+    const replace = 'class/warlock/replace-invocation/2';
+    const pact = `${replace}/Armor of Shadows/replacement/Pact of the Tome`;
+    const draft = {
+      ...newCharacter(randomUUID()),
+      name: 'Bruxo do Tomo',
+      species: 'human',
+      background: 'soldier',
+      class: 'warlock',
+      level: 2,
+      saved: true,
+      play: { damage: 3, temporaryHP: 2, slots: { pact: 1 }, hitDice: { 8: 1 } },
+      selected: {
+        'class/warlock/invocation/1': ['Armor of Shadows'],
+        'class/warlock/invocation/2': ['Devil’s Sight'],
+        'class/warlock/invocation/3': ['Eldritch Mind'],
+        [replace]: ['Armor of Shadows'],
+        [`${replace}/Armor of Shadows/replacement`]: ['Pact of the Tome'],
+      } as Record<string, string[]>,
+    };
+    for (let pass = 0; pass < 30; pass++) {
+      const projection = projectCharacter(draft, catalog);
+      if (!projection.pending.length) {
+        draft.selected = projection.validSelections;
+        break;
+      }
+      for (const group of projection.groups) {
+        if (projection.pending.includes(group.key))
+          draft.selected[group.key] = [
+            ...group.selected,
+            ...group.options
+              .filter(({ id }: { id: string }) => !group.selected.includes(id))
+              .slice(0, group.count - group.selected.length)
+              .map(({ id }: { id: string }) => id),
+          ];
+      }
+    }
+    const projection = projectCharacter(draft, catalog);
+    expect(projection.pending).toEqual([]);
+    expect(draft.selected[`${pact}/spell/tome-cantrips`]).toHaveLength(3);
+    expect(projection.spells.some(({ id }: { id: string }) => id === 'mage-armor')).toBe(false);
+    const url = `/builder/${draft.id}`;
+    const publicUrl = `/builder/public/${draft.id}`;
+    const put = (session: string, revision: number, isPublic: boolean) =>
+      app.inject({
+        method: 'PUT',
+        url,
+        headers: { origin, cookie: session },
+        payload: { draft, revision, isPublic },
+      });
+    const saved = await put(cookie, 0, false);
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect((await app.inject(publicUrl)).statusCode).toBe(404);
+    const gallery = async () => {
+      const response = await app.inject('/builder/public');
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json().documents;
+    };
+    expect(await gallery()).toEqual([]);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      headers: { origin },
+      payload: { email: 'pg-owner@example.invalid', password },
+    });
+    expect(login.statusCode, login.body).toBe(200);
+    const session = login.cookies.map((item) => `${item.name}=${item.value}`).join('; ');
+    const reopened = await app.inject({ url, headers: { cookie: session } });
+    expect(reopened.statusCode, reopened.body).toBe(200);
+    expect(reopened.json().draft.selected).toEqual(draft.selected);
+    expect(reopened.json().draft.play).toEqual(draft.play);
+    draft.notes = 'Edição feita na segunda sessão';
+    const edited = await put(session, reopened.json().revision, false);
+    expect(edited.statusCode, edited.body).toBe(200);
+    expect((await put(cookie, reopened.json().revision, false)).statusCode).toBe(409);
+    const published = await put(session, edited.json().revision, true);
+    expect(published.statusCode, published.body).toBe(200);
+    const shared = await app.inject(publicUrl);
+    expect(shared.statusCode, shared.body).toBe(200);
+    expect(shared.json().draft).toMatchObject({ notes: draft.notes, selected: draft.selected });
+    expect(shared.json().draft).not.toHaveProperty('play');
+    expect(await gallery()).toEqual([
+      { id: draft.id, name: draft.name, class: 'warlock', classPlan: null, level: 2 },
+    ]);
+    const privateAgain = await put(session, published.json().revision, false);
+    expect(privateAgain.statusCode, privateAgain.body).toBe(200);
+    expect((await app.inject(publicUrl)).statusCode).toBe(404);
+    expect(await gallery()).toEqual([]);
   });
   it('consulta ficha e cálculos sem expor personagem privado', async () => {
     expect((await app.inject(`/characters/${id}`)).statusCode).toBe(404);
@@ -235,7 +334,7 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     });
     expect(patch.statusCode, patch.body).toBe(200);
   });
-  it('publica personagem confirmado e permite galeria pública', async () => {
+  it('publica personagem e permite galeria pública', async () => {
     const r = await post(`/characters/${id}/publish`, {});
     expect(r.statusCode, r.body).toBe(204);
     expect((await app.inject(`/characters/${id}`)).statusCode).toBe(200);

@@ -44,13 +44,13 @@ export interface CharacterInput {
 const notFound = () => new AppError(404, 'NOT_FOUND', 'Ficha não encontrada');
 const bad = (message: string) => new AppError(400, 'INVALID_CHARACTER', message);
 export const publicCondition =
-  'c.is_public=1 AND c.publication_blocked_at IS NULL AND u.is_active=1 AND u.email_verified_at IS NOT NULL';
+  'c.is_public=1 AND c.publication_blocked_at IS NULL AND u.is_active=1';
 export class CharacterService {
   constructor(private db: Database) {}
   private async core(id: number) {
     return (await this.db
       .prepare(
-        'SELECT c.*,u.is_active AS owner_active,u.email_verified_at AS owner_verified FROM character c JOIN app_user u ON u.id=c.owner_id WHERE c.id=?'
+        'SELECT c.*,u.is_active AS owner_active FROM character c JOIN app_user u ON u.id=c.owner_id WHERE c.id=?'
       )
       .get(id)) as
       | {
@@ -59,7 +59,6 @@ export class CharacterService {
           is_public: number;
           publication_blocked_at: string | null;
           owner_active: number;
-          owner_verified: string | null;
         }
       | undefined;
   }
@@ -326,7 +325,7 @@ export class CharacterService {
     if (!core) throw notFound();
     if (
       !(user && (user.id === core.owner_id || user.role === 'admin')) &&
-      !(core.is_public && !core.publication_blocked_at && core.owner_active && core.owner_verified)
+      !(core.is_public && !core.publication_blocked_at && core.owner_active)
     )
       throw notFound();
     return core;
@@ -336,7 +335,7 @@ export class CharacterService {
     const sheet = (await this.db.prepare('SELECT * FROM character_summary WHERE id=?').get(id)) as
       Record<string, unknown> | undefined;
     if (!sheet) throw new AppError(409, 'PROFILE_INCOMPLETE', 'Perfil da ficha incompleto');
-    const { owner_active: _, owner_verified: __, ...safeCore } = core;
+    const { owner_active: _, ...safeCore } = core;
     const count = (
       (await this.db
         .prepare('SELECT count(*) AS count FROM character_level_entry WHERE character_id=?')
@@ -423,11 +422,11 @@ export class CharacterService {
             .run(action === 'hide' ? new Date().toISOString() : null, new Date().toISOString(), id);
         } else {
           await this.requireOwner(id, user);
-          if (action === 'publish' && (!user.email_verified_at || row.publication_blocked_at))
+          if (action === 'publish' && row.publication_blocked_at)
             throw new AppError(
               403,
               'PUBLICATION_DENIED',
-              'Confirme seu e-mail e verifique se a publicação está liberada'
+              'A publicação desta ficha está bloqueada'
             );
           await this.db
             .prepare('UPDATE character SET is_public=?,updated_at=? WHERE id=?')

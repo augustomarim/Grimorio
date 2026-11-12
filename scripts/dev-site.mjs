@@ -27,7 +27,6 @@ try {
     API_PREFIX: '/api',
     COOKIE_SAME_SITE: 'lax',
     TRUSTED_PROXIES: '',
-    MAIL_MODE: 'file',
     MAIL_DIRECTORY: fileURLToPath(new URL('data/mail/', root)),
   });
   ({ app } = await buildApp({ config, verifyDatabase: true, logger: true }));

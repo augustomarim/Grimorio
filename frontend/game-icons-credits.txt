@@ -1,0 +1,60 @@
+Ícones do Grimório
+
+Ícones por Lorc, Carl Olsen, Sbed, Cathelineau e Delapouite, via Game-icons.net.
+Licença Creative Commons Atribuição 3.0: https://creativecommons.org/licenses/by/3.0/
+Licença da coleção: https://github.com/game-icons/icons/blob/master/license.txt
+Adaptações: fundo removido, cores aplicadas por CSS e ícones reunidos em um sprite local.
+
+aasimar — https://game-icons.net/1x1/lorc/angel-wings.html
+abjuration — https://game-icons.net/1x1/lorc/magic-shield.html
+acid — https://game-icons.net/1x1/lorc/acid-blob.html
+alarm — https://game-icons.net/1x1/lorc/ringing-bell.html
+artificer — https://game-icons.net/1x1/lorc/gears.html
+background — https://game-icons.net/1x1/lorc/book-cover.html
+barbarian — https://game-icons.net/1x1/lorc/battle-axe.html
+bard — https://game-icons.net/1x1/lorc/lyre.html
+bludgeoning — https://game-icons.net/1x1/lorc/hammer-drop.html
+cleric — https://game-icons.net/1x1/lorc/holy-symbol.html
+cold — https://game-icons.net/1x1/lorc/ice-cube.html
+conjuration — https://game-icons.net/1x1/lorc/portal.html
+cure-wounds — https://game-icons.net/1x1/sbed/health-normal.html
+divination — https://game-icons.net/1x1/lorc/crystal-ball.html
+dragonborn — https://game-icons.net/1x1/lorc/dragon-head.html
+druid — https://game-icons.net/1x1/lorc/oak.html
+dwarf — https://game-icons.net/1x1/lorc/beard.html
+elf — https://game-icons.net/1x1/lorc/pointy-hat.html
+enchantment — https://game-icons.net/1x1/lorc/charm.html
+evocation — https://game-icons.net/1x1/lorc/magic-swirl.html
+fighter — https://game-icons.net/1x1/cathelineau/swordman.html
+fire — https://game-icons.net/1x1/carl-olsen/flame.html
+fireball — https://game-icons.net/1x1/lorc/fireball.html
+force — https://game-icons.net/1x1/lorc/energy-arrow.html
+gnome — https://game-icons.net/1x1/lorc/wizard-staff.html
+goliath — https://game-icons.net/1x1/lorc/mountains.html
+halfling — https://game-icons.net/1x1/lorc/footprint.html
+human — https://game-icons.net/1x1/delapouite/person.html
+ice-knife — https://game-icons.net/1x1/lorc/ice-spear.html
+illusion — https://game-icons.net/1x1/lorc/domino-mask.html
+lightning-bolt — https://game-icons.net/1x1/lorc/lightning-storm.html
+magic-missile — https://game-icons.net/1x1/lorc/missile-swarm.html
+monk — https://game-icons.net/1x1/lorc/fist.html
+necromancy — https://game-icons.net/1x1/lorc/skull-bolt.html
+necrotic — https://game-icons.net/1x1/lorc/skull-crossed-bones.html
+orc — https://game-icons.net/1x1/delapouite/orc-head.html
+paladin — https://game-icons.net/1x1/lorc/winged-shield.html
+piercing — https://game-icons.net/1x1/lorc/arrowhead.html
+poison — https://game-icons.net/1x1/lorc/poison-bottle.html
+psychic — https://game-icons.net/1x1/lorc/brain.html
+radiant — https://game-icons.net/1x1/lorc/sunbeams.html
+ranger — https://game-icons.net/1x1/lorc/high-shot.html
+rogue — https://game-icons.net/1x1/lorc/plain-dagger.html
+shield — https://game-icons.net/1x1/lorc/checked-shield.html
+slashing — https://game-icons.net/1x1/lorc/broadsword.html
+sorcerer — https://game-icons.net/1x1/lorc/charged-arrow.html
+species — https://game-icons.net/1x1/delapouite/team-idea.html
+thunder — https://game-icons.net/1x1/lorc/sonic-boom.html
+tiefling — https://game-icons.net/1x1/lorc/imp.html
+transmutation — https://game-icons.net/1x1/lorc/cycle.html
+warlock — https://game-icons.net/1x1/lorc/eye-shield.html
+weapon — https://game-icons.net/1x1/lorc/crossed-swords.html
+wizard — https://game-icons.net/1x1/lorc/book-aura.html

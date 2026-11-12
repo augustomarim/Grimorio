@@ -17,7 +17,6 @@ export interface User {
   username: string;
   role: 'user' | 'admin';
   is_active: number;
-  email_verified_at: string | null;
   password_hash: string;
 }
 export interface Credentials {
@@ -32,7 +31,6 @@ export const publicUser = (u: User) => ({
   email: u.email,
   username: u.username,
   role: u.role,
-  emailVerified: !!u.email_verified_at,
 });
 const invalid = () =>
   new AppError(
@@ -74,7 +72,8 @@ export class AuthService {
       )
       .run(now, userId);
   }
-  private async issue(user: User, purpose: Mail['purpose'], now: Date): Promise<Mail> {
+  private async issuePasswordReset(user: User, now: Date): Promise<Mail> {
+    const purpose = 'password_reset';
     await this.db
       .prepare(
         'UPDATE auth_token SET revoked_at=? WHERE user_id=? AND purpose=? AND used_at IS NULL AND revoked_at IS NULL'
@@ -90,7 +89,7 @@ export class AuthService {
         purpose,
         digest(raw),
         now.toISOString(),
-        later(now, purpose === 'password_reset' ? 30 * minute : day),
+        later(now, 30 * minute),
         emailHash(user.email)
       );
     return { to: user.email, purpose, token: raw };
@@ -98,7 +97,7 @@ export class AuthService {
   async register(email: string, username: string, password: string): Promise<void> {
     const passwordHash = await hashPassword(password),
       now = this.now();
-    const message = await this.db
+    await this.db
       .transaction(async () => {
         if (
           await this.db
@@ -111,14 +110,10 @@ export class AuthService {
             'INSERT INTO app_user(email,username,password_hash,created_at,updated_at) VALUES(?,?,?,?,?)'
           )
           .run(normalizeEmail(email), username, passwordHash, now.toISOString(), now.toISOString());
-        const user = (await this.db
-          .prepare('SELECT * FROM app_user WHERE id=?')
-          .get(row.insertId)) as User;
-        await this.audit(user.id, 'account.register', 'app_user', user.id);
-        return await this.issue(user, 'email_verification', now);
+        const userId = Number(row.insertId);
+        await this.audit(userId, 'account.register', 'app_user', userId);
       })
       .immediate();
-    if (message) await this.mailer.send(message);
   }
   private async buckets(email: string, ip: string) {
     return [
@@ -362,21 +357,59 @@ export class AuthService {
       })
       .immediate();
   }
-  async requestToken(email: string, purpose: Mail['purpose']) {
+  async updateUsername(user: User, username: string) {
+    try {
+      return await this.db.transaction(async () => {
+        const result = await this.db
+          .prepare('UPDATE app_user SET username=?,updated_at=? WHERE id=? AND is_active=1')
+          .run(username, this.now().toISOString(), user.id);
+        if (result.changes !== 1) throw invalid();
+        await this.audit(user.id, 'account.update_username', 'app_user', user.id);
+        return publicUser({ ...user, username });
+      }).immediate();
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505')
+        throw new AppError(409, 'USERNAME_TAKEN', 'Esse nome de usuário já está em uso.');
+      throw error;
+    }
+  }
+
+  async changePassword(user: User, currentPassword: string, password: string, ip: string, userAgent: string) {
+    if (!await verifyPassword(user.password_hash, currentPassword))
+      throw new AppError(400, 'INVALID_CURRENT_PASSWORD', 'A senha atual está incorreta.');
+    const newHash = await hashPassword(password);
+    return await this.db.transaction(async () => {
+      const now = this.now();
+      const time = now.toISOString();
+      const result = await this.db
+        .prepare('UPDATE app_user SET password_hash=?,updated_at=? WHERE id=? AND is_active=1 AND password_hash=?')
+        .run(newHash, time, user.id, user.password_hash);
+      if (result.changes !== 1) throw new AppError(409, 'PASSWORD_CHANGED', 'A senha já foi alterada. Entre novamente.');
+      await this.revokeUser(user.id, time);
+      await this.db
+        .prepare("UPDATE auth_token SET revoked_at=? WHERE user_id=? AND purpose='password_reset' AND used_at IS NULL AND revoked_at IS NULL")
+        .run(time, user.id);
+      await this.audit(user.id, 'account.change_password', 'app_user', user.id);
+      const current = await this.db.prepare('SELECT * FROM app_user WHERE id=?').get(user.id) as User;
+      return await this.createSession(current, ip, userAgent, now);
+    }).immediate();
+  }
+
+  async requestPasswordReset(email: string) {
     const message = await this.db
       .transaction(async () => {
         const user = (await this.db
           .prepare('SELECT * FROM app_user WHERE email=?')
           .get(normalizeEmail(email))) as User | undefined;
-        if (!user?.is_active || (purpose === 'email_verification' && user.email_verified_at))
-          return null;
-        return await this.issue(user, purpose, this.now());
+        if (!user?.is_active) return null;
+        return await this.issuePasswordReset(user, this.now());
       })
       .immediate();
     if (message) await this.mailer.send(message);
   }
-  async consume(raw: string, purpose: Mail['purpose'], password?: string) {
-    const newHash = purpose === 'password_reset' ? await hashPassword(password!) : undefined;
+  async resetPassword(raw: string, password: string) {
+    const purpose = 'password_reset';
+    const newHash = await hashPassword(password);
     await this.db
       .transaction(async () => {
         const time = this.now().toISOString();
@@ -407,21 +440,15 @@ export class AuthService {
           ).changes !== 1
         )
           throw new AppError(400, 'INVALID_TOKEN', 'Token inválido ou expirado');
-        if (purpose === 'email_verification')
-          await this.db
-            .prepare('UPDATE app_user SET email_verified_at=?,updated_at=? WHERE id=?')
-            .run(time, time, user.id);
-        else {
-          await this.db
-            .prepare('UPDATE app_user SET password_hash=?,updated_at=? WHERE id=?')
-            .run(newHash!, time, user.id);
-          await this.revokeUser(user.id, time);
-          await this.db
-            .prepare(
-              "UPDATE auth_token SET revoked_at=? WHERE user_id=? AND purpose='password_reset' AND used_at IS NULL AND revoked_at IS NULL"
-            )
-            .run(time, user.id);
-        }
+        await this.db
+          .prepare('UPDATE app_user SET password_hash=?,updated_at=? WHERE id=?')
+          .run(newHash, time, user.id);
+        await this.revokeUser(user.id, time);
+        await this.db
+          .prepare(
+            "UPDATE auth_token SET revoked_at=? WHERE user_id=? AND purpose='password_reset' AND used_at IS NULL AND revoked_at IS NULL"
+          )
+          .run(time, user.id);
         await this.audit(user.id, `account.${purpose}`, 'app_user', user.id);
       })
       .immediate();

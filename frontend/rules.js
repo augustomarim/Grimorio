@@ -1,3 +1,5 @@
+import { damageTypeLabel, spellName } from './spells.js';
+
 export const abilities = [
   ['str', 'Strength', 'Força'],
   ['dex', 'Dexterity', 'Destreza'],
@@ -51,10 +53,17 @@ export const labels = {
   wizard: 'Mago',
   skillful: 'Habilidoso · Proficiência em perícia',
   versatile: 'Versátil · Talento de origem',
-  skilled: 'Treinado (Skilled)',
-  'magic-initiate': 'Iniciado em Magia (Magic Initiate)',
-  'druidic-warrior': 'Guerreiro Druídico (Druidic Warrior)',
-  'blessed-warrior': 'Guerreiro Abençoado (Blessed Warrior)',
+  skilled: 'Treinado',
+  'magic-initiate': 'Iniciado em Magia',
+  'druidic-warrior': 'Guerreiro Druídico',
+  'blessed-warrior': 'Guerreiro Abençoado',
+  Protector: 'Protetor',
+  Thaumaturge: 'Taumaturgo',
+  Warden: 'Guardião',
+  Magician: 'Mago da Natureza',
+  'Divine Strike': 'Golpe Divino',
+  'Potent Spellcasting': 'Conjuração Potente',
+  'Primal Strike': 'Golpe Primal',
 };
 export const skillName = (name) => skills[name] ?? name;
 // Usos resumidos a partir da tabela de perícias das regras básicas de D&D 2024.
@@ -88,6 +97,22 @@ export const displayName = (entry) =>
   entry.id?.startsWith('skill:')
     ? skillName(entry.name)
     : (labels[entry.id] ?? entry.translation?.name ?? entry.name);
+export const abilityName = (name) =>
+  abilities.find(([id, english]) => id === name || english === name)?.[2] ?? name;
+export const armorName = (kind) =>
+  ({ Light: 'Leves', Medium: 'Médias', Heavy: 'Pesadas', Shield: 'Escudos' })[kind] ?? kind;
+export const creatureTypeName = (type) =>
+  ({ Humanoid: 'Humanoide', Fey: 'Feérico', Construct: 'Constructo', Aberration: 'Aberração' })[type] ??
+  type;
+const sizeName = (size) => ({ Medium: 'Médio', Small: 'Pequeno' })[size] ?? size;
+export const grantDetails = ({ label, value }, catalog) => {
+  if (label === 'Damage Type') return ['Tipo de dano', damageTypeLabel(value)];
+  if (label.startsWith('Level ')) {
+    const spell = catalog.spells.find(({ name }) => name === value);
+    return [label.replace('Level', 'Nível'), spell ? spellName(spell) : value];
+  }
+  return [label, value];
+};
 const byId = (entries) => new Map(entries.map((entry) => [entry.id, entry]));
 const opt = (id, name = id, extra) => ({ id, name, ...extra });
 const named = (names) => names.map((name) => opt(name));
@@ -174,6 +199,11 @@ const invocationCantrips = {
   'Eldritch Spear': ['eldritch-blast', 'mind-sliver', 'poison-spray', 'toll-the-dead'],
   'Repelling Blast': ['chill-touch', 'eldritch-blast', 'poison-spray'],
 };
+const cantripRequirements = {
+  'Agonizing Blast': 'Um truque de Bruxo que cause dano',
+  'Eldritch Spear': 'Um truque de Bruxo que cause dano e tenha alcance de pelo menos 10 pés',
+  'Repelling Blast': 'Um truque de Bruxo que cause dano com uma jogada de ataque',
+};
 const spellChoiceNames = {
   'Blessed Warrior': 'Guerreiro Abençoado',
   'Druidic Warrior': 'Guerreiro Druídico',
@@ -193,19 +223,115 @@ const spellChoiceNames = {
   'Vampire Magic': 'Magia Vampírica',
 };
 const choiceNames = {
+  ...spellChoiceNames,
+  'Ability Score Increase': 'Aumento no Valor de Atributo',
   'Skill Proficiencies': 'Perícias',
+  'Skill Proficiency': 'Proficiência em Perícia',
   'Ability Score Improvement': 'Aumento no Valor de Atributo',
   'Ativar equipamento': 'Equipamento inicial',
   'Deft Explorer': 'Explorador Hábil',
+  'Bestial Instincts': 'Instintos Bestiais',
+  'Changeling Instincts': 'Instintos do Cambiante',
+  'Channelled Prowess': 'Proeza Canalizada',
+  Entreat: 'Súplica',
+  Enchanter: 'Encantador',
+  'Epic Boon': 'Dádiva Épica',
+  Expertise: 'Especialização',
+  'Inherent Tongues': 'Idiomas Inatos',
+  'Instrument Training': 'Treinamento com Instrumentos Musicais',
+  'Keen Observer': 'Observador Aguçado',
+  'Keen Senses': 'Sentidos Aguçados',
+  'Knowledge from a Past Life': 'Conhecimento de uma Vida Passada',
+  'Lore Knowledge': 'Conhecimento Erudito',
+  'Natural Affinity': 'Afinidade Natural',
+  'Origin Feat': 'Talento de Origem',
+  Scholar: 'Erudito',
+  'Second Mind': 'Segunda Mente',
+  'Severed from Dreams': 'Separado dos Sonhos',
+  'Skill Versatility': 'Versatilidade em Perícias',
+  Skillful: 'Habilidoso',
+  'Specialized Design': 'Projeto Especializado',
+  "Thieves' Cant": 'Gíria de Ladrão',
+  'Tool Proficiencies': 'Proficiências com Ferramentas',
+  'Tool Proficiency': 'Proficiência com Ferramenta',
+  Training: 'Treinamento',
+  Versatile: 'Versátil',
+  'Werewolf Instincts': 'Instintos de Lobisomem',
 };
+const weaponProficiencyNames = {
+  'Simple weapons': 'Armas simples',
+  'Simple and Martial weapons': 'Armas simples e marciais',
+  'Simple weapons and Martial weapons that have the Light property':
+    'Armas simples e armas marciais com a propriedade Leve',
+  'Simple weapons and Martial weapons that have the Finesse or Light property':
+    'Armas simples e armas marciais com a propriedade Acuidade ou Leve',
+};
+const prerequisiteFeatures = {
+  Spellcasting: 'Conjuração',
+  'Pact Magic': 'Magia de Pacto',
+  'Fighting Style': 'Estilo de Combate',
+  'Medium Armor Training': 'Treinamento com Armaduras Médias',
+  'Heavy Armor Training': 'Treinamento com Armaduras Pesadas',
+  'Light Armor Training': 'Treinamento com Armaduras Leves',
+  'Martial Weapon Proficiency': 'Proficiência com Armas Marciais',
+  'Shield Training': 'Treinamento com Escudos',
+  'Weapon Mastery': 'Maestria em Arma',
+};
+const featCategories = { Dragonmark: 'Marca Dracônica', 'Planar Pact': 'Pacto Planar' };
 
-export function indexCatalog(raw, localization) {
+export function prerequisiteText(entry, catalog) {
+  const requirement = entry.prereq;
+  if (!requirement?.all?.length) return requirement?.text;
+  const terms = {
+    ability: ({ ability, score }) => `${abilityName(ability)} ${score}+`,
+    level: ({ level }) => `Nível ${level}+`,
+    feature: ({ feature }) => prerequisiteFeatures[feature],
+    feat: ({ feat }) => {
+      const required = catalog.byFeat.get(feat);
+      return required && displayName(required);
+    },
+    anyFeat: ({ category }) => `Um talento de ${featCategories[category]}`,
+    only: ({ category }) => `Apenas para talentos de ${featCategories[category]}`,
+    campaign: ({ setting }) => `Campanha em ${setting}`,
+  };
+  const groups = requirement.all.map((group) => group.map((term) => terms[term.kind]?.(term)));
+  if (groups.some((group) => group.some((term) => !term))) return requirement.text;
+  return groups
+    .map((group) => group.length > 1 ? `(${group.join(' ou ')})` : group[0])
+    .join(' e ');
+}
+
+export function indexCatalog(raw, localization, reference = {}) {
   const locale = localization && localization.revision === raw.revision ? localization : {};
   const localized = (entry, translation) => (translation ? { ...entry, translation } : entry);
   const localizedFeature = (entry, translation) => ({
     ...localized(entry, translation),
     ...(translation?.level ? { level: translation.level } : {}),
     options: entry.options?.map((option) => localized(option, translation?.options?.[option.id])),
+  });
+  const localizedSection = (section, translation) =>
+    localized(
+      { name: section.heading, body: section.body },
+      translation?.sections?.[section.heading]
+    );
+  const warlockInvocationList = [
+    ...invocations,
+    ...Object.keys(invocationCantrips).map((name) => [name, 2]),
+    ['Lessons of the First Ones', 2],
+  ].map(([name, level, requires, spell]) => {
+    const translation = locale.invocations?.[name];
+    const requirements = [
+      level > 1 && `Bruxo nível ${level}+`,
+      requires && (locale.invocations?.[requires]?.name ?? requires),
+      cantripRequirements[name],
+    ].filter(Boolean);
+    return opt(name, name, {
+      level,
+      requires,
+      spell,
+      translation,
+      prereq: requirements.length ? { text: requirements.join(' · ') } : undefined,
+    });
   });
   const publications = new Map(
     Object.entries(locale.spellPublications?.supplements ?? {}).flatMap(([book, ids]) =>
@@ -219,32 +345,149 @@ export function indexCatalog(raw, localization) {
         {
           ...spell,
           publication: spell.source ?? publications.get(spell.id) ?? locale.spellPublications?.core,
+          references: [
+            ...(reference.tableSpells ?? []).filter((table) => table.spell === spell.id),
+            ...(reference.creatures ?? []).filter(
+              (creature) =>
+                creature.summonedBySpell?.toLowerCase() === spell.name.toLowerCase() ||
+                spell.id === 'find-familiar' && creature.type === 'beast' && creature.cr === '0' ||
+                (
+                  {
+                    'animate-dead': ['skeleton', 'zombie'],
+                    'create-undead': ['ghoul', 'ghast', 'wight', 'mummy'],
+                    'phantom-steed': ['riding-horse'],
+                  }[spell.id] ?? []
+                ).includes(creature.id)
+            ),
+          ],
+          creatureReference: ['polymorph', 'true-polymorph', 'shapechange'].includes(spell.id),
         },
         locale.spells?.[spell.id]
       )
     ),
     feats: raw.feats.map((feat) => localized(feat, locale.feats?.[feat.id])),
+    items: [...raw.items, ...(reference.extraItems ?? [])].map((item) =>
+      localized(
+        { ...item, source: item.source ?? 'Catálogo comum de equipamentos' },
+        reference.items?.[item.id]
+      )
+    ),
+    rules: (raw.rules ?? []).map((rule) => localized(rule, reference.rules?.[rule.id])),
+    tools: raw.tools.map((tool) => localized(tool, reference.tools?.[tool.id])),
+    languages: raw.languages.map((language) =>
+      localized(language, reference.languages?.[language.id])
+    ),
+    glossary: (raw.glossary ?? []).map((entry) => localized(entry, reference.glossary?.[entry.id])),
+    alignments: (raw.alignments ?? []).map((entry) =>
+      localized(entry, reference.alignments?.[entry.id])
+    ),
     content: raw.content.map((entry) => {
-      const translation = locale.content?.[entry.id];
-      if (!translation) return entry;
+      const contentTranslation = locale.content?.[entry.id];
+      const styleName = entry.collection === 'fighting-styles' && locale.feats?.[entry.id]?.name;
+      const translation = styleName
+        ? { name: styleName, ...contentTranslation }
+        : contentTranslation;
+      const features = entry.features?.map((feature, index) =>
+        localizedFeature(feature, {
+          ...translation?.features?.[index],
+          ...reference.features?.[entry.id]?.[feature.name],
+        })
+      );
+      const sections = [];
+      for (const section of entry.sections ?? []) {
+        const match = /^level (\d+): (.+)$/i.exec(section.heading);
+        if (match && features && entry.featureLevels?.includes(Number(match[1]))) {
+          const [, level, name] = match;
+          if (!features.some((feature) => feature.name === name)) {
+            features.push(
+              localizedFeature(
+                { name, level: Number(level), body: section.body },
+                translation?.sections?.[section.heading]
+              )
+            );
+          }
+          continue;
+        }
+        const sectionEntry = localizedSection(section, {
+          sections: { ...reference.sections?.[entry.id], ...translation?.sections },
+        });
+        const feature =
+          features?.find(({ name }) => name.toLowerCase() === section.heading.toLowerCase()) ??
+          features?.find(({ body }) => body?.includes(section.heading));
+        if (feature && section.body.includes('| ---')) {
+          if (!feature.translation?.statBlocks?.length) {
+            feature.references = [...(feature.references ?? []), sectionEntry];
+          }
+        } else {
+          sections.push(sectionEntry);
+        }
+      }
+      if (entry.id === 'warlock') {
+        const feature = features?.find(({ name }) => name === 'Eldritch Invocations');
+        if (feature) {
+          feature.invocations = warlockInvocationList;
+          const table = entry.progression?.find(({ header }) =>
+            header.includes('Eldritch Invocations')
+          );
+          if (table) {
+            const column = table.header.indexOf('Eldritch Invocations');
+            feature.tables = [
+              {
+                columns: ['Nível de Bruxo', 'Invocações conhecidas'],
+                rows: table.rows
+                  .filter((row, index) => !index || row[column] !== table.rows[index - 1][column])
+                  .map((row) => [row[0], row[column]]),
+              },
+            ];
+          }
+        }
+      }
+      if (entry.id === 'vestige-patron') {
+        const companion = features?.find(({ name }) => name === 'Vestige Companion');
+        const referenceCompanion = reference.creatures?.find(({ id }) => id === 'vestige-companion');
+        if (companion && referenceCompanion) {
+          companion.references = [referenceCompanion];
+          companion.translation = { ...companion.translation, statBlocks: [] };
+        }
+        const feature = features?.find(({ name }) => name === 'Vestige Spells');
+        if (feature) {
+          feature.references = [
+            'life-domain',
+            'light-domain',
+            'trickery-domain',
+            'war-domain',
+          ].flatMap((id) => {
+            const domain = raw.content.find((item) => item.id === id);
+            return (domain?.sections ?? [])
+              .filter(({ heading }) => heading.endsWith('Domain Spells'))
+              .map((section) => localizedSection(section, locale.content?.[id]));
+          });
+        }
+      }
+      if (entry.id === 'necromancer') {
+        const feature = features?.find(({ name }) => name === 'Necromancy Spellbook');
+        if (feature) feature.references = (reference.creatures ?? [])
+          .filter(({ id }) => ['skeleton', 'zombie'].includes(id));
+      }
       return {
         ...entry,
         translation,
         traits: entry.traits?.map((trait, index) =>
-          localizedFeature(trait, translation.traits?.[index])
+          localizedFeature(trait, translation?.traits?.[index])
         ),
-        features: entry.features?.map((feature, index) =>
-          localizedFeature(feature, translation.features?.[index])
-        ),
-        choices: entry.choices?.map((rule, index) => {
-          const choice = translation.choices?.[index];
-          return {
-            ...localized(rule, choice),
-            options: rule.options?.map((option, position) =>
-              localized(option, choice?.options?.[position])
-            ),
-          };
-        }),
+        features,
+        sections,
+        choices: entry.choices
+          ?.map((rule, index) => {
+            const choice = translation?.choices?.[index];
+            return {
+              ...localized(rule, choice),
+              options: rule.options?.map((option, position) =>
+                localized(option, choice?.options?.[position])
+              ),
+            };
+          })
+          .filter((rule) => !(entry.id === 'circle-of-the-land' && rule.id === 'spell-list')),
       };
     }),
   };
@@ -252,6 +495,12 @@ export function indexCatalog(raw, localization) {
     raw.content.filter((entry) => entry.collection === name).sort(compare);
   return {
     ...raw,
+    warlockInvocationList,
+    creatures: reference.creatures ?? [],
+    referenceOptions: reference.options ?? [],
+    tableSpells: reference.tableSpells ?? [],
+    referenceSource: reference.source,
+    slotTable: reference.slotTable,
     species: collection('species'),
     classes: collection('classes'),
     backgrounds: collection('backgrounds'),
@@ -260,9 +509,12 @@ export function indexCatalog(raw, localization) {
     byContent: byId(raw.content),
     byFeat: byId(raw.feats),
     bySpell: byId(raw.spells),
+    contentNames: new Map(raw.content.map((entry) => [entry.name, displayName(entry)])),
     byItem: byId(raw.items),
     byTool: byId(raw.tools),
     byLanguage: byId(raw.languages),
+    glossary: raw.glossary ?? [],
+    alignments: raw.alignments ?? [],
   };
 }
 
@@ -303,6 +555,15 @@ export function plannedClasses(draft, catalog) {
     classes.get(id).levels.push(index + 1);
   }
   return [...classes.values()];
+}
+
+export function availableSpellChoices(group, spells) {
+  if (!group?.spellPicker || group.existingSpell) return group;
+  const known = new Set(spells.map(({ id }) => id));
+  return {
+    ...group,
+    options: group.options.filter(({ id }) => group.selected.includes(id) || !known.has(id)),
+  };
 }
 
 // Starting proficiencies from SRD 5.2 and Eberron: Forge of the Artificer.
@@ -388,6 +649,27 @@ function featAllowed(feat, level, context, scores, features, taken) {
 }
 
 export function projectCharacter(draft, catalog) {
+  let projection = projectCharacterPass(draft, catalog);
+  const passes = Math.min(13, projection.classes.length);
+  for (let pass = 1; pass < passes; pass++) {
+    const next = projectCharacterPass(draft, catalog, projection.scoreGrants, projection.feats);
+    if (
+      JSON.stringify([
+        next.scoreGrants,
+        next.feats.map(({ id, acquiredAt }) => [id, acquiredAt]),
+      ]) ===
+      JSON.stringify([
+        projection.scoreGrants,
+        projection.feats.map(({ id, acquiredAt }) => [id, acquiredAt]),
+      ])
+    )
+      return next;
+    projection = next;
+  }
+  return projection;
+}
+
+function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
   const species = catalog.byContent.get(draft.species);
   const background = catalog.byContent.get(draft.background);
   const totalLevel = classPlan(draft).length;
@@ -424,11 +706,25 @@ export function projectCharacter(draft, catalog) {
     languages: new Set(),
     feats: [],
     pending: [],
+    ruleIssues: [],
     validSelections: {},
+    selectedFeatures: [],
+    initiateLists: new Set(),
+    armorTraining: new Set(),
+    weaponTraining: [],
+    resistances: new Set(),
+    spellbooks: new Map(),
+    scoreGrants: [],
+    featOptions: new Map(),
+    savingThrows: new Set(classes[0]?.entry.savingThrows?.map(abi).filter(Boolean)),
   };
   const featureNames = new Map();
   const takenFeats = new Map();
   const seenSpells = new Set();
+  const grantedSpells = new Set();
+  const savingThrowLevels = new Map([...result.savingThrows].map((id) => [id, 1]));
+  const savingThrowChoices = [];
+  const warlockCantripsByLevel = new Map();
   const expertiseChoices = [];
   let level = totalLevel;
   const active = (entry) => rank(entry) <= level;
@@ -439,19 +735,40 @@ export function projectCharacter(draft, catalog) {
   });
   for (const { entry, track } of sections) {
     const entryLevel = track?.levels.length ?? totalLevel;
+    const reserveSpells = (spells) => {
+      for (const spell of spells ?? [])
+        if (rank(spell) <= entryLevel) grantedSpells.add(spell.id);
+    };
+    reserveSpells(
+      entry.spellsFixed?.filter(({ id }) => entry.id !== 'illusionist' || id !== 'minor-illusion')
+    );
+    if (entry.id === 'arcane-trickster') grantedSpells.add('mage-hand');
+    for (const feat of entry.featsFixed ?? [])
+      if (rank(feat) <= entryLevel) reserveSpells(catalog.byFeat.get(feat.id)?.effects?.spellsFixed);
     for (const feature of (entry.features ?? []).filter((item) => rank(item) <= entryLevel)) {
       const name = feature.name.toLowerCase();
       const at = track?.levels[rank(feature) - 1] ?? rank(feature);
       featureNames.set(name, Math.min(featureNames.get(name) ?? Infinity, at));
     }
-    for (const skill of entry.skillsFixed ?? []) result.skills.add(skill);
+    if (entry.id !== 'arcane-archer')
+      for (const skill of entry.skillsFixed ?? []) result.skills.add(skill);
   }
   for (const { entry, track } of sections) {
     for (const fixed of (entry.featsFixed ?? []).filter(
       (item) => rank(item) <= (track?.levels.length ?? totalLevel)
     )) {
       const feat = catalog.byFeat.get(fixed.id);
-      if (feat) takenFeats.set(feat.id, feat);
+      if (feat) {
+        const classLevel =
+          entry.collection === 'subclasses'
+            ? Math.max(rank(fixed), track?.entry.subclassLevel ?? 1)
+            : rank(fixed);
+        const acquiredAt = track?.levels[classLevel - 1] ?? classLevel;
+        takenFeats.set(feat.id, {
+          ...feat,
+          acquiredAt: Math.min(acquiredAt, takenFeats.get(feat.id)?.acquiredAt ?? Infinity),
+        });
+      }
     }
   }
   for (const language of catalog.languages.filter((entry) => entry.always))
@@ -459,18 +776,22 @@ export function projectCharacter(draft, catalog) {
   const addFacts = (source, entries) => {
     for (const [name, value] of entries) if (value) result.facts.push({ source, name, value });
   };
-  const noteSpell = (id, grantedBy) => {
+  const noteSpell = (id, grantedBy, metadata = {}) => {
     const spell = catalog.bySpell.get(id);
-    const key = `${grantedBy}/${id}`;
+    const key = `${metadata.originKey ?? grantedBy}/${id}`;
     if (!spell || seenSpells.has(key)) return;
     seenSpells.add(key);
-    result.spells.push({ ...spell, grantedBy });
+    result.spells.push({ ...spell, grantedBy, ...metadata });
   };
   const group = (key, name, count, options, meta, apply) => {
     if (!(count > 0)) return;
-    const unique = [...byId(options).values()];
+    const alreadyAvailable =
+      meta.spellPicker && !meta.existingSpell
+        ? new Set([...grantedSpells, ...result.spells.map(({ id }) => id)])
+        : undefined;
+    const unique = [...byId(options).values()].filter(({ id }) => !alreadyAvailable?.has(id));
     const ids = new Set(unique.map(({ id }) => id));
-    const selected = [...new Set(draft.selected[key] ?? [])]
+    const selected = [...new Set(draft.selected[key] ?? meta.legacySelected ?? [])]
       .filter((id) => ids.has(id))
       .slice(0, count);
     result.validSelections[key] = selected;
@@ -478,17 +799,49 @@ export function projectCharacter(draft, catalog) {
       ...meta,
       characterLevel: characterLevel(meta, meta.level),
       key,
-      name: labels[meta.ruleId] ?? choiceNames[name] ?? name,
+      name: labels[meta.ruleId] ?? choiceNames[name] ?? catalog.contentNames.get(name) ?? name,
       count,
       options: unique,
       selected,
     });
-    if (selected.length < count) result.pending.push(key);
+    if (!meta.optional && selected.length < count) result.pending.push(key);
     for (const id of selected)
       apply?.(
         unique.find((option) => option.id === id),
         `${key}/${id}`
       );
+  };
+  const learnedOptions = (key, name, options, additions, meta, canReplace) => {
+    const known = new Map();
+    for (let at = 1; at <= level; at++) {
+      const count = additions[at] ?? 0;
+      const previous = [...known.values()];
+      const available = () => options.filter(({ id }) => !known.has(id));
+      const learn = (option) => known.set(option.id, { ...option, source: meta.source, level: at });
+      group(`${key}/${at}`, name, count, available(), { ...meta, level: at }, learn);
+      if (!canReplace(at, count) || !previous.length || !available().length) continue;
+      group(
+        `${key}/${at}/replace`,
+        'Substituir uma opção aprendida',
+        1,
+        previous,
+        { ...meta, level: at, optional: true },
+        (old, childKey) =>
+          group(
+            `${childKey}/replacement`,
+            'Nova opção no lugar da anterior',
+            1,
+            available(),
+            { ...meta, level: at, depth: meta.depth + 1 },
+            (option) => {
+              known.delete(old.id);
+              learn(option);
+            }
+          )
+      );
+    }
+    result.selectedFeatures.push(...known.values());
+    return [...known.values()];
   };
   const spellOptions = (rule) =>
     catalog.spells
@@ -514,8 +867,21 @@ export function projectCharacter(draft, catalog) {
           rule.name.replace(/^Mystic Arcanum \(level (\d+)\)$/, 'Arcano Místico ($1º círculo)'),
         rule.pickProficiency ? 2 + Math.floor((totalLevel - 1) / 4) : rule.pick,
         spellOptions(rule),
-        { ...meta, level: Math.max(meta.level, rank(rule)), spellPicker: true },
-        (option) => noteSpell(option.id, meta.source)
+        {
+          ...meta,
+          level: Math.max(meta.level, rank(rule)),
+          spellPicker: true,
+          existingSpell: rule.id === 'class-prepared' && key === 'class/wizard',
+        },
+        (option) =>
+          noteSpell(option.id, meta.source, {
+            castingAbility: rule.ability ?? meta.castingAbility,
+            preparation: rule.preparation ?? (rule.spellLevel === 0 ? 'cantrip' : 'always'),
+            free: rule.id.startsWith('mystic-arcanum-') ? { uses: 1, per: 'long' } : rule.free,
+            freeOnly: rule.id.startsWith('mystic-arcanum-'),
+            ritualOnly: rule.ritualOnly,
+            originKey: key,
+          })
       );
     }
   };
@@ -538,6 +904,16 @@ export function projectCharacter(draft, catalog) {
       (entry) => !result.languages.has(entry.id) && (rare || entry.tier === 'common')
     );
   const boost = (key, rule, meta, options) => {
+    const acquiredAt = characterLevel(meta, Math.max(meta.level, rank(rule)));
+    const scoresBefore = Object.fromEntries(
+      abilities.map(([id]) => [
+        id,
+        Number(draft.scores[id]) +
+          (priorGrants ?? result.scoreGrants)
+            .filter((grant) => grant.id === id && grant.level <= acquiredAt && grant.key !== key)
+            .reduce((total, grant) => total + grant.amount, 0),
+      ])
+    );
     const candidates =
       options ??
       increases(
@@ -551,21 +927,35 @@ export function projectCharacter(draft, catalog) {
       1,
       candidates.filter((option) =>
         Object.entries(option.increases).every(
-          ([id, points]) => Number(result.scores[id]) + points <= (rule.max ?? 20)
+          ([id, points]) =>
+            scoresBefore[id] + points <= (rule.max ?? 20) &&
+            (!rule.savingThrow || !result.savingThrows.has(id))
         )
       ),
       meta,
       (option) => {
-        for (const [id, amount] of Object.entries(option.increases))
+        for (const [id, amount] of Object.entries(option.increases)) {
           result.scores[id] = Number(result.scores[id]) + amount;
+          result.scoreGrants.push({
+            id,
+            amount,
+            level: acquiredAt,
+            key,
+          });
+          if (rule.savingThrow) {
+            result.savingThrows.add(id);
+            savingThrowLevels.set(id, Math.min(savingThrowLevels.get(id) ?? Infinity, acquiredAt));
+          }
+        }
       }
     );
   };
 
   function applyFeat(feat, key, meta, listConstraint) {
     if (!feat) return;
-    takenFeats.set(feat.id, feat);
-    result.feats.push({ ...feat, source: meta.source });
+    const acquiredAt = characterLevel(meta, meta.level);
+    takenFeats.set(feat.id, { ...feat, acquiredAt });
+    result.feats.push({ ...feat, source: meta.source, grantKey: key, acquiredAt });
     const child = { ...meta, source: displayName(feat), depth: meta.depth + 1 };
     if (feat.id === 'magic-initiate') {
       const lists = listConstraint ? [listConstraint] : ['cleric', 'druid', 'wizard'];
@@ -573,35 +963,132 @@ export function projectCharacter(draft, catalog) {
         abilities
           .slice(3)
           .map(([ability, , name]) =>
-            opt(`${list}:${ability}`, `${labels[list]} · ${name}`, { list })
+            opt(`${list}:${ability}`, `${labels[list]} · ${name}`, { list, ability })
           )
       );
       group(
         `${key}/magic-initiate`,
         'Lista e atributo de conjuração',
         1,
-        configurations,
+        configurations.filter((option) => !result.initiateLists.has(option.list)),
         child,
-        (option, subkey) =>
+        (option, subkey) => {
+          result.initiateLists.add(option.list);
           spellChoices(
-            (feat.effects?.spellChoices ?? []).map((rule) => ({ ...rule, list: option.list })),
+            (feat.effects?.spellChoices ?? []).map((rule) => ({
+              ...rule,
+              list: option.list,
+              ...(rule.spellLevel === 1 ? { free: { uses: 1, per: 'long' } } : {}),
+            })),
             subkey,
-            { ...child, depth: child.depth + 1 }
-          )
+            { ...child, castingAbility: option.ability, depth: child.depth + 1 }
+          );
+        }
       );
     } else {
-      effects(feat.effects ?? {}, key, child);
+      const abilitySentence = feat.text?.match(/([^.!?]*?)\bis your spellcasting ability/i)?.[1];
+      const castingAbilities = [
+        ...new Set(
+          (abilitySentence?.match(/Intelligence|Wisdom|Charisma|Constitution/g) ?? []).map(abi)
+        ),
+      ];
+      if (castingAbilities.length > 1) {
+        group(
+          `${key}/casting-ability`,
+          'Atributo de conjuração do talento',
+          1,
+          abilities
+            .filter(([id]) => castingAbilities.includes(id))
+            .map(([id, , name]) => opt(id, name)),
+          child,
+          ({ id }, childKey) =>
+            effects(feat.effects ?? {}, childKey, { ...child, castingAbility: id })
+        );
+      } else {
+        effects(feat.effects ?? {}, key, {
+          ...child,
+          castingAbility: castingAbilities[0] ?? child.castingAbility,
+        });
+      }
+    }
+    const damageOptions = {
+      'elemental-adept': ['Acid', 'Cold', 'Fire', 'Lightning', 'Thunder'],
+      'otherworldly-familiar': ['Necrotic', 'Poison', 'Psychic', 'Radiant', 'Thunder'],
+    }[feat.id];
+    if (damageOptions) {
+      const used = result.featOptions.get(feat.id) ?? new Set();
+      group(
+        `${key}/damage-type`,
+        feat.id === 'elemental-adept' ? 'Maestria em Energia' : 'Resistência do familiar',
+        1,
+        damageOptions
+          .filter((id) => !used.has(id))
+          .map((id) =>
+            opt(
+              id,
+              {
+                Acid: 'Ácido',
+                Cold: 'Frio',
+                Fire: 'Fogo',
+                Lightning: 'Elétrico',
+                Thunder: 'Trovejante',
+                Necrotic: 'Necrótico',
+                Poison: 'Veneno',
+                Psychic: 'Psíquico',
+                Radiant: 'Radiante',
+              }[id]
+            )
+          ),
+        child,
+        (option) => {
+          used.add(option.id);
+          result.featOptions.set(feat.id, used);
+          addFacts(displayName(feat), [['Tipo de dano escolhido', option.name]]);
+        }
+      );
+    }
+    if (/ability (?:you )?increase(?:d)? (?:by|with) this feat/i.test(feat.text ?? '')) {
+      const increase = result.groups.find(
+        (group) => group.key.startsWith(key + '/boost/') && group.selected.length
+      );
+      const option = increase?.options.find(({ id }) => increase.selected.includes(id));
+      const ability = Object.keys(option?.increases ?? {})[0];
+      if (ability)
+        for (const spell of result.spells.filter(({ originKey }) => originKey === key))
+          spell.castingAbility = ability;
     }
   }
 
   function effects(entry, key, meta) {
+    for (const armor of entry.armorTraining ?? []) result.armorTraining.add(armor.kind);
+    for (const weapon of entry.weaponTraining ?? []) result.weaponTraining.push(weapon);
+    for (const { label, value } of entry.grants ?? []) {
+      addFacts(meta.source, [grantDetails({ label, value }, catalog)]);
+      if (label === 'Damage Type' && species?.id === 'dragonborn') result.resistances.add(value);
+    }
+    if (entry.body || entry.translation?.body || entry.summary || entry.translation?.summary) {
+      if (!entry.collection && !entry.features)
+        result.selectedFeatures.push({ ...entry, source: meta.source });
+    }
     for (const skill of entry.skillsFixed ?? []) result.skills.add(skill);
     for (const skill of entry.expertiseFixed ?? []) result.expertise.add(skill);
     for (const value of entry.toolsFixed ?? []) result.tools.add(value);
     for (const value of entry.languagesFixed ?? []) {
       result.languages.add(catalog.languages.find(({ name }) => name === value)?.id ?? value);
     }
-    for (const spell of (entry.spellsFixed ?? []).filter(active)) noteSpell(spell.id, meta.source);
+    for (const spell of (entry.spellsFixed ?? []).filter(active)) {
+      if (entry.id === 'necromancer' && spell.id === 'find-familiar') continue;
+      if (
+        entry.id === 'illusionist' && spell.id === 'minor-illusion' &&
+        result.spells.some(({ id }) => id === spell.id)
+      ) continue;
+      noteSpell(spell.id, meta.source, {
+        preparation: catalog.bySpell.get(spell.id)?.level === 0 ? 'cantrip' : 'always',
+        castingAbility: meta.castingAbility,
+        free: spell.free,
+        originKey: key,
+      });
+    }
     for (const rule of (entry.skillChoices ?? []).filter(active)) {
       if (rule.upgrade) continue;
       const options = skillOptions(rule.from).filter((option) => !result.skills.has(option.name));
@@ -642,7 +1129,13 @@ export function projectCharacter(draft, catalog) {
     }
     for (const rule of (entry.abilityBoosts ?? []).filter(active))
       boost(`${key}/boost/${rule.id}`, rule, meta);
-    spellChoices(entry.spellChoices, key, meta);
+    spellChoices(
+      entry.id === 'college-of-the-moon'
+        ? entry.spellChoices?.filter(({ id }) => id !== 'primal-lore')
+        : entry.spellChoices,
+      key,
+      meta
+    );
     for (const fixed of (entry.featsFixed ?? []).filter(active)) {
       const list = fixed.note?.toLowerCase();
       applyFeat(
@@ -653,6 +1146,15 @@ export function projectCharacter(draft, catalog) {
       );
     }
     for (const rule of (entry.featChoices ?? []).filter(active)) {
+      const acquiredAt = characterLevel(meta, Math.max(meta.level, rank(rule)));
+      const eligibleFeats = new Map(
+        [
+          ...takenFeats,
+          ...(priorFeats ?? [])
+            .filter((feat) => !feat.grantKey.startsWith(`${key}/feat/${rule.id}/`))
+            .map((feat) => [feat.id, feat]),
+        ].filter(([, feat]) => feat.acquiredAt <= acquiredAt)
+      );
       const options = catalog.feats
         .filter(
           (feat) =>
@@ -667,9 +1169,22 @@ export function projectCharacter(draft, catalog) {
               feat,
               characterLevel(meta, Math.max(meta.level, rank(rule))),
               { campaign: draft.campaign || background?.setting },
-              result.scores,
+              Object.fromEntries(
+                abilities.map(([id]) => [
+                  id,
+                  Number(draft.scores[id]) +
+                    (priorGrants ?? result.scoreGrants)
+                      .filter(
+                        (grant) =>
+                          grant.id === id &&
+                          grant.level <= characterLevel(meta, Math.max(meta.level, rank(rule))) &&
+                          !grant.key?.startsWith(`${key}/feat/${rule.id}/`)
+                      )
+                      .reduce((total, grant) => total + grant.amount, 0),
+                ])
+              ),
               featureNames,
-              takenFeats
+              eligibleFeats
             )
         )
         .sort(compare);
@@ -684,12 +1199,19 @@ export function projectCharacter(draft, catalog) {
       );
     }
     for (const rule of (entry.choices ?? []).filter(active)) {
-      const options = [
+      let options = [
         ...(rule.options ?? []),
         ...(rule.source?.collection === 'fighting-styles'
           ? catalog.styles.filter((style) => !takenFeats.has(style.id))
           : []),
       ];
+      const archerCantrip = entry.id === 'arcane-archer' && rule.id === 'spell-list';
+      if (archerCantrip) {
+        options = options.filter(
+          (option) => !result.spells.some(({ id }) => id === option.id) && !grantedSpells.has(option.id)
+        );
+        if (!options.length) continue;
+      }
       group(
         `${key}/choice/${rule.id}`,
         rule.translation?.name ?? rule.name,
@@ -699,6 +1221,7 @@ export function projectCharacter(draft, catalog) {
           ...meta,
           level: Math.max(meta.level, rank(rule)),
           prompt: rule.translation?.prompt ?? rule.prompt,
+          spellPicker: archerCantrip,
         },
         (option, subkey) => {
           const child = {
@@ -706,6 +1229,7 @@ export function projectCharacter(draft, catalog) {
             source: displayName(option),
             level: Math.max(meta.level, rank(rule)),
             depth: meta.depth + 1,
+            castingAbility: archerCantrip ? 'int' : meta.castingAbility,
           };
           const style =
             option.collection === 'fighting-styles' ? catalog.byFeat.get(option.id) : undefined;
@@ -736,12 +1260,75 @@ export function projectCharacter(draft, catalog) {
               1,
               abilities.slice(3).map(([id, , name]) => opt(id, name)),
               child,
-              (selected) => addFacts(child.source, [['Conjuração', selected.name]])
+              (selected) => {
+                addFacts(child.source, [['Conjuração', selected.name]]);
+                for (const spell of result.spells.filter(
+                  ({ grantedBy }) => grantedBy === child.source
+                ))
+                  spell.castingAbility = selected.id;
+              }
             );
           }
         }
       );
     }
+  }
+
+  function evolvingCantrips(key, rule, counts, meta, onLevel) {
+    const firstKey = `${key}/spell/${rule.id}`;
+    const legacy = draft.selected[firstKey] ?? [];
+    const migrated = new Set();
+    const known = new Set();
+    const candidates = spellOptions(rule);
+    for (let at = 1; at <= level; at++) {
+      const previous = [...known].map((id) => catalog.bySpell.get(id));
+      const before = counts[at - 2] ?? 0;
+      const increase = (counts[at - 1] ?? 0) - before;
+      const available = () => candidates.filter(({ id }) => !known.has(id));
+      group(
+        before ? `${firstKey}/${at}` : firstKey,
+        spellChoiceNames[rule.name] ?? rule.name,
+        increase,
+        available(),
+        {
+          ...meta,
+          level: at,
+          spellPicker: true,
+          legacySelected: legacy.filter((id) => !migrated.has(id) && !known.has(id)),
+        },
+        ({ id }) => {
+          known.add(id);
+          migrated.add(id);
+        }
+      );
+      if (previous.length)
+        group(
+          `${key}/${rule.id === 'class-cantrips' ? 'replace-cantrip' : 'replace-' + rule.id}/${at}`,
+          'Substituir um truque neste nível',
+          1,
+          previous,
+          { ...meta, level: at, spellPicker: true, existingSpell: true, optional: true },
+          (old, childKey) =>
+            group(
+              `${childKey}/replacement`,
+              'Novo truque no lugar do anterior',
+              1,
+              available(),
+              { ...meta, level: at, spellPicker: true, depth: meta.depth + 1 },
+              ({ id }) => {
+                known.delete(old.id);
+                known.add(id);
+              }
+            )
+        );
+      onLevel?.(at, known);
+    }
+    for (const id of known)
+      noteSpell(id, meta.source, {
+        castingAbility: meta.castingAbility,
+        preparation: 'cantrip',
+        originKey: key,
+      });
   }
 
   function classSpells(entry, key, meta) {
@@ -757,20 +1344,109 @@ export function projectCharacter(draft, catalog) {
       list: casting.list,
       spellLevel: 0,
     };
-    spellChoices([cantripRule], key, meta);
+    const swapsOnLevel = [
+      'bard', 'cleric', 'druid', 'sorcerer', 'warlock',
+      'arcane-trickster', 'eldritch-knight', 'warrior-of-the-mystic-arts',
+    ].includes(entry.id);
+    if (entry.id === 'arcane-trickster')
+      noteSpell('mage-hand', meta.source, {
+        castingAbility: meta.castingAbility,
+        preparation: 'cantrip',
+        originKey: key,
+      });
+    if (cantrips && swapsOnLevel) {
+      evolvingCantrips(
+        key,
+        cantripRule,
+        casting.cantrips,
+        meta,
+        entry.id === 'warlock' ? (at, known) => warlockCantripsByLevel.set(at, [...known]) : undefined
+      );
+    } else spellChoices([cantripRule], key, meta);
     if (!maxSpellLevel) return;
-    const spellRule = { list: casting.list, minSpellLevel: 1, maxSpellLevel };
+    const spellRule = {
+      ...(entry.id === 'bard' && level >= 10
+        ? { lists: ['bard', 'cleric', 'druid', 'wizard'] }
+        : { list: casting.list }),
+      minSpellLevel: 1,
+      maxSpellLevel,
+      ability: abi(casting.ability),
+      preparation: 'prepared',
+    };
     const preparedRule = {
       ...spellRule,
       id: 'class-prepared',
       name: 'Magias preparadas',
       pick: prepared,
+      exclude: [...(entry.spellsFixed ?? []), ...(meta.track?.subclass?.spellsFixed ?? [])]
+        .filter(({ level: at = 1 }) => at <= level)
+        .map(({ id }) => id),
     };
     if (entry.id !== 'wizard') {
-      spellChoices([preparedRule], key, meta);
+      if (['bard', 'ranger', 'sorcerer', 'warlock'].includes(entry.id)) {
+        const known = new Set();
+        const legacy = draft.selected[`${key}/spell/class-prepared`] ?? [];
+        for (let at = 1; at <= level; at++) {
+          const capacity = casting.prepared[at - 1] ?? 0;
+          const increase = capacity - (casting.prepared[at - 2] ?? 0);
+          const rule = {
+            ...(entry.id === 'bard' && at >= 10
+              ? { lists: ['bard', 'cleric', 'druid', 'wizard'] }
+              : { list: casting.list }),
+            minSpellLevel: 1,
+            maxSpellLevel: casting.maxSpellLevel[at - 1],
+          };
+          if (!rule.maxSpellLevel) continue;
+          const options = spellOptions(rule).filter(({ id }) => !known.has(id));
+          group(
+            `${key}/learned-spells/${at}`,
+            'Magias aprendidas',
+            increase,
+            options,
+            {
+              ...meta,
+              level: at,
+              spellPicker: true,
+              legacySelected: legacy
+                .filter((id) => options.some((option) => option.id === id))
+                .slice(0, increase),
+            },
+            ({ id }) => known.add(id)
+          );
+          if (at <= 1) continue;
+          group(
+            `${key}/replace-spell/${at}`,
+            'Substituir uma magia neste nível',
+            1,
+            [...known].map((id) => ({ ...catalog.bySpell.get(id), id })),
+            { ...meta, level: at, spellPicker: true, existingSpell: true, optional: true },
+            (old, childKey) => {
+              group(
+                `${childKey}/replacement`,
+                'Nova magia no lugar da anterior',
+                1,
+                spellOptions(rule).filter(({ id }) => !known.has(id)),
+                { ...meta, level: at, spellPicker: true, depth: meta.depth + 1 },
+                ({ id }) => {
+                  known.delete(old.id);
+                  known.add(id);
+                }
+              );
+            }
+          );
+        }
+        for (const id of known)
+          noteSpell(id, meta.source, {
+            preparation: 'prepared',
+            castingAbility: abi(casting.ability),
+          });
+      } else {
+        spellChoices([preparedRule], key, meta);
+      }
       return;
     }
     const book = [];
+    const savant = meta.track?.subclass?.features?.find(({ name }) => name.endsWith(' Savant'));
     for (let at = 1; at <= level; at++) {
       const rule = { ...spellRule, maxSpellLevel: casting.maxSpellLevel[at - 1] };
       group(
@@ -781,11 +1457,84 @@ export function projectCharacter(draft, catalog) {
         { ...meta, level: at, spellPicker: true },
         (option) => {
           book.push(option.id);
-          noteSpell(option.id, 'Grimório');
+          noteSpell(option.id, `Grimório · ${meta.source}`, {
+            preparation: 'spellbook',
+            castingAbility: abi(casting.ability),
+          });
+        }
+      );
+      if (
+        at === 3 &&
+        meta.track?.subclass?.id === 'necromancer' &&
+        !book.includes('find-familiar')
+      ) {
+        book.push('find-familiar');
+        noteSpell('find-familiar', `Grimório · ${meta.source}`, {
+          preparation: 'spellbook',
+          castingAbility: 'int',
+        });
+      }
+      if (savant && [3, 5, 7, 9, 11, 13, 15, 17].includes(at)) {
+        const school = savant.name.replace(' Savant', '');
+        group(
+          `${key}/savant/${at}`,
+          displayName(savant),
+          at === 3 ? 2 : 1,
+          spellOptions({
+            list: 'wizard',
+            minSpellLevel: 1,
+            maxSpellLevel: casting.maxSpellLevel[at - 1],
+            schools: [school],
+          }).filter(({ id }) => !book.includes(id)),
+          { ...meta, level: at, spellPicker: true },
+          ({ id }) => {
+            book.push(id);
+            noteSpell(id, `Grimório · ${meta.source}`, {
+              preparation: 'spellbook',
+              castingAbility: 'int',
+            });
+          }
+        );
+      }
+    }
+    group(
+      `${key}/spellbook/copied`,
+      'Magias copiadas no grimório',
+      catalog.spells.length,
+      spellOptions(spellRule).filter(({ id }) => !book.includes(id)),
+      { ...meta, level, spellPicker: true, optional: true },
+      ({ id }) => {
+        book.push(id);
+        noteSpell(id, `Grimório · ${meta.source}`, {
+          preparation: 'spellbook',
+          castingAbility: 'int',
+        });
+      }
+    );
+    const signature = [];
+    if (level >= 20) {
+      group(
+        `${key}/signature-spells`,
+        'Magias Características',
+        2,
+        spellOptions({ from: book, spellLevel: 3 }),
+        { ...meta, level: 20, spellPicker: true, existingSpell: true },
+        ({ id }) => {
+          signature.push(id);
+          noteSpell(id, 'Magias Características', {
+            preparation: 'always',
+            castingAbility: 'int',
+            free: { uses: 1, per: 'short' },
+          });
         }
       );
     }
-    spellChoices([{ ...preparedRule, from: book, level }], key, meta);
+    result.spellbooks.set(entry.id, book);
+    spellChoices(
+      [{ ...preparedRule, from: book.filter((id) => !signature.includes(id)), level }],
+      key,
+      meta
+    );
   }
 
   // Core options described in class features but absent from the catalog's choice arrays.
@@ -793,28 +1542,45 @@ export function projectCharacter(draft, catalog) {
     const table = entry.progression?.find(({ header }) => header.includes('Eldritch Invocations'));
     if (!table) return;
     const column = table.header.indexOf('Eldritch Invocations');
-    const count = Number(table.rows[level - 1]?.[column]);
-    const known = new Set();
-    const spells = result.spells.filter((spell) => spell.grantedBy === meta.source);
-    for (let index = 1; index <= count; index++) {
-      const at = table.rows.findIndex((row) => Number(row[column]) >= index) + 1;
-      const options = invocations
-        .filter(
-          ([name, minimum, requires]) =>
-            at >= minimum && !known.has(name) && (!requires || known.has(requires))
-        )
-        .map(([name, , , spell]) => opt(name, name, { spell }));
+    const known = new Map();
+    const optionsAt = (at, retired) => {
+      const options = catalog.warlockInvocationList.filter(
+        ({ id, level: minimum, requires }) =>
+          !invocationCantrips[id] &&
+          id !== 'Lessons of the First Ones' &&
+          at >= minimum &&
+          !known.has(id) &&
+          (!requires || (requires !== retired && known.has(requires)))
+      );
       if (at >= 2) {
         for (const [name, cantrips] of Object.entries(invocationCantrips)) {
-          for (const spell of spells.filter((spell) => cantrips.includes(spell.id))) {
+          const reference = catalog.warlockInvocationList.find(({ id }) => id === name);
+          for (const id of warlockCantripsByLevel.get(at) ?? []) {
+            if (!cantrips.includes(id)) continue;
+            const spell = catalog.bySpell.get(id);
             const label = `${name} · ${spell.name}`;
-            if (!known.has(label)) options.push(opt(label));
+            if (!known.has(label)) {
+              options.push({
+                ...reference,
+                id: label,
+                name: label,
+                cantripId: id,
+                translation: {
+                  ...reference.translation,
+                  name: `${displayName(reference)} · ${displayName(catalog.bySpell.get(spell.id) ?? spell)}`,
+                },
+              });
+            }
           }
         }
+        const lessons = catalog.warlockInvocationList.find(
+          ({ id }) => id === 'Lessons of the First Ones'
+        );
         for (const feat of catalog.feats.filter(
           (feat) =>
             feat.category === 'Origin' &&
             !takenFeats.has(feat.id) &&
+            !known.has(`lessons:${feat.id}`) &&
             featAllowed(
               feat,
               characterLevel(meta, at),
@@ -824,74 +1590,169 @@ export function projectCharacter(draft, catalog) {
               takenFeats
             )
         )) {
-          options.push(
-            opt(`lessons:${feat.id}`, `Lessons of the First Ones · ${displayName(feat)}`, { feat })
-          );
+          options.push({
+            ...lessons,
+            id: `lessons:${feat.id}`,
+            name: `Lessons of the First Ones · ${displayName(feat)}`,
+            feat,
+            translation: {
+              ...lessons.translation,
+              name: `${displayName(lessons)} · ${displayName(feat)}`,
+            },
+          });
         }
       }
-      const invocationKey = `${key}/invocation/${index}`;
+      return options;
+    };
+    for (let at = 1; at <= level; at++) {
+      const previous = [...known.values()].map(({ option }) => option);
+      const countBefore = Number(table.rows[at - 2]?.[column] ?? 0);
+      const count = Number(table.rows[at - 1]?.[column]);
+      const learn = (option, childKey) => known.set(option.id, { option, childKey, at });
+      for (let index = countBefore + 1; index <= count; index++)
+        group(
+          `${key}/invocation/${index}`,
+          `Invocação mística · ${index}`,
+          1,
+          optionsAt(at),
+          { ...meta, level: at },
+          learn
+        );
+      const replaceable = previous.filter(
+        ({ id }) =>
+          ![...known.values()].some(({ option }) => option.requires === id) &&
+          optionsAt(at, id).length
+      );
+      if (!replaceable.length) continue;
       group(
-        invocationKey,
-        `Invocação mística · ${index}`,
+        `${key}/replace-invocation/${at}`,
+        'Substituir uma invocação neste nível',
         1,
-        options,
-        { ...meta, level: at },
-        (option, childKey) => {
-          known.add(option.id);
-          const child = { ...meta, level: at, source: option.name, depth: meta.depth + 1 };
-          if (option.spell) noteSpell(option.spell, option.name);
-          if (option.feat) applyFeat(option.feat, childKey, child);
-          if (option.id === 'Pact of the Tome') {
-            const exclude = spells.map(({ id }) => id);
-            spellChoices(
-              [
-                { id: 'tome-cantrips', name: 'Truques do pacto', pick: 3, spellLevel: 0, exclude },
-                {
-                  id: 'tome-rituals',
-                  name: 'Rituais do pacto',
-                  pick: 2,
-                  spellLevel: 1,
-                  ritual: true,
-                  exclude,
-                },
-              ],
-              childKey,
-              child
-            );
-          }
-        }
+        replaceable,
+        { ...meta, level: at, optional: true },
+        (old, childKey) =>
+          group(
+            `${childKey}/replacement`,
+            'Nova invocação no lugar da anterior',
+            1,
+            optionsAt(at, old.id),
+            { ...meta, level: at, depth: meta.depth + 1 },
+            (option, replacementKey) => {
+              known.delete(old.id);
+              learn(option, replacementKey);
+            }
+          )
       );
     }
+    const cantrips = warlockCantripsByLevel.get(level) ?? [];
+    for (const { option, childKey, at } of known.values()) {
+      if (option.cantripId && !cantrips.includes(option.cantripId)) {
+        result.ruleIssues.push([
+          meta.section,
+          `Substitua ${displayName(option)} ou mantenha o truque exigido por ela.`,
+        ]);
+        continue;
+      }
+      const source = displayName(option);
+      result.selectedFeatures.push({ ...option, source: meta.source, level: at });
+      const child = { ...meta, level: at, source, depth: meta.depth + 1 };
+      if (option.spell)
+        noteSpell(option.spell, source, {
+          castingAbility: 'cha',
+          preparation: 'always',
+          ...(option.id === 'Pact of the Chain' ? { ritualOnly: true } : {}),
+          ...(option.id === 'Gift of the Depths' ? { free: { uses: 1, per: 'long' }, freeOnly: true } : {}),
+          ...(!['Pact of the Chain', 'Gift of the Depths'].includes(option.id) ? { atWill: true } : {}),
+        });
+      if (option.feat) applyFeat(option.feat, childKey, child);
+      if (option.id === 'Pact of the Tome')
+        spellChoices(
+          [
+            { id: 'tome-cantrips', name: 'Truques do pacto', pick: 3, spellLevel: 0 },
+            { id: 'tome-rituals', name: 'Rituais do pacto', pick: 2, spellLevel: 1, ritual: true, ritualOnly: true },
+          ],
+          childKey,
+          child
+        );
+    }
     addFacts(meta.source, [
-      [
-        'Invocações místicas',
-        [...known]
-          .map((id) =>
-            id.startsWith('lessons:')
-              ? `Lessons of the First Ones · ${displayName(catalog.byFeat.get(id.slice(8)))}`
-              : id
-          )
-          .join(', '),
-      ],
+      ['Invocações místicas', [...known.values()].map(({ option }) => displayName(option)).join(', ')],
     ]);
   }
 
   function coreClassChoices(entry, key, meta) {
     if (entry.id === 'warlock') warlockInvocations(entry, key, meta);
+    if (entry.id === 'artificer' && level >= 2) {
+      const feature = entry.features.find(({ name }) => name === 'Replicate Magic Item');
+      const normalize = (name) =>
+        name
+          .toLowerCase()
+          .replace(/[^a-z0-9 ]/g, '')
+          .split(' ')
+          .filter(Boolean)
+          .sort()
+          .join(' ');
+      const plans = new Map();
+      const pattern =
+        /\*\*Magic Item Plans \(Artificer Level (\d+)\+\)\.\*\*\s*\n\n([\s\S]*?)(?=\n\n\*\*|$)/g;
+      for (const match of feature.body.matchAll(pattern)) {
+        const minimum = Number(match[1]);
+        if (minimum > level) continue;
+        for (const row of match[2].split('\n').slice(2)) {
+          const name = row.split('|')[1]?.trim();
+          if (!name) continue;
+          const flexible = /^(Common|Uncommon|Rare) /i.exec(name);
+          const candidates = catalog.items.filter((item) =>
+            flexible
+              ? item.magic &&
+                item.rarity === flexible[1].toLowerCase() &&
+                !['potion', 'scroll'].includes(item.kind) &&
+                !/\bcurse(?:d)?[.:]/i.test(item.text ?? '') &&
+                (flexible[1] === 'Common' || item.kind === 'wondrous')
+              : normalize(item.name) === normalize(name.replace('Adaption', 'Adaptation'))
+          );
+          for (const item of candidates) {
+            plans.set(item.id, { ...item, level: minimum, plan: true });
+          }
+        }
+      }
+      const progression = entry.progression.find(({ header }) => header.includes('Plans Known'));
+      const count = Number(progression.rows[level - 1][progression.header.indexOf('Plans Known')]);
+      group(
+        `${key}/plans`,
+        'Planos de itens mágicos conhecidos',
+        count,
+        [...plans.values()].sort(compare),
+        { ...meta, level: 2 },
+        (plan, childKey) => {
+          result.selectedFeatures.push({ ...plan, source: 'Plano conhecido' });
+          if (plan.baseItems?.length) {
+            group(
+              `${childKey}/base-item`,
+              'Tipo de item do plano',
+              1,
+              catalog.items.filter((item) => plan.baseItems.includes(item.name)),
+              { ...meta, source: displayName(plan), depth: meta.depth + 1, level: plan.level },
+              (item) => addFacts(displayName(plan), [['Item do plano', displayName(item)]])
+            );
+          }
+        }
+      );
+    }
     const order = {
       cleric: {
         title: 'Ordem divina',
         martial: 'Protector',
         caster: 'Thaumaturge',
         armor: 'Pesada',
-        skill: 'Arcana ou Religião',
+        skill: 'Arcanismo ou Religião',
       },
       druid: {
         title: 'Ordem primal',
         martial: 'Warden',
         caster: 'Magician',
         armor: 'Média',
-        skill: 'Arcana ou Natureza',
+        skill: 'Arcanismo ou Natureza',
       },
     }[entry.id];
     if (order) {
@@ -902,13 +1763,14 @@ export function projectCharacter(draft, catalog) {
         named([order.martial, order.caster]),
         meta,
         (option, childKey) => {
-          const child = { ...meta, source: option.name, depth: meta.depth + 1 };
+          const source = displayName(option);
+          const child = { ...meta, source, depth: meta.depth + 1 };
           if (option.id === order.martial) {
-            addFacts(option.name, [
+            addFacts(source, [
               ['Treinamento adicional', `Armas marciais · Armadura ${order.armor.toLowerCase()}`],
             ]);
           } else {
-            addFacts(option.name, [['Bônus de Sabedoria', order.skill]]);
+            addFacts(source, [['Bônus de Sabedoria', order.skill]]);
             const known = new Set(
               result.spells
                 .filter((spell) => spell.level === 0 && spell.grantedBy === meta.source)
@@ -923,7 +1785,11 @@ export function projectCharacter(draft, catalog) {
               1,
               options,
               { ...child, spellPicker: true },
-              (spell) => noteSpell(spell.id, option.name)
+              (spell) =>
+                noteSpell(spell.id, source, {
+                  castingAbility: abi(entry.casting.ability),
+                  preparation: 'cantrip',
+                })
             );
           }
         }
@@ -936,7 +1802,7 @@ export function projectCharacter(draft, catalog) {
         1,
         named(['Divine Strike', 'Potent Spellcasting']),
         { ...meta, level: 7 },
-        (option) => addFacts(meta.source, [['Golpes abençoados', option.name]])
+        (option) => addFacts(meta.source, [['Golpes abençoados', displayName(option)]])
       );
     }
     if (entry.id === 'druid' && level >= 7) {
@@ -946,22 +1812,191 @@ export function projectCharacter(draft, catalog) {
         1,
         named(['Potent Spellcasting', 'Primal Strike']),
         { ...meta, level: 7 },
-        (option) => addFacts(meta.source, [['Fúria elemental', option.name]])
+        (option) => addFacts(meta.source, [['Fúria elemental', displayName(option)]])
       );
     }
     if (entry.id === 'sorcerer') {
+      const known = learnedOptions(
+        `${key}/metamagic`,
+        'Metamagia',
+        metamagic.map((option) => catalog.referenceOptions.find(({ id }) => id === option.id) ?? option),
+        { 2: 2, 10: 2, 17: 2 },
+        meta,
+        (at) => at > 2
+      );
+      addFacts(meta.source, [['Metamagias', known.map(displayName).join(', ')]]);
+    }
+  }
+
+  function subclassChoices(entry, key, meta) {
+    const save = {
+      'gloom-stalker': { level: 7, ability: 'wis', alternatives: ['int', 'cha'] },
+      'knowledge-domain': { level: 6, ability: 'int', alternatives: abilities.map(([id]) => id) },
+    }[entry.id];
+    if (save && level >= save.level)
+      savingThrowChoices.push({ key, meta: { ...meta, level: save.level }, ...save });
+    if (entry.id === 'knowledge-domain') {
+      group(
+        `${key}/knowledge-skills`,
+        'Bênçãos do Conhecimento',
+        2,
+        skillOptions(['Arcana', 'History', 'Nature', 'Religion']).filter(
+          ({ name }) => !result.expertise.has(name)
+        ),
+        { ...meta, level: 3 },
+        ({ name }) => {
+          result.skills.add(name);
+          result.expertise.add(name);
+        }
+      );
+    }
+    if (entry.id === 'college-of-the-moon') {
+      const primalLore = entry.spellChoices?.find(({ id }) => id === 'primal-lore');
+      if (primalLore)
+        evolvingCantrips(key, primalLore, Array.from({ length: level }, (_, i) => (i >= 2 ? 1 : 0)), meta);
+      result.languages.add('Druídico');
+      group(
+        `${key}/primal-lore-skill`,
+        'Perícia do Conhecimento Primal',
+        1,
+        skillOptions([
+          'Animal Handling',
+          'Insight',
+          'Medicine',
+          'Nature',
+          'Perception',
+          'Survival',
+        ]).filter(({ name }) => !result.skills.has(name)),
+        { ...meta, level: 3 },
+        ({ name }) => result.skills.add(name)
+      );
+    }
+    if (entry.id === 'college-of-lore' && level >= 6) {
       const known = new Set();
-      for (const at of [2, 10, 17].filter((minimum) => level >= minimum)) {
+      const casting = meta.track.entry.casting;
+      const available = (at) => ({
+        lists: ['cleric', 'druid', 'wizard'],
+        maxSpellLevel: casting.maxSpellLevel[at - 1],
+      });
+      group(
+        `${key}/magical-discoveries`,
+        'Descobertas Mágicas',
+        2,
+        spellOptions(available(6)),
+        { ...meta, level: 6, spellPicker: true },
+        ({ id }) => known.add(id)
+      );
+      for (let at = 7; at <= level; at++) {
         group(
-          `${key}/metamagic/${at}`,
-          'Metamagia',
-          2,
-          metamagic.filter(({ id }) => !known.has(id)),
-          { ...meta, level: at },
-          (option) => known.add(option.id)
+          `${key}/replace-discovery/${at}`,
+          'Substituir uma Descoberta Mágica',
+          1,
+          [...known].map((id) => catalog.bySpell.get(id)),
+          { ...meta, level: at, optional: true, spellPicker: true, existingSpell: true },
+          (old, childKey) =>
+            group(
+              `${childKey}/replacement`,
+              'Nova Descoberta Mágica',
+              1,
+              spellOptions(available(at)).filter(({ id }) => !known.has(id)),
+              { ...meta, level: at, spellPicker: true, depth: meta.depth + 1 },
+              ({ id }) => {
+                known.delete(old.id);
+                known.add(id);
+              }
+            )
         );
       }
-      addFacts(meta.source, [['Metamagias', [...known].join(', ')]]);
+      for (const id of known)
+        noteSpell(id, meta.source, {
+          preparation: 'always',
+          castingAbility: 'cha',
+          originKey: key,
+        });
+    }
+    if (entry.id === 'illusionist') {
+      const known = result.spells.some(({ id }) => id === 'minor-illusion');
+      if (known) {
+        group(
+          `${key}/illusion-cantrip`,
+          'Truque adicional de Ilusões Aprimoradas',
+          1,
+          spellOptions({ list: 'wizard', spellLevel: 0 }).filter(
+            ({ id }) => !result.spells.some((spell) => spell.id === id)
+          ),
+          { ...meta, level: 3, spellPicker: true },
+          ({ id }) => noteSpell(id, meta.source, { preparation: 'cantrip', castingAbility: 'int' })
+        );
+      }
+    }
+    const descriptor = {
+      'battle-master': {
+        feature: 'Maneuver Options',
+        levels: [3, 7, 10, 15],
+        initial: 3,
+        later: 2,
+        title: 'Manobras conhecidas',
+      },
+      'arcane-archer': {
+        feature: 'Arcane Shot Options',
+        levels: [3, 7, 10, 15, 18],
+        initial: 2,
+        later: 1,
+        title: 'Disparos Arcanos conhecidos',
+      },
+    }[entry.id];
+    if (descriptor) {
+      if (entry.id === 'arcane-archer') {
+        const duplicateSkills = (entry.skillsFixed ?? []).filter((skill) => result.skills.has(skill));
+        for (const skill of entry.skillsFixed ?? []) result.skills.add(skill);
+        group(
+          `${key}/lore-skills`,
+          'Perícias do Conhecimento do Arqueiro Arcano',
+          duplicateSkills.length,
+          skillOptions(meta.track.entry.skillChoices?.[0]?.from).filter(
+            ({ name }) => !result.skills.has(name)
+          ),
+          { ...meta, level: 3 },
+          toolOrSkill
+        );
+      }
+      const section =
+        entry.sections?.find(({ name }) => name === descriptor.feature) ??
+        entry.features?.find(({ name }) => name === descriptor.feature);
+      // Sections attached to their feature remain available under references.
+      const original =
+        section?.body ??
+        entry.features
+          ?.flatMap((feature) => feature.references ?? [])
+          .find(({ name }) => name === descriptor.feature)?.body;
+      const names = [...(original ?? '').matchAll(/\*\*([^*]+?)\.\*\*/g)].map((match) => match[1]);
+      learnedOptions(
+        `${key}/learned-options`,
+        descriptor.title,
+        names.map((name) => catalog.referenceOptions.find(({ id }) => id === name) ?? opt(name)),
+        Object.fromEntries(descriptor.levels.map((at) => [at, at === 3 ? descriptor.initial : descriptor.later])),
+        meta,
+        (at, count) => at > 3 && count > 0
+      );
+    }
+    if (entry.id === 'draconic-sorcery' && level >= 6) {
+      group(
+        `${key}/elemental-affinity`,
+        'Afinidade Elemental',
+        1,
+        [
+          ['Acid', 'Ácido'],
+          ['Cold', 'Frio'],
+          ['Fire', 'Fogo'],
+          ['Lightning', 'Elétrico'],
+          ['Poison', 'Veneno'],
+        ].map(([id, name]) => opt(id, name)),
+        { ...meta, level: 6 },
+        ({ id, name }) => {
+          result.resistances.add(id);
+          addFacts(meta.source, [['Afinidade Elemental', name]]);
+        }
+      );
     }
   }
 
@@ -998,9 +2033,13 @@ export function projectCharacter(draft, catalog) {
       track,
       level: entry === subclass ? cls.subclassLevel : 1,
       depth: 0,
+      castingAbility: abi((entry.casting ?? cls?.casting)?.ability),
     };
     const key = `${prefix}/${entry.id}`;
-    for (const [index, feature] of [...(entry.traits ?? []), ...(entry.features ?? [])].entries()) {
+    const indexedFeatures = [...(entry.traits ?? []), ...(entry.features ?? [])]
+      .map((feature, index) => ({ feature, index }))
+      .sort((a, b) => rank(a.feature) - rank(b.feature));
+    for (const { index, feature } of indexedFeatures) {
       if (active(feature))
         result.features.push({
           ...feature,
@@ -1011,34 +2050,63 @@ export function projectCharacter(draft, catalog) {
         });
     }
     if (entry === species) {
+      if (entry.id === 'reborn') {
+        group(
+          `${key}/strange-endurance`,
+          'Tipo de dano da Resistência Incomum',
+          1,
+          ['Cold', 'Necrotic', 'Poison'].map((type) => opt(type, damageTypeLabel(type))),
+          meta,
+          ({ id }) => result.resistances.add(id)
+        );
+      }
+      const spellcasting = (entry.traits ?? []).map(({ body }) => body).join(' ');
+      if (entry.id === 'aasimar') meta.castingAbility = 'cha';
+      if (
+        !['elf', 'gnome', 'tiefling'].includes(entry.id) &&
+        /Intelligence, Wisdom, or Charisma is your spellcasting ability/.test(spellcasting)
+      ) {
+        group(
+          `${key}/casting-ability`,
+          'Atributo de conjuração da espécie',
+          1,
+          abilities.slice(3).map(([id, , name]) => opt(id, name)),
+          meta,
+          ({ id }) => {
+            meta.castingAbility = id;
+          }
+        );
+      }
       if (entry.size?.length > 1) {
         group(
           `${key}/size`,
           'Tamanho',
           1,
-          entry.size.map((size) => opt(size, { Medium: 'Médio', Small: 'Pequeno' }[size] ?? size)),
+          entry.size.map((size) => opt(size, sizeName(size))),
           meta,
           (option) => addFacts(source, [['Tamanho', option.name]])
         );
-      } else addFacts(source, [['Tamanho', entry.size?.join(', ')]]);
+      } else addFacts(source, [['Tamanho', entry.size?.map(sizeName).join(', ')]]);
       addFacts(source, [
         ['Deslocamento base', entry.speed && `${entry.speed} pés`],
-        ['Tipo de criatura', entry.creatureType],
+        ['Tipo de criatura', creatureTypeName(entry.creatureType)],
       ]);
     }
     if (entry === cls) {
       const initial = track.levels[0] === 1;
       addFacts(source, [
         ['Dado de vida', cls.hitDie],
-        ['Salvaguardas proficientes', initial && cls.savingThrows?.join(', ')],
+        ['Testes de resistência proficientes', initial && cls.savingThrows?.map(abilityName).join(', ')],
         [
           'Armas',
-          initial ? cls.weaponProficiencies : martialMulticlass.has(cls.id) && 'Armas marciais',
+          initial
+            ? weaponProficiencyNames[cls.weaponProficiencies] ?? cls.weaponProficiencies
+            : martialMulticlass.has(cls.id) && 'Armas marciais',
         ],
         [
           'Armaduras',
           initial
-            ? cls.armorTraining?.map((item) => item.kind).join(', ')
+            ? cls.armorTraining?.map(({ kind }) => armorName(kind)).join(', ')
             : multiclassArmor[cls.id]?.join(', '),
         ],
       ]);
@@ -1081,6 +2149,7 @@ export function projectCharacter(draft, catalog) {
     }
     if (classEntry) classSpells(entry, key, meta);
     if (entry === cls) coreClassChoices(entry, key, meta);
+    if (entry === subclass) subclassChoices(entry, key, meta);
     if (entry === cls && track.levels[0] !== 1) {
       const skill = ['artificer', 'bard', 'ranger', 'rogue'].includes(cls.id)
         ? [
@@ -1095,6 +2164,8 @@ export function projectCharacter(draft, catalog) {
       effects(
         {
           ...entry,
+          armorTraining: [],
+          weaponTraining: [],
           skillsFixed: [],
           skillChoices: [...skill, ...(entry.skillChoices ?? []).filter((rule) => rank(rule) > 1)],
           toolsFixed: { artificer: ['tinkers-tools'], rogue: ['thieves-tools'] }[cls.id] ?? [],
@@ -1136,11 +2207,76 @@ export function projectCharacter(draft, catalog) {
       rule.name,
       rule.pick,
       skillOptions(rule.from).filter(
-        (option) => result.skills.has(option.name) && !result.expertise.has(option.name)
+        (option) =>
+          (rule.upgrade || result.skills.has(option.name)) && !result.expertise.has(option.name)
       ),
       { ...meta, level: Math.max(meta.level, rank(rule)) },
-      (option) => result.expertise.add(option.name)
+      (option) => {
+        if (rule.upgrade && !result.skills.has(option.name)) result.skills.add(option.name);
+        else result.expertise.add(option.name);
+      }
     );
   }
+  for (const { entry, levels } of classes) {
+    const proficiency = {
+      monk: { level: 14, saves: abilities.map(([id]) => id) },
+      rogue: { level: 15, saves: ['wis', 'cha'] },
+    }[entry.id];
+    const at = proficiency && levels[proficiency.level - 1];
+    if (!at) continue;
+    for (const id of proficiency.saves) {
+      result.savingThrows.add(id);
+      savingThrowLevels.set(id, Math.min(savingThrowLevels.get(id) ?? Infinity, at));
+    }
+  }
+  const savingThrowLevel = ({ meta }) => characterLevel(meta, meta.level);
+  for (const choice of savingThrowChoices.sort((a, b) => savingThrowLevel(a) - savingThrowLevel(b))) {
+    const { key, meta, ability, alternatives } = choice;
+    const at = savingThrowLevel(choice);
+    const alreadyProficient = (id) => (savingThrowLevels.get(id) ?? Infinity) <= at;
+    const grant = (id) => {
+      result.savingThrows.add(id);
+      savingThrowLevels.set(id, at);
+    };
+    if (!alreadyProficient(ability)) {
+      grant(ability);
+      continue;
+    }
+    const options = alternatives.filter((id) => !alreadyProficient(id));
+    if (options.length)
+      group(
+        `${key}/saving-throw`,
+        'Proficiência em teste de resistência',
+        1,
+        options.map((id) => opt(id, abilityName(id))),
+        meta,
+        ({ id }) => grant(id)
+      );
+  }
+  for (const { entry, levels } of classes) {
+    if (levels.length < 20) continue;
+    const keys = { barbarian: ['str', 'con'], monk: ['dex', 'wis'] }[entry.id] ?? [];
+    for (const id of keys) result.scores[id] = Math.min(25, result.scores[id] + 4);
+  }
   return result;
+}
+
+export function progressionRequirements(draft, projection) {
+  const requirements = [];
+  for (const track of projection.classes.slice(1)) {
+    const at = track.levels[0];
+    const scores = Object.fromEntries(
+      abilities.map(([id]) => [
+        id,
+        Number(draft.scores[id]) +
+          projection.scoreGrants
+            .filter((grant) => grant.id === id && grant.level < at)
+            .reduce((total, grant) => total + grant.amount, 0),
+      ])
+    );
+    const classes = projection.classes.filter(({ levels }) => levels[0] <= at);
+    for (const requirement of unmetMulticlassRequirements(classes, scores))
+      requirements.push(`Nível ${at} · ${requirement}`);
+  }
+  return requirements;
 }

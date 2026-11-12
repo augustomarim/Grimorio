@@ -6,6 +6,40 @@ export const sortEntries = (entries) =>
 
 export const compendiumHref = (category, id) => `#compendio/${category}/${encodeURIComponent(id)}`;
 
+const weaponPropertyTerms = {
+  Ammunition: 'Munição',
+  Arrow: 'Flecha',
+  Bolt: 'Virote',
+  Bullet: 'Bala',
+  Finesse: 'Acuidade',
+  Heavy: 'Pesada',
+  Light: 'Leve',
+  Loading: 'Recarga',
+  Needle: 'Agulha',
+  Range: 'Alcance',
+  Reach: 'Alcance',
+  Thrown: 'Arremesso',
+  'Two-Handed': 'Duas Mãos',
+  Versatile: 'Versátil',
+  'unless mounted': 'exceto se estiver montado',
+};
+
+const weaponPropertyPattern = new RegExp(
+  `\\b(?:${Object.keys(weaponPropertyTerms).join('|')})\\b`,
+  'g'
+);
+
+export const weaponPropertiesLabel = (properties) =>
+  properties?.replace(weaponPropertyPattern, (term) => weaponPropertyTerms[term]);
+
+export const normalizeWeaponPropertyText = (text) =>
+  text
+    .replace(/\bpropriedade (?:da )?Luz\b/gi, 'propriedade Leve')
+    .replace(/\bLuz\.(?= Quando você realiza a ação de Ataque)/g, 'Leve.')
+    .replace(/\b(?:Delicadeza|Sutileza|Finesse)\.(?= Ao fazer um ataque)/g, 'Acuidade.')
+    .replace(/\bcom Finesse\b/gi, 'com a propriedade Acuidade')
+    .replace(/\bpropriedade (?:de )?(?:Delicadeza|Sutileza|Finesse)\b/gi, 'propriedade Acuidade');
+
 export function classArticles(entry, catalog) {
   return {
     subclasses: sortEntries(catalog.subclasses.filter(({ class: name }) => name === entry.name)),

@@ -28,3 +28,9 @@ private-backups
 **/coverage
 frontend/*
 !frontend/package.json
+!frontend/publication.mjs
+!frontend/validation.js
+!frontend/rules.js
+!frontend/mechanics.js
+!frontend/pt-BR.json
+!frontend/reference.json

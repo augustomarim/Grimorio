@@ -269,13 +269,10 @@ suite('Homologação de produção: HTTPS, prefixo e conta própria', () => {
     expect(missing.statusCode).toBe(404);
     expect(missing.body).not.toContain('do-not-echo');
   });
-  it('confirma e-mail uma vez e impede publicação antes da confirmação', async () => {
+  it('permite publicar uma ficha após o cadastro, sem enviar e-mail', async () => {
     const a = await account(),
       id = await character(a.cookie);
-    expect((await post(`/characters/${id}/publish`, {}, a.cookie)).statusCode).toBe(403);
-    const token = messages.find((m) => m.purpose === 'email_verification')!.token;
-    expect((await post('/auth/email-verification/confirm', { token })).statusCode).toBe(204);
-    expect((await post('/auth/email-verification/confirm', { token })).statusCode).toBe(400);
+    expect(messages).toHaveLength(0);
     expect((await post(`/characters/${id}/publish`, {}, a.cookie)).statusCode).toBe(204);
   });
   it('recupera senha, revoga todas as sessões e impede reutilizar reset', async () => {
@@ -308,9 +305,10 @@ suite('Homologação de produção: HTTPS, prefixo e conta própria', () => {
   });
   it('recusa tokens expirados e protege logout global', async () => {
     const a = await account();
+    expect((await post('/auth/password-reset/request', { email: a.email })).statusCode).toBe(202);
     const token = messages[0]!.token;
     now = new Date('2030-01-03T00:00:00Z');
-    expect((await post('/auth/email-verification/confirm', { token })).statusCode).toBe(400);
+    expect((await post('/auth/password-reset/confirm', { token, password })).statusCode).toBe(400);
     expect(
       (await app.inject({ url: '/api/auth/me', headers: { cookie: a.cookie } })).statusCode
     ).toBe(401);
@@ -408,7 +406,6 @@ suite('Homologação de produção: HTTPS, prefixo e conta própria', () => {
   it('admin lê e modera, mas não edita personagem alheio', async () => {
     const owner = await account(),
       id = await character(owner.cookie);
-    await post('/auth/email-verification/confirm', { token: messages[0]!.token });
     await post(`/characters/${id}/publish`, {}, owner.cookie);
     const admin = await account('admin@example.invalid', 'administrator');
     await db.prepare("UPDATE app_user SET role='admin' WHERE email=?").run(admin.email);

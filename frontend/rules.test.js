@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as raw from '@freshmag/one-dndb/data';
 import {
+  availableSpellChoices,
   canAdjustScore,
   displayName,
   indexCatalog,
@@ -129,6 +130,149 @@ test('Wizard preparation is drawn from the selected spellbook and excludes cantr
     draft.selected[book.key]
   );
   assert.ok(prepared.options.every(({ id }) => catalog.bySpell.get(id).level === 1));
+});
+
+test('Magic Initiate reserves its spells before the Wizard chooses cantrips and spellbook entries', () => {
+  const draft = { ...newCharacter('test'), species: 'human', class: 'wizard' };
+  const feat = build(draft).groups.find(({ key }) => key.endsWith('/versatile'));
+  const config = `${feat.key}/magic-initiate/magic-initiate`;
+  const bookKey = 'class/wizard/spellbook/1';
+  const cantripKey = 'class/wizard/spell/class-cantrips';
+  Object.assign(draft.selected, {
+    [feat.key]: ['magic-initiate'],
+    [config]: ['wizard:int'],
+    [`${config}/wizard:int/spell/level-1-spell`]: ['alarm'],
+    [`${config}/wizard:int/spell/two-cantrips`]: ['light', 'mage-hand'],
+    [bookKey]: ['alarm'],
+    [cantripKey]: ['light'],
+  });
+  const character = build(draft);
+  assert.deepEqual(character.validSelections[bookKey], []);
+  assert.deepEqual(character.validSelections[cantripKey], []);
+  assert.ok(!character.groups.find(({ key }) => key === bookKey).options.some(({ id }) => id === 'alarm'));
+  assert.deepEqual(
+    character.spells.filter(({ id }) => id === 'alarm').map(({ free }) => free),
+    [{ uses: 1, per: 'long' }]
+  );
+});
+
+test('the origin picker hides a spell already selected in the class tab', () => {
+  const draft = { ...newCharacter('test'), species: 'human', class: 'wizard' };
+  const feat = build(draft).groups.find(({ key }) => key.endsWith('/versatile'));
+  const config = `${feat.key}/magic-initiate/magic-initiate`;
+  draft.selected = {
+    [feat.key]: ['magic-initiate'],
+    [config]: ['wizard:int'],
+    'class/wizard/spellbook/1': ['alarm'],
+  };
+  const character = build(draft);
+  const group = character.groups.find(({ key }) => key === `${config}/wizard:int/spell/level-1-spell`);
+  assert.ok(group.options.some(({ id }) => id === 'alarm'));
+  const available = availableSpellChoices(group, character.spells);
+  assert.ok(!available.options.some(({ id }) => id === 'alarm'));
+  assert.ok(available.options.some(({ id }) => id === 'magic-missile'));
+});
+
+test('Draconic Sorcery grants Chromatic Orb without consuming a Sorcerer spell choice', () => {
+  const key = 'class/sorcerer/learned-spells/1';
+  const character = build({
+    ...newCharacter('test'),
+    class: 'sorcerer',
+    level: 3,
+    selected: {
+      'class/sorcerer/subclass': ['draconic-sorcery'],
+      [key]: ['chromatic-orb'],
+    },
+  });
+  assert.deepEqual(character.validSelections[key], []);
+  assert.ok(character.spells.some(({ id, preparation }) => id === 'chromatic-orb' && preparation === 'always'));
+});
+
+test('Gloom Stalker grants Wisdom saves or offers an alternative if already proficient', () => {
+  const draft = {
+    ...newCharacter('test'),
+    class: 'ranger',
+    level: 7,
+    selected: { 'class/ranger/subclass': ['gloom-stalker'] },
+  };
+  const key = 'subclass/gloom-stalker/saving-throw';
+  const ranger = build(draft);
+  assert.ok(ranger.savingThrows.has('wis'));
+  assert.equal(ranger.validSelections[key], undefined);
+
+  draft.classPlan = ['cleric', ...Array(7).fill('ranger')];
+  const multiclass = build(draft);
+  assert.deepEqual(multiclass.groups.find((group) => group.key === key).options.map(({ id }) => id), ['int']);
+  draft.selected[key] = ['int'];
+  assert.ok(build(draft).savingThrows.has('int'));
+});
+
+test('a Sorcerer can replace an earlier Metamagic without gaining an extra option', () => {
+  const key = 'class/sorcerer/metamagic';
+  const character = build({
+    ...newCharacter('test'),
+    class: 'sorcerer',
+    level: 3,
+    selected: {
+      [`${key}/2`]: ['Careful Spell', 'Distant Spell'],
+      [`${key}/3/replace`]: ['Careful Spell'],
+      [`${key}/3/replace/Careful Spell/replacement`]: ['Subtle Spell'],
+    },
+  });
+  assert.deepEqual(character.selectedFeatures.map(({ id }) => id), ['Distant Spell', 'Subtle Spell']);
+});
+
+test('a Warlock can trade an invocation for Pact of the Tome and loses the former benefit', () => {
+  const key = 'class/warlock/replace-invocation/2';
+  const character = build({
+    ...newCharacter('test'),
+    class: 'warlock',
+    level: 2,
+    selected: {
+      'class/warlock/invocation/1': ['Armor of Shadows'],
+      [key]: ['Armor of Shadows'],
+      [`${key}/Armor of Shadows/replacement`]: ['Pact of the Tome'],
+    },
+  });
+  assert.ok(character.selectedFeatures.some(({ id }) => id === 'Pact of the Tome'));
+  assert.ok(!character.selectedFeatures.some(({ id }) => id === 'Armor of Shadows'));
+  assert.ok(!character.spells.some(({ id }) => id === 'mage-armor'));
+  assert.ok(character.groups.some(({ key }) => key.endsWith('/spell/tome-cantrips')));
+});
+
+test('a Warlock cannot replace a pact required by another known invocation', () => {
+  const character = build({
+    ...newCharacter('test'),
+    class: 'warlock',
+    level: 5,
+    selected: {
+      'class/warlock/invocation/1': ['Pact of the Blade'],
+      'class/warlock/invocation/5': ['Thirsting Blade'],
+    },
+  });
+  assert.ok(character.selectedFeatures.some(({ id }) => id === 'Thirsting Blade'));
+  const swap = character.groups.find(({ key }) => key === 'class/warlock/replace-invocation/5');
+  assert.ok(!swap?.options.some(({ id }) => id === 'Pact of the Blade'));
+});
+
+test('class cantrip replacements preserve level history and migrate existing picks', () => {
+  const start = 'class/sorcerer/spell/class-cantrips';
+  const swap = 'class/sorcerer/replace-cantrip/2';
+  const draft = {
+    ...newCharacter('test'),
+    class: 'sorcerer',
+    level: 4,
+    selected: {
+      [start]: ['light', 'mage-hand', 'shocking-grasp', 'prestidigitation', 'fire-bolt'],
+      [swap]: ['light'],
+      [`${swap}/light/replacement`]: ['minor-illusion'],
+    },
+  };
+  const character = build(draft);
+  assert.deepEqual(character.validSelections[`${start}/4`], ['fire-bolt']);
+  assert.ok(character.spells.some(({ id }) => id === 'minor-illusion'));
+  assert.ok(!character.spells.some(({ id }) => id === 'light'));
+  assert.ok(build({ ...draft, level: 1 }).spells.some(({ id }) => id === 'light'));
 });
 
 test('multiclass advancement uses class levels and keeps starting benefits exclusive', () => {

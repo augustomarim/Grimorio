@@ -2,10 +2,12 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { AuthService, Credentials } from '../auth/service.js';
 import { publicUser } from '../auth/service.js';
 import type { Config } from '../config.js';
+import { AppError } from '../errors.js';
 export const ACCESS = 'grimorio_access',
   REFRESH = 'grimorio_refresh';
 const email = { type: 'string', format: 'email', maxLength: 254 };
 const password = { type: 'string', minLength: 12, maxLength: 128 };
+const username = { type: 'string', minLength: 3, maxLength: 32, pattern: '^\\S(?:.*\\S)?$' };
 const rawToken = { type: 'string', minLength: 40, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' };
 const object = (properties: Record<string, unknown>, required = Object.keys(properties)) => ({
   type: 'object',
@@ -52,14 +54,14 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
       schema: {
         body: object({
           email,
-          username: { type: 'string', minLength: 3, maxLength: 32, pattern: '^\\S(?:.*\\S)?$' },
+          username,
           password,
         }),
       },
     },
     async (req, reply) => {
       await auth.register(req.body.email, req.body.username, req.body.password);
-      return await reply.code(202).send(generic);
+      return await reply.code(202).send({ message: 'Solicitação de cadastro processada.' });
     }
   );
   app.post<{
@@ -88,6 +90,18 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
   app.get('/auth/me', async (req) => ({
     user: publicUser(await auth.authenticate(req.cookies[ACCESS])),
   }));
+  app.post<{ Body: { username: string } }>('/auth/profile', {
+    schema: { body: object({ username }) },
+  }, async (req) => ({
+    user: await auth.updateUsername(await auth.authenticate(req.cookies[ACCESS]), req.body.username),
+  }));
+  app.post<{ Body: { currentPassword: string; password: string } }>('/auth/password', {
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    schema: { body: object({ currentPassword: { type: 'string', minLength: 1, maxLength: 128 }, password }) },
+  }, async (req, reply) => set(reply, await auth.changePassword(
+    await auth.authenticate(req.cookies[ACCESS]), req.body.currentPassword, req.body.password,
+    req.ip, String(req.headers['user-agent'] ?? ''),
+  )));
   app.post('/auth/refresh', async (req, reply) =>
     set(reply, await auth.refresh(req.cookies[REFRESH]))
   );
@@ -101,43 +115,40 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
     clear(reply);
     return await reply.code(204).send();
   });
-  for (const purpose of ['email_verification', 'password_reset'] as const) {
-    const path = purpose === 'email_verification' ? 'email-verification' : 'password-reset';
-    app.post<{
-      Body: {
-        email: string;
-      };
-    }>(
-      `/auth/${path}/request`,
-      {
-        config: { rateLimit: { max: 3, timeWindow: '15 minutes' } },
-        schema: { body: object({ email }) },
+  app.post<{
+    Body: {
+      email: string;
+    };
+  }>(
+    '/auth/password-reset/request',
+    {
+      config: { rateLimit: { max: 3, timeWindow: '15 minutes' } },
+      schema: { body: object({ email }) },
+    },
+    async (req, reply) => {
+      if (config.mailMode === 'disabled')
+        throw new AppError(503, 'PASSWORD_RESET_UNAVAILABLE', 'A recuperação de senha por e-mail está desativada.');
+      await auth.requestPasswordReset(req.body.email);
+      return await reply.code(202).send(generic);
+    }
+  );
+  app.post<{
+    Body: {
+      token: string;
+      password: string;
+    };
+  }>(
+    '/auth/password-reset/confirm',
+    {
+      config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+      schema: {
+        body: object({ token: rawToken, password }),
       },
-      async (req, reply) => {
-        await auth.requestToken(req.body.email, purpose);
-        return await reply.code(202).send(generic);
-      }
-    );
-    app.post<{
-      Body: {
-        token: string;
-        password?: string;
-      };
-    }>(
-      `/auth/${path}/confirm`,
-      {
-        config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
-        schema: {
-          body: object(
-            purpose === 'password_reset' ? { token: rawToken, password } : { token: rawToken }
-          ),
-        },
-      },
-      async (req, reply) => {
-        await auth.consume(req.body.token, purpose, req.body.password);
-        if (purpose === 'password_reset') clear(reply);
-        return await reply.code(204).send();
-      }
-    );
-  }
+    },
+    async (req, reply) => {
+      await auth.resetPassword(req.body.token, req.body.password);
+      clear(reply);
+      return await reply.code(204).send();
+    }
+  );
 }
