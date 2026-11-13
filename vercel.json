@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "node scripts/build-vercel.mjs",
+  "outputDirectory": "dist/vercel",
+  "rewrites": [
+    { "source": "/reset-password", "destination": "/index.html" },
+    { "source": "/api/auth/:path*", "destination": "/api/render-proxy?path=auth/:path*" },
+    { "source": "/api/builder/:path*", "destination": "/api/render-proxy?path=builder/:path*" },
+    { "source": "/api/builder", "destination": "/api/render-proxy?path=builder" }
+  ]
+}

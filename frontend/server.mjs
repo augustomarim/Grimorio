@@ -16,7 +16,7 @@ import {
   tools,
 } from '@freshmag/one-dndb/data';
 
-const catalog = {
+export const catalog = {
   revision: REVISION,
   content,
   feats,
@@ -29,7 +29,7 @@ const catalog = {
   alignments,
   languagePick: reference.languagePick,
 };
-const files = new Map([
+export const files = new Map([
   ['/', ['index.html', 'text/html']],
   ['/reset-password', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']],

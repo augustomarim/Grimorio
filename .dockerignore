@@ -32,5 +32,7 @@ frontend/*
 !frontend/validation.js
 !frontend/rules.js
 !frontend/mechanics.js
+!frontend/spells.js
+!frontend/glossary.js
 !frontend/pt-BR.json
 !frontend/reference.json
