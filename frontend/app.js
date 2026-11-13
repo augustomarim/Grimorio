@@ -236,13 +236,19 @@ const classLevels = (classes) =>
   classes.map(({ entry, levels }) => `${displayName(entry)} nível ${levels.length}`).join(' · ');
 
 const classEmblems = new Set('artificer barbarian bard cleric druid fighter monk paladin ranger rogue sorcerer warlock wizard'.split(' '));
+const classEmblemOverrides = {
+  cleric: 'class-cross',
+  sorcerer: 'class-wand',
+  wizard: 'elf',
+  fighter: 'slashing',
+};
 const speciesEmblems = new Set('aasimar dragonborn dwarf elf gnome goliath halfling human orc tiefling'.split(' '));
 const abilityEmblems = { str: 'monk', dex: 'ability-boot', con: 'ability-heart', int: 'ability-book', wis: 'divination', cha: 'ability-jester' };
 
 function catalogEmblem(category, entry) {
   const id = category === 'subclasses' ? classEntry(entry.class)?.id : entry.id;
   if (category === 'classes' || category === 'subclasses') {
-    return gameIcon(classEmblems.has(id) ? id : 'weapon', 'game-emblem');
+    return gameIcon(classEmblemOverrides[id] ?? (classEmblems.has(id) ? id : 'weapon'), 'game-emblem');
   }
   if (category === 'species') return gameIcon(speciesEmblems.has(id) ? id : 'species', 'game-emblem');
   if (category === 'backgrounds') return gameIcon('background', 'game-emblem');

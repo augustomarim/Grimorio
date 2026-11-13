@@ -111,6 +111,26 @@ function proxyAuth(request, response, path, apiOrigin) {
   request.pipe(upstream);
 }
 
+export function catalogWithSpellIcons(iconFolders) {
+  const folders = iconFolders.map((folder) => ({
+    folder,
+    files: new Set(readdirSync(new URL(folder, import.meta.url), { throwIfNoEntry: false }) ?? []),
+  }));
+  const spellAssets = new Map();
+  const illustratedCatalog = {
+    ...catalog,
+    spells: spells.map((spell) => {
+      const filename = spell.id + '.webp';
+      const source = folders.find(({ files }) => files.has(filename));
+      if (!source) return spell;
+      const localIcon = '/spell-icons/' + filename;
+      spellAssets.set(localIcon, [source.folder + filename, 'image/webp']);
+      return { ...spell, localIcon };
+    }),
+  };
+  return { illustratedCatalog, spellAssets };
+}
+
 export function createFrontend(origin) {
   const apiOrigin = new URL(origin);
   if (
@@ -118,19 +138,11 @@ export function createFrontend(origin) {
     apiOrigin.origin + '/' !== apiOrigin.href
   )
     throw new Error('FRONTEND_API_ORIGIN deve conter somente a origem HTTP(S) da API.');
-  const localIconFolder = new URL('../data/spell-icons/', import.meta.url);
-  const localIconFiles = new Set(readdirSync(localIconFolder, { throwIfNoEntry: false }) ?? []);
-  const spellAssets = new Map();
-  const catalogJson = JSON.stringify({
-    ...catalog,
-    spells: spells.map((spell) => {
-      const filename = spell.id + '.webp';
-      if (!localIconFiles.has(filename)) return spell;
-      const localIcon = '/spell-icons/' + filename;
-      spellAssets.set(localIcon, ['../data/spell-icons/' + filename, 'image/webp']);
-      return { ...spell, localIcon };
-    }),
-  });
+  const { illustratedCatalog, spellAssets } = catalogWithSpellIcons([
+    '../data/spell-icons/',
+    './spell-icons/',
+  ]);
+  const catalogJson = JSON.stringify(illustratedCatalog);
   return createServer(async (request, response) => {
     const path = request.url?.split('?')[0];
     if (authRoutes.has(path)) {
