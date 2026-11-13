@@ -12,13 +12,23 @@ export const escapeHtml = (value) =>
   );
 
 export const normalizeSearch = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-export function formatDescription(value, glossary = false) {
+export function formatDescription(value, glossary = false, referenceLink) {
   const render = glossary ? (text) => annotateTerms(text, escapeHtml) : escapeHtml;
+  const renderInline = (text) => text
+    .split(/(\[\[(?:[^|\[\]\n]+\|)?[^\[\]\n]+\]\])/g)
+    .map((part, index) => {
+      if (index % 2 === 0) return render(part);
+      const [id, label = id] = part.slice(2, -2).split('|');
+      const reference = referenceLink?.(id, label);
+      return reference
+        ? `<a class="rules-reference-link" href="${escapeHtml(reference.href)}">${gameIcon(reference.icon)}<span>${escapeHtml(label)}</span></a>`
+        : render(label);
+    })
+    .join('');
   return String(value ?? '')
-    .replace(/\[\[(?:[^|\[\]\n]+\|)?([^\[\]\n]+)\]\]/g, '$1')
-    .split(/(\*\*\*?[^*\n]+\*\*\*?)/g)
+    .split(/(\*\*\*?[^*\n]+\*\*\*?|\*(?:Veja também|See also)\*)/gi)
     .map((part, index) =>
-      index % 2 ? `<strong>${render(part.replace(/^\*+|\*+$/g, '').trim())}</strong>` : render(part)
+      index % 2 ? `<strong>${renderInline(part.replace(/^\*+|\*+$/g, '').trim())}</strong>` : renderInline(part)
     )
     .join('');
 }
@@ -45,16 +55,48 @@ export function rulesDescriptionParts(value) {
     });
 }
 
-export function formatRulesDescription(value, glossary = false, lang = 'pt-BR') {
+export function formatRulesDescription(value, glossary = false, lang = 'pt-BR', referenceLink) {
   return rulesDescriptionParts(value)
     .map(({ columns, rows, text }) =>
       columns
         ? rulesTable(columns, rows, glossary, lang)
         : text
-          ? `<p class="description" lang="${lang}">${formatDescription(text, glossary)}</p>`
+          ? `<div class="rules-prose" lang="${lang}">${formatRulesProse(text, glossary, referenceLink)}</div>`
           : ''
     )
     .join('');
+}
+
+function formatRulesProse(text, glossary, referenceLink) {
+  return text.split(/\r?\n/).reduce((blocks, line) => {
+    const value = line.trim();
+    const previous = blocks.at(-1);
+    const heading = /^(#{1,6})\s+(.+)$/.exec(value);
+    const bullet = /^[-*]\s+(.+)$/.exec(value);
+    const numbered = /^(\d+)\.\s+(.+)$/.exec(value);
+    if (!value) {
+      if (previous?.type === 'p') previous.closed = true;
+    } else if (heading) {
+      blocks.push({ type: 'heading', lines: [heading[2]], level: heading[1].length > 3 ? 'h5' : 'h4' });
+    } else if (bullet || numbered) {
+      const type = bullet ? 'ul' : 'ol';
+      const item = bullet ? bullet[1] : numbered[2];
+      if (previous?.type === type) previous.lines.push(item);
+      else blocks.push({ type, lines: [item], start: numbered?.[1] });
+    } else if (previous?.type === 'p' && !previous.closed) {
+      previous.lines.push(value);
+    } else {
+      blocks.push({ type: 'p', lines: [value] });
+    }
+    return blocks;
+  }, []).map(({ type, lines, level, start }) => {
+    const render = (line) => formatDescription(line, glossary, referenceLink);
+    if (type === 'heading') return `<${level}>${render(lines[0])}</${level}>`;
+    if (type === 'p') return `<p class="description">${render(lines.join('\n'))}</p>`;
+    const items = lines.map(render);
+    const linkList = type === 'ul' && items.every((item) => /^<a class="rules-reference-link"[^>]*>.*<\/a>$/.test(item));
+    return `<${type}${linkList ? ' class="rules-reference-list"' : ''}${start ? ` start="${start}"` : ''}>${items.map((item) => `<li>${item}</li>`).join('')}</${type}>`;
+  }).join('');
 }
 
 export function rulesTable(columns, rows, glossary = false, lang = 'pt-BR') {
@@ -76,10 +118,10 @@ export function rulesTable(columns, rows, glossary = false, lang = 'pt-BR') {
       .join('')}</tbody></table></div>`;
 }
 
-export const originalDescription = (name, body, glossary = false) =>
+export const originalDescription = (name, body, glossary = false, referenceLink) =>
   `<details class="spell-original"><summary>Texto completo em inglês</summary>
     ${name ? `<p lang="en"><strong>${escapeHtml(name)}</strong></p>` : ''}
-    ${formatRulesDescription(body, glossary, 'en')}</details>`;
+    ${formatRulesDescription(body, glossary, 'en', referenceLink)}</details>`;
 export const spellName = (spell) => spell.translation?.name ?? spell.name;
 export const spellCircle = (level) => (level === 0 ? 'Truque' : `${level}º círculo`);
 
@@ -339,7 +381,7 @@ export function spellDescription(spell, { glossary = false } = {}) {
         )
         .join('') ?? ''
     }
-    ${spell.creatureReference ? '<p><a href="#compendio/creatures">Consultar as fichas de criaturas para esta transformação</a></p>' : ''}
+    ${spell.creatureReference ? `<a class="navigation-row" href="#compendio/creatures">${gameIcon('dragonborn', 'game-emblem')}<span>Consultar as fichas de criaturas para esta transformação</span><span aria-hidden="true">›</span></a>` : ''}
     ${spell.translation?.text ? originalDescription(spell.name, spell.text, glossary) : ''}
   </div>`;
 }

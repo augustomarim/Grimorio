@@ -242,6 +242,26 @@ const classEmblemOverrides = {
   wizard: 'elf',
   fighter: 'slashing',
 };
+const categoryEmblems = {
+  classes: 'ability-book', subclasses: 'shield', species: 'species',
+  backgrounds: 'background', magias: 'class-wand',
+  feats: 'radiant', items: 'weapon', tools: 'artificer', languages: 'ability-book',
+  rules: 'background', glossary: 'ability-book', creatures: 'dragonborn',
+};
+const ruleEmblems = {
+  attack: 'slashing',
+  dash: 'ability-boot',
+  disengage: 'ability-boot',
+  dodge: 'shield',
+  help: 'cleric',
+  hide: 'rogue',
+  influence: 'ability-jester',
+  magic: 'class-wand',
+  ready: 'fighter',
+  search: 'divination',
+  study: 'ability-book',
+  utilize: 'artificer',
+};
 const speciesEmblems = new Set('aasimar dragonborn dwarf elf gnome goliath halfling human orc tiefling'.split(' '));
 const abilityEmblems = { str: 'monk', dex: 'ability-boot', con: 'ability-heart', int: 'ability-book', wis: 'divination', cha: 'ability-jester' };
 
@@ -253,7 +273,7 @@ function catalogEmblem(category, entry) {
   if (category === 'species') return gameIcon(speciesEmblems.has(id) ? id : 'species', 'game-emblem');
   if (category === 'backgrounds') return gameIcon('background', 'game-emblem');
   if (category === 'magias') return spellIcon(entry);
-  return '';
+  return gameIcon(categoryEmblems[category] ?? 'ability-book', 'game-emblem');
 }
 
 function characterEmblem(classes) {
@@ -304,7 +324,6 @@ function workspaceNav(page) {
 
 function hubShell(page, content) {
   return `<div class="hub-shell ${page === 'inicio' ? 'hub-home' : ''}"><div class="hub-sidebar">${workspaceNav(page)}
-    ${page === 'inicio' ? '<img class="hub-dragon" src="/hub-dragon.webp" alt="" width="1140" height="1140">' : ''}
     </div><div class="hub-content">${content}</div></div>`;
 }
 
@@ -357,7 +376,7 @@ function home() {
           ${characterEmblem(entry.classes)}
           <div><h2>${escape(title(featured))}</h2>
           <p class="muted">${escape([entry.species && displayName(entry.species), classLevels(entry.classes) || 'Classe a escolher'].filter(Boolean).join(' · '))}</p>
-          <a class="button secondary" href="${characterLink(featured)}" ${characterTarget(featured)}>Abrir ficha</a></div>
+          <a class="button secondary icon-label" href="${characterLink(featured)}" ${characterTarget(featured)}>${gameIcon('ability-book')}Abrir ficha</a></div>
           <dl class="hub-vitals">
             <div><dt>${gameIcon('ability-heart')} Pontos de vida</dt><dd>${health.currentHP} / ${stats.maximumHP}</dd>
               <meter min="0" max="${Math.max(1, stats.maximumHP)}" value="${health.currentHP}" aria-label="Pontos de vida"></meter></div>
@@ -377,7 +396,7 @@ function home() {
           : '<section class="panel hub-empty"><h2>Seu primeiro personagem</h2><p class="muted">Crie uma ficha para ver os atributos e as perícias aqui.</p></section>'
       }
     </div><aside class="hub-rail" aria-label="Personagens e atalhos">
-    <section class="panel hub-recent"><header class="section-heading"><h2>Personagens</h2><a href="#personagens">Ver todos</a></header>
+    <section class="panel hub-recent"><header class="section-heading"><h2>Personagens</h2></header>
       ${characters.length ? `<ul class="character-list">${characters.slice(0, 4).map((character) => {
         const classes = plannedClasses(character, catalog);
         return `<li><a href="${characterLink(character)}" ${characterTarget(character)}>
@@ -385,15 +404,17 @@ function home() {
           <small>${escape(classLevels(classes) || 'Classe a escolher')}</small></span><span aria-hidden="true">›</span>
         </a></li>`;
       }).join('')}</ul>` : '<p class="muted">Nenhum personagem criado.</p>'}
+      <a class="navigation-row" href="#personagens">${gameIcon('species', 'game-emblem')}<span>Ver todos os personagens</span><span aria-hidden="true">›</span></a>
     </section>
-    <section class="panel hub-shortcuts"><h2 class="hub-shortcuts-title">Atalhos
-      <img src="/hub-compass.jpg" alt="" width="2048" height="2048">
-    </h2>
-      <a href="#personagens">Ver todas as fichas</a>
-      <a href="#compendio/classes">Consultar classes</a>
-      <a href="#compendio/magias">Consultar magias</a>
-      ${guest ? '<a href="#login">Entrar ou criar conta</a>' : ''}
-      <img class="hub-books" src="/hub-books.jpg" alt="" width="794" height="794" loading="lazy">
+    <section class="panel hub-shortcuts"><h2>Atalhos</h2>
+      ${[
+        ['#compendio/classes', 'ability-book', 'Consultar classes'],
+        ['#compendio/magias', 'class-wand', 'Consultar magias'],
+        ['#compendio/rules', 'background', 'Consultar regras'],
+        ...(guest ? [['#login', 'human', 'Entrar ou criar conta']] : []),
+      ].map(([href, icon, label]) => `<a class="navigation-row" href="${href}">
+        ${gameIcon(icon, 'game-emblem')}<span>${label}</span><span aria-hidden="true">›</span>
+      </a>`).join('')}
     </section></aside></div>`;
 }
 
@@ -472,15 +493,61 @@ function compendiumResults() {
     ${entries.length > catalogLimit ? '<button type="button" class="button secondary" data-more>Mostrar mais</button>' : ''}`;
 }
 
-function articleLink(category, entry) {
+function articleLink(category, entry, note = '') {
   const tags = category === 'magias'
     ? spellTagMarkup(entry)
     : [category === 'subclasses' && classLabel(entry.class), featCategories[entry.category], entry.source]
       .filter(Boolean).map((tag) => `<span class="tag">${escape(tag)}</span>`).join(' ');
-  return `<a class="entry wiki-link" href="${compendiumHref(category, entry.id)}">
-    <strong class="icon-label">${catalogEmblem(category, entry)}${escape(displayName(entry))}</strong>
-    <span class="entry-tags">${tags}</span>
+  return `<a class="navigation-row wiki-result" href="${compendiumHref(category, entry.id)}">
+    ${catalogEmblem(category, entry)}
+    <span class="wiki-result-content"><strong>${escape(displayName(entry))}</strong>
+      ${note ? `<small>${escape(note)}</small>` : ''}
+      ${tags ? `<span class="entry-tags">${tags}</span>` : ''}
+    </span><span aria-hidden="true">›</span>
   </a>`;
+}
+
+function globalSearch(encodedQuery) {
+  let query = '';
+  try {
+    query = decodeURIComponent(encodedQuery ?? '').trim();
+  } catch {
+    return '<section class="panel"><h1>Busca</h1><p>Digite um termo no campo de busca.</p></section>';
+  }
+  const heading = `<h1>Busca${query ? ' por “' + escape(query) + '”' : ''}</h1>`;
+  if (!query) return `<section class="panel">${heading}<p>Digite um termo no campo de busca.</p></section>`;
+  const terms = normalizeSearch(query).split(/\s+/);
+  const matches = (...values) => {
+    const label = normalizeSearch(values.filter(Boolean).join(' '));
+    return terms.every((term) => label.includes(term));
+  };
+  const groups = compendiumTabs.map(([category, label]) => {
+    const entries = category === 'magias' ? catalog.spells : catalog[category];
+    const results = sortEntries(entries.filter((entry) => matches(
+      displayName(entry), entry.name, entry.source, entry.publication, label
+    )));
+    return [label, results.map((entry) => articleLink(category, entry))];
+  });
+  if (user || guest) {
+    const characters = savedCharacters().flatMap((character) => {
+      const classes = plannedClasses(character, catalog);
+      const label = classLevels(classes);
+      if (!matches(title(character), label)) return [];
+      return [`<a class="entry wiki-link" href="${characterLink(character)}" ${characterTarget(character)}>
+        <strong class="icon-label">${characterEmblem(classes)}${escape(title(character))}</strong>
+        <small>${escape(label)}</small></a>`];
+    });
+    groups.unshift(['Meus personagens', characters]);
+  }
+  const total = groups.reduce((count, [, entries]) => count + entries.length, 0);
+  return `<section class="panel global-search">${heading}
+    ${total ? `<p class="muted">${total} ${total === 1 ? 'resultado' : 'resultados'}</p>
+      ${groups.filter(([, entries]) => entries.length).map(([label, entries]) =>
+        `<details class="global-search-group" ${total <= 40 ? 'open' : ''}>
+          <summary>${label} <span class="tag">${entries.length}</span></summary>
+          <div class="compendium-results">${entries.join('')}</div>
+        </details>`).join('')}` : '<p>Nenhum resultado encontrado.</p>'}
+  </section>`;
 }
 
 function compendium(articleId) {
@@ -488,7 +555,7 @@ function compendium(articleId) {
     <nav class="hub-nav" aria-label="Categorias">${compendiumTabs
       .map(
         ([id, label]) =>
-          `<a href="#compendio/${id}" ${id === catalogCategory ? 'aria-current="page"' : ''}>${label}</a>`
+          `<a class="icon-label" href="#compendio/${id}" ${id === catalogCategory ? 'aria-current="page"' : ''}>${gameIcon(categoryEmblems[id])}${label}</a>`
       )
       .join('')}</nav>
     ${
@@ -523,9 +590,13 @@ function compendium(articleId) {
           .join('')}
         <p>${catalog.creatures.length} fichas de criaturas e invocações. O bestiário usa as criaturas do SRD 5.2.1 e os blocos complementares citados pelas opções de personagem.</p>
         <p>Traduções comunitárias e automáticas. Os textos originais acompanham os verbetes.</p>
-        <p><a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener">SRD da Wizards of the Coast</a>
-        · <a href="https://github.com/5etools-mirror-3/5etools-src" target="_blank" rel="noopener">Catálogo de referência</a>
-        · <a href="https://github.com/decito/dnd5e-pt-br" target="_blank" rel="noopener">Traduções comunitárias</a></p>
+        <ul class="wiki-class-links">${[
+          ['https://www.dndbeyond.com/srd', 'SRD da Wizards of the Coast'],
+          ['https://github.com/5etools-mirror-3/5etools-src', 'Catálogo de referência'],
+          ['https://github.com/decito/dnd5e-pt-br', 'Traduções comunitárias'],
+        ].map(([href, label]) => `<li><a class="navigation-row" href="${href}" target="_blank" rel="noopener">
+          ${gameIcon('ability-book', 'game-emblem')}<span>${label}</span><span aria-hidden="true">↗</span>
+        </a></li>`).join('')}</ul>
       </details>`
     }</section>`;
 }
@@ -539,23 +610,34 @@ function compendiumArticle(id) {
   const entry = (isSpell ? catalog.spells : catalog[catalogCategory]).find(
     (entry) => encodeURIComponent(entry.id) === id
   );
-  const back = `<a href="#compendio/${catalogCategory}">Voltar para ${compendiumTabs.find(([id]) => id === catalogCategory)[1].toLowerCase()}</a>`;
+  const back = `<a class="button secondary icon-label" href="#compendio/${catalogCategory}"><span aria-hidden="true">←</span>Voltar para ${compendiumTabs.find(([id]) => id === catalogCategory)[1].toLowerCase()}</a>`;
   if (!entry) return `<p>${back}</p><p>Verbete não encontrado no catálogo.</p>`;
   const related = catalogCategory === 'classes' ? classArticles(entry, catalog) : undefined;
   const parent = entry.class && classEntry(entry.class);
   const classLinks = (entry.classes ?? []).map(classEntry).filter(Boolean);
   const lore = entry.lore ?? [];
   const progression = classProgression(entry);
+  const isCharacterArticle = ['classes', 'subclasses', 'species'].includes(catalogCategory);
+  const isReference = ['rules', 'glossary'].includes(catalogCategory);
+  const relatedRules = isReference ? (entry.related ?? []).flatMap((key) => {
+    const rule = catalog.rules.find(({ id }) => id === key);
+    return rule ? [rule] : [];
+  }) : [];
   document.title = displayName(entry) + ' · Compêndio · Grimório';
-  return `<article class="wiki-article">
-    <p class="wiki-breadcrumb">${back}${parent ? ` <span aria-hidden="true">›</span> <a href="${compendiumHref('classes', parent.id)}">${escape(displayName(parent))}</a>` : ''}</p>
-    <header><h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}${escape(displayName(entry))}</h2>
+  return `<article class="wiki-article ${isCharacterArticle ? 'wiki-character-article' : ''} ${isReference ? 'wiki-reference' : ''}">
+    <nav class="wiki-breadcrumb" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
+    <header class="wiki-article-header"><h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}${escape(displayName(entry))}</h2>
       ${isSpell
         ? `<div class="picker-tags">${spellTagMarkup(entry)}</div>`
         : `<p class="muted">${[featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
     </header>
-    ${isSpell ? spellDescription(entry, { glossary: true }) : optionDetails(entry, true)}
-    ${classLinks.length ? `<section><h3>Listas de classe</h3><ul class="wiki-inline-links">${classLinks.map((cls) => `<li><a href="${compendiumHref('classes', cls.id)}">${escape(displayName(cls))}</a></li>`).join('')}</ul></section>` : ''}
+    ${isSpell ? spellDescription(entry, { glossary: true }) : isReference
+      ? `<section class="wiki-reference-body">${entryDescription(entry, true, true, ruleReference)}</section>`
+      : optionDetails(entry, true, isCharacterArticle)}
+    ${relatedRules.length ? `<section><h3>Regras relacionadas</h3><ul class="wiki-class-links">${relatedRules.map((rule) =>
+      `<li>${articleLink('rules', rule)}</li>`).join('')}</ul></section>` : ''}
+    ${classLinks.length ? `<section><h3>Listas de classe</h3><ul class="wiki-class-links">${classLinks.map((cls) =>
+      `<li>${articleLink('classes', cls)}</li>`).join('')}</ul></section>` : ''}
     ${
       lore.length
         ? `<section><h3>Linhagens e história</h3>${lore
@@ -578,7 +660,8 @@ function compendiumArticle(id) {
             .join('')}</details>`
         : ''
     }
-    ${related?.subclasses.length ? `<section><h3>Subclasses</h3>${related.subclasses.map((entry) => articleLink('subclasses', entry)).join('')}</section>` : ''}
+    ${related?.subclasses.length ? `<section><h3>Subclasses</h3><ul class="wiki-class-links">${related.subclasses.map((entry) =>
+      `<li>${articleLink('subclasses', entry)}</li>`).join('')}</ul></section>` : ''}
     ${
       related?.spells.length
         ? `<section><h3>Magias da classe</h3><p class="muted">${related.spells.length} magias no catálogo</p>
@@ -611,7 +694,21 @@ function select(field, label, values, selected) {
         .join('')}</select>`;
 }
 
-function entryDescription(entry, full = false, glossary = false) {
+function ruleReference(id, label) {
+  const normalizeTerm = (value) => normalizeSearch(value).trim().replace(/[-\s]+/g, '-');
+  const terms = [normalizeTerm(id), normalizeTerm(label)];
+  for (const category of ['rules', 'glossary']) {
+    const entries = catalog[category];
+    const target = entries.find((entry) => entry.id === id)
+      ?? entries.find((entry) => terms.includes(normalizeTerm(displayName(entry))));
+    if (target) return {
+      href: compendiumHref(category, target.id),
+      icon: ruleEmblems[target.id] ?? categoryEmblems[category],
+    };
+  }
+}
+
+function entryDescription(entry, full = false, glossary = false, referenceLink) {
   const fields = full ? ['body', 'text', 'summary'] : ['body', 'summary', 'text'];
   const field = fields.find((key) => entry[key] || entry.translation?.[key]);
   if (!field) return '';
@@ -632,11 +729,11 @@ function entryDescription(entry, full = false, glossary = false) {
       rows.length !== localized.rows.length
     );
   });
-  return `${formatRulesDescription(translation ?? original, glossary, translation ? 'pt-BR' : 'en')}
+  return `${formatRulesDescription(translation ?? original, glossary, translation ? 'pt-BR' : 'en', referenceLink)}
     ${missingTables.map(({ columns, rows }) => rulesTable(columns, rows, glossary, 'en')).join('')}
     ${
       original && translation && translation !== original
-        ? originalDescription(entry.name, original, glossary)
+        ? originalDescription(entry.name, original, glossary, referenceLink)
         : ''
     }`;
 }
@@ -1507,7 +1604,7 @@ function route() {
     main.innerHTML = accountView(accountPage);
     return;
   }
-  if (!user && !guest && !publicSheet && !['compendio', 'galeria'].includes(page)) {
+  if (!user && !guest && !publicSheet && !['compendio', 'galeria', 'busca'].includes(page)) {
     if (['personagem', 'ficha', 'novo', 'compendio', 'personagens'].includes(page)) returnTo = location.hash;
     openHash('#login');
     return;
@@ -1589,6 +1686,8 @@ function route() {
       <label for="character-search">Buscar personagem ou classe</label><input type="search" id="character-search" value="${escape(characterFilter)}">
       <div id="character-results">${characterList(savedCharacters())}</div>`
     );
+  } else if (page === 'busca') {
+    main.innerHTML = hubShell(page, globalSearch(id));
   } else if (page === 'compendio') {
     const category = compendiumTabs.some(([key]) => key === id) ? id : 'classes';
     if (catalogCategory !== category) {
@@ -2092,14 +2191,14 @@ function wikiBenefits(entry) {
       const spell = catalog.bySpell.get(id);
       return (
         spell &&
-        `<li><a href="${compendiumHref('magias', id)}">${escape(spellName(spell))}</a>${level > 1 ? ` · a partir do nível ${escape(level)}` : ''}</li>`
+        `<li>${articleLink('magias', spell, level > 1 ? `A partir do nível ${level}` : '')}</li>`
       );
     }),
     ...(featsFixed ?? []).map(({ id, note }) => {
       const feat = catalog.byFeat.get(id);
       return (
         feat &&
-        `<li><a href="${compendiumHref('feats', id)}">${escape(displayName(feat))}</a>${note ? ` · ${escape(classLabel(note))}` : ''}</li>`
+        `<li>${articleLink('feats', feat, note ? classLabel(note) : '')}</li>`
       );
     }),
   ].filter(Boolean);
@@ -2107,10 +2206,10 @@ function wikiBenefits(entry) {
   return `<section class="wiki-benefits"><h3>Benefícios e escolhas</h3><ul>
     ${fixed.map(([label, values]) => `<li><strong>${label}</strong> · ${escape(values.join(', '))}</li>`).join('')}
     ${picks.map((value) => `<li>${escape(value)}</li>`).join('')}
-    ${links.join('')}</ul></section>`;
+    </ul>${links.length ? `<ul class="wiki-class-links">${links.join('')}</ul>` : ''}</section>`;
 }
 
-function optionDetails(option, wiki = false) {
+function optionDetails(option, wiki = false, characterArticle = false) {
   const style = option.collection === 'fighting-styles' && catalog.byFeat.get(option.id);
   const grantedFeat = option.feat && typeof option.feat === 'object' ? option.feat : undefined;
   const entry = grantedFeat ?? (style || option);
@@ -2199,8 +2298,12 @@ function optionDetails(option, wiki = false) {
       return fixed ? `${spellName(fixed)} (nível ${level ?? 1})` : '';
     })
     .filter(Boolean);
-  return `${rows.length ? `<dl class="spell-facts">${rows.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>` : ''}
-    ${description}
+  const facts = rows.length ? `<dl class="spell-facts">${rows.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>` : '';
+  const overview = characterArticle && (description || facts)
+    ? `<div class="wiki-character-overview">${description ? `<div class="wiki-character-intro">${description}</div>` : ''}
+      ${facts ? `<aside class="wiki-character-facts" aria-label="Dados principais">${facts}</aside>` : ''}</div>`
+    : facts + description;
+  return `${overview}
     ${backgroundFeats.length ? `<section class="benefits"><h4>Talentos do antecedente</h4>
       ${backgroundFeats.map(({ feat, note }) => `<section class="entry">
         <h5>${escape(displayName(feat))}${note ? ` · ${escape(classLabel(note))}` : ''}</h5>
@@ -2566,13 +2669,11 @@ main.addEventListener('change', ({ target }) => {
 
 document.querySelector('#quick-search').addEventListener('submit', (event) => {
   event.preventDefault();
-  catalogCategory = 'magias';
-  catalogFilter = String(new FormData(event.currentTarget).get('query')).trim();
-  catalogSpellFilters = {};
-  catalogSource = '';
-  catalogLimit = 24;
-  if (location.hash === '#compendio/magias') route();
-  else location.hash = '#compendio/magias';
+  const query = String(new FormData(event.currentTarget).get('query')).trim();
+  if (!query) return;
+  const hash = '#busca/' + encodeURIComponent(query);
+  if (location.hash === hash) route();
+  else location.hash = hash;
 });
 
 main.addEventListener('submit', (event) => {

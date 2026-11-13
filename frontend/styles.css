@@ -39,7 +39,6 @@
   --action: #9d4537;
   --action-hover: #b15342;
   --danger: #ffad9f;
-  --hero-paper: #33262a;
   --hero-edge: #665055;
   --hero-surface: #352a2e;
   --selected-surface: #23362b;
@@ -611,12 +610,6 @@ footer {
   border-radius: 8px;
   background: var(--surface);
 }
-.hub-dragon {
-  display: block;
-  width: 100%;
-  height: auto;
-  mix-blend-mode: multiply;
-}
 .hub-content {
   min-width: 0;
 }
@@ -730,10 +723,6 @@ footer {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
-.hub-recent .section-heading a {
-  font-size: 0.78rem;
-  white-space: nowrap;
-}
 @media (max-width: 1040px) {
   .hub-home .hub-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -759,28 +748,82 @@ footer {
 .account-banner {
   margin-bottom: 1rem;
 }
-.hub-shortcuts a {
-  padding: 0.45rem 0;
-  border-top: 1px solid var(--line);
-}
-.hub-shortcuts-title {
-  display: flex;
+.navigation-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-block: 0;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.55rem 0.35rem;
+  border-block-start: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
 }
-.hub-shortcuts-title img {
-  width: 2.8rem;
-  height: auto;
+.navigation-row > span {
+  overflow-wrap: anywhere;
 }
-.hub-books {
-  justify-self: center;
-  width: min(100%, 10rem);
-  height: auto;
+.navigation-row:hover,
+.navigation-row:focus-visible {
+  background: var(--accent-soft);
+}
+.hub-shortcuts {
+  gap: 0;
+}
+.hub-shortcuts h2 {
+  margin-block-end: 0.65rem;
+}
+.wiki-class-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.55rem;
+  padding: 0;
+  list-style: none;
+}
+.wiki-class-links > li {
+  display: grid;
+  min-width: 0;
+}
+.wiki-class-links .navigation-row {
+  grid-template-columns: 2rem minmax(0, 1fr) 0.55rem;
+  align-items: start;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+}
+.wiki-class-links .navigation-row > :last-child {
+  display: grid;
+  align-items: center;
+  min-height: 2rem;
+}
+.wiki-class-links .game-emblem {
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  padding: 0.4rem;
+}
+.wiki-class-links .spell-art {
+  padding: 0;
 }
 .compendium-results button {
   justify-self: start;
+}
+.global-search h1 {
+  overflow-wrap: anywhere;
+}
+.global-search-group {
+  margin-block: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+}
+.global-search-group summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.global-search-group[open] summary {
+  margin-bottom: 0.65rem;
 }
 .secondary {
   color: var(--accent);
@@ -801,12 +844,6 @@ footer {
   .hub-sidebar > .hub-nav {
     display: flex;
     margin-bottom: 0;
-  }
-  .hub-dragon {
-    display: none;
-  }
-  .hub-books {
-    width: 7rem;
   }
 }
 .brand {
@@ -845,28 +882,61 @@ main:focus {
   margin: 0.2rem 0 0.4rem;
 }
 .hub-hero {
-  background:
-    linear-gradient(90deg, var(--hero-paper) 32%, color-mix(in srgb, var(--hero-paper) 94%, transparent) 44%, transparent 68%),
-    url('/hub-castle.webp') right center / min(66%, 690px) auto no-repeat,
-    var(--hero-paper);
-  background-blend-mode: normal, multiply;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--hero-paper);
   min-height: clamp(12rem, 20vw, 17rem);
   align-items: center;
+}
+.hub-hero .eyebrow {
+  color: #8d382d;
+}
+.hub-hero .secondary {
+  background: #fffaf3;
+  color: #8d382d;
+  border-color: #8d382d;
+}
+.hub-hero .secondary:hover {
+  background: #f6ece6;
 }
 .hub-hero > div {
   max-width: min(55%, 32rem);
 }
+:root[data-theme='dark'] .hub-hero {
+  background: var(--hero-surface);
+}
+.hub-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 42%;
+  background: url('/hub-castle.webp') center / cover no-repeat;
+  mask-image: radial-gradient(ellipse 49% 57% at 55% 52%, #000 39%, transparent 100%);
+}
+:root[data-theme='dark'] .hub-hero .eyebrow {
+  color: var(--accent);
+}
+:root[data-theme='dark'] .hub-hero .secondary {
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--line);
+}
+:root[data-theme='dark'] .hub-hero .secondary:hover {
+  background: var(--accent-soft);
+}
 @media (max-width: 780px) {
   .hub-hero {
-    background:
-      linear-gradient(0deg, var(--hero-paper) 0%, color-mix(in srgb, var(--hero-paper) 85%, transparent) 38%, transparent 70%),
-      url('/hub-castle.webp') center top / 100% auto no-repeat,
-      var(--hero-paper);
-    background-blend-mode: normal, multiply;
     padding-top: clamp(7rem, 33vw, 12rem);
   }
   .hub-hero > div {
     max-width: 100%;
+  }
+  .hub-hero::before {
+    inset: 0 0 auto;
+    height: clamp(7rem, 33vw, 12rem);
+    mask-image: radial-gradient(ellipse 49% 62% at 50% 45%, #000 43%, transparent 100%);
   }
 }
 .eyebrow {
@@ -1252,6 +1322,86 @@ textarea {
 .wiki-article {
   gap: 1.1rem;
 }
+.wiki-character-article > .wiki-article-header,
+.wiki-reference > .wiki-article-header {
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--accent-soft);
+}
+.wiki-character-article > .wiki-article-header h2,
+.wiki-reference > .wiki-article-header h2 {
+  margin: 0;
+  font: 700 clamp(1.7rem, 4vw, 2.6rem) Georgia, serif;
+}
+.wiki-character-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.wiki-character-facts,
+.wiki-reference-body {
+  padding: clamp(0.8rem, 2vw, 1.4rem);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+.wiki-character-facts { background: var(--soft-surface); }
+@media (min-width: 950px) {
+  .wiki-character-overview:has(.wiki-character-intro):has(.wiki-character-facts) {
+    grid-template-columns: minmax(0, 1fr) minmax(13rem, 0.46fr);
+  }
+}
+.rules-prose > :first-child { margin-block-start: 0; }
+.rules-prose > :last-child { margin-block-end: 0; }
+.rules-prose h4,
+.rules-prose h5 {
+  margin-block: 1.25rem 0.4rem;
+  color: var(--accent);
+}
+.rules-prose li + li { margin-block-start: 0.32rem; }
+.rules-reference-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  padding: 0.16rem 0.52rem;
+  border: 1px solid var(--line);
+  border-radius: 0.42rem;
+  background: var(--soft-surface);
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: none;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.rules-reference-link .game-icon {
+  flex: 0 0 1rem;
+  width: 1rem;
+  height: 1rem;
+}
+.rules-reference-link:hover,
+.rules-reference-link:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.rules-prose .rules-reference-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.45rem;
+  padding: 0;
+  list-style: none;
+}
+.rules-prose .rules-reference-list > li {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+.rules-reference-list .rules-reference-link {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+}
 .wiki-link {
   display: flex;
   align-items: baseline;
@@ -1269,8 +1419,22 @@ textarea {
 .wiki-link .tag {
   margin: 0;
 }
-.wiki-spell-list,
-.wiki-inline-links {
+.wiki-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.wiki-result-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.22rem;
+}
+.wiki-result-content .tag {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.wiki-spell-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;

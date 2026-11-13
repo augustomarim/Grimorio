@@ -8415,7 +8415,7 @@
     },
     "action": {
       "name": "Ação",
-      "text": "No seu turno, você pode realizar uma ação. Escolha qual ação realizar abaixo ou entre as ações especiais fornecidas por seus recursos. *Veja também* \"Jogando\" (\"Ações\"). Estas ações são definidas em outra parte deste glossário:\n\n[[ataque|Ataque]]\n\n[[traço|traço]]\n\n[[desligar|Desligar]]\n\n[[esquivar|esquivar]]\n\n[[ajuda|Ajuda]]\n\n[[ocultar|Ocultar]]\n\n[[influência|Influência]]\n\n[[mágica|Magia]]\n\n[[pronto|Pronto]]\n\n[[pesquisar|Pesquisar]]\n\n[[estudar|Estudar]]\n\n[[utilizar|Utilizar]]"
+      "text": "No seu turno, você pode realizar uma ação. Escolha uma das ações abaixo ou uma ação especial concedida por suas características. *Veja também* a seção \"Ações\" em \"Jogando\". Consulte cada ação para ver suas regras:\n\n- [[attack|Atacar]]\n- [[dash|Disparar]]\n- [[disengage|Desengajar]]\n- [[dodge|Esquivar]]\n- [[help|Ajudar]]\n- [[hide|Esconder-se]]\n- [[influence|Influenciar]]\n- [[magic|Magia]]\n- [[ready|Preparar]]\n- [[search|Procurar]]\n- [[study|Estudar]]\n- [[utilize|Utilizar]]"
     },
     "advantage": {
       "name": "Vantagem",
@@ -8491,7 +8491,7 @@
     },
     "burrow-speed": {
       "name": "Velocidade de Toca",
-      "text": "Uma criatura que tenha Velocidade de Toca pode usar essa velocidade para se mover através de areia, terra, lama ou gelo. A criatura não pode escavar rocha sólida a menos que tenha uma característica que permita isso. *Veja também* \"[[velocidade|Velocidade]].\""
+      "text": "Uma criatura que tenha Velocidade de Toca pode usar essa velocidade para se mover através de areia, terra, lama ou gelo. A criatura não pode escavar rocha sólida a menos que tenha uma característica que permita isso. *Veja também* [[speed|Velocidade]]."
     },
     "campaign": {
       "name": "Campanha",
@@ -8598,8 +8598,8 @@
       "text": "Ataques e outros efeitos prejudiciais causam diferentes tipos de danos. Os tipos de dano não possuem regras próprias, mas outras regras, como [[resistência|Resistência]], dependem dos tipos. A tabela Tipos de Dano oferece exemplos para ajudar um Mestre a atribuir um tipo a um novo efeito.\n\n**Tipos de dano**\n\n| Tipo | Exemplos |\n| --- | --- |\n| Ácido | Líquidos corrosivos, enzimas digestivas |\n| Espancamento | Objetos contundentes, constrição, queda |\n| Frio | Água gelada, explosões geladas |\n| Fogo | Chamas, calor insuportável |\n| Vigor | Energia mágica pura |\n| Raio | Eletricidade |\n| Necrótico | Energia que drena a vida |\n| Perfuração | Presas, objetos perfurantes |\n| Tóxico | Gás tóxico, veneno |\n| Psíquico | Energia alucinante |\n| Radiante | Energia sagrada, radiação abrasadora |\n| Cortando | Garras, objetos cortantes |\n| Trovão | Som concussivo |"
     },
     "dash": {
-      "name": "Traço",
-      "text": "Ao realizar a ação Correr, você ganha movimento extra para o turno atual. O aumento é igual à sua Velocidade após aplicar quaisquer modificadores. Com uma velocidade de 30 pés, por exemplo, você pode se mover até 60 pés no seu turno se usar Dash. Se sua Velocidade de 9 metros for reduzida para 4,5 metros, você poderá se mover até 9 metros neste turno se você Correr.\n\nSe você tiver uma velocidade especial, como [[fly-speed|Fly Speed]] ou [[swim-speed|Swim Speed]], você pode usar essa velocidade em vez de sua velocidade quando realizar esta ação. Você escolhe qual velocidade usar cada vez que fizer isso. *Veja também* \"[[velocidade|Velocidade]].\""
+      "name": "Disparar",
+      "text": "Ao realizar a ação Disparar, você ganha movimento extra para o turno atual. O aumento é igual à sua Velocidade após aplicar quaisquer modificadores. Com Velocidade de 9 metros, você pode se mover até 18 metros nesse turno. Se sua Velocidade for reduzida para 4,5 metros, você poderá se mover até 9 metros ao Disparar.\n\nSe tiver uma velocidade especial, como [[fly-speed|Velocidade de Voo]] ou [[swim-speed|Velocidade de Natação]], você pode usá-la no lugar da sua Velocidade. Escolha qual velocidade usar cada vez que realizar a ação. *Veja também* [[speed|Velocidade]]."
     },
     "dead": {
       "name": "Morto",
@@ -8634,11 +8634,11 @@
       "text": "Se você tiver Desvantagem em um [[d20-test|D20 Test]], role dois d20s e use o teste inferior. Uma jogada não pode ser afetada por mais de uma Desvantagem, e [[vantagem|Vantagem]] e Desvantagem na mesma jogada se cancelam. *Veja também* \"Jogando\" (\"Testes D20\")."
     },
     "disengage": {
-      "name": "Desengatar",
+      "name": "Desengajar",
       "text": "Se você realizar a ação Desengajar, seu movimento não provoca Ataques de Oportunidade pelo resto do turno atual."
     },
     "dodge": {
-      "name": "Desviar",
+      "name": "Esquivar",
       "text": "Se você realizar a ação Esquivar, você ganha os seguintes benefícios: até o início do seu próximo turno, qualquer jogada de ataque feita contra você terá [[desvantagem|Desvantagem]] se você puder ver o atacante, e você fizer testes de resistência de Destreza com [[vantagem|Vantagem]].\n\nVocê perde esses benefícios se tiver a condição [[incapacitado|Incapacitado]] ou se sua [[velocidade|Velocidade]] for 0."
     },
     "emanation": {
