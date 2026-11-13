@@ -130,6 +130,80 @@ body:has(.session-screen) {
   overflow: auto;
   padding: 1rem clamp(0.75rem, 3vw, 2rem);
 }
+.combat-columns,
+.session-checks,
+.session-magic,
+.session-reference,
+.session-inventory {
+  display: grid;
+  align-items: start;
+  gap: 0.85rem;
+}
+.combat-columns {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.combat-columns .play-panel {
+  margin-block: 0.75rem 0;
+  background: var(--surface);
+}
+.combat-columns .play-actions strong {
+  flex-basis: 100%;
+}
+.combat-columns select {
+  max-width: 100%;
+}
+.combat-casting {
+  min-width: 0;
+}
+.combat-casting > select {
+  width: 100%;
+}
+.session-checks,
+.session-reference {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr));
+}
+.session-inventory {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+.session-skills {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+@media (min-width: 900px) {
+  .session-magic {
+    grid-template-columns: minmax(12rem, 1fr) minmax(0, 3fr);
+  }
+}
+@media (min-width: 1024px) and (min-height: 650px) {
+  .session-pane:not([hidden]) {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .session-pane[data-sheet-pane='combate']:not([hidden]) {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .session-pane > :is(.combat-columns, .session-checks, .session-reference, .session-magic) {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .session-pane > section,
+  .combat-columns > section,
+  .session-checks > section,
+  .session-reference > *,
+  .session-magic > * {
+    min-height: 0;
+    min-width: 0;
+    max-height: 100%;
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+  .combat-columns .play-panel {
+    margin: 0;
+  }
+  .session-combat-stats {
+    margin-block-end: 0.75rem;
+  }
+}
 
 .session-combat-stats {
   display: flex;
@@ -1218,8 +1292,92 @@ small {
 .workspace .button {
   justify-self: start;
 }
-.workspace > label {
+.builder-fields {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.builder-fields > label {
   margin-bottom: -0.55rem;
+}
+.builder-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-block-end: 0.55rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+}
+@media (max-width: 920px), (max-height: 649px) {
+  .builder-controls {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}
+@media (min-width: 921px) and (min-height: 650px) {
+  body:has(.builder-screen) {
+    overflow: hidden;
+  }
+  .builder-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+    background: var(--page);
+  }
+  .builder-screen > .layout {
+    min-height: 0;
+    align-items: stretch;
+  }
+  .builder-screen :is(.steps, .summary) {
+    position: static;
+    align-self: start;
+    max-height: 100%;
+    overflow: auto;
+  }
+  .workspace {
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+  }
+  .builder-fields {
+    min-height: 0;
+    overflow: auto;
+    padding-inline-end: 0.4rem;
+  }
+}
+.builder-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.builder-choices .choice {
+  min-width: 0;
+  margin: 0;
+}
+.level-heading {
+  width: 100%;
+  justify-content: start;
+}
+.level-heading[aria-expanded='true'] {
+  background: var(--accent-soft);
+}
+.level-actions {
+  margin-block: 0.65rem;
+}
+.inventory-item {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  min-width: 0;
+}
+.inventory-item .inventory-equip {
+  justify-self: start;
 }
 .fields,
 .scores {
@@ -1302,8 +1460,19 @@ small {
   border-color: var(--danger);
 }
 .score-label {
-  font-size: 0.86rem;
+  font-size: 1.05rem;
   font-weight: 700;
+}
+.attribute-scores .score-options span {
+  min-width: 2.45rem;
+  min-height: 2.45rem;
+  font-size: 1.05rem;
+}
+.attribute-scores > div > small {
+  font-size: 0.95rem;
+}
+.attribute-scores > div > small strong {
+  font-size: 1.25rem;
 }
 .score-actions {
   display: flex;

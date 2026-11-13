@@ -33,6 +33,7 @@ export function playResources(draft, calculated) {
       stored.hitDice
     ),
     slots: resources(slots, stored.slots),
+    armorUntrained: calculated.armorUntrained,
     shortRest: !!stored.shortRest,
   };
 }
@@ -88,6 +89,8 @@ export function equippedWeaponRolls(projection, calculated) {
       attack: bonus + (proficient ? calculated.proficiency : 0) + magic + (archery && ranged ? 2 : 0),
       damage: { count: Number(damage[1]), sides: Number(damage[2]), bonus: bonus + magic },
       type: weapon.damage.type,
+      disadvantage: (weapon.properties?.includes('heavy') && calculated.scores[ranged ? 'dex' : 'str'] < 13)
+        || calculated.armorUntrained,
     }];
   });
 }
@@ -134,8 +137,46 @@ export function characterInventory(draft, projection, catalog) {
     .map((row) => {
       const item = catalog.byItem.get(row.itemId) ?? catalog.byTool.get(row.itemId);
       const base = catalog.byItem.get(row.baseItemId);
-      return { ...row, item, base, name: item ? displayName(item) : row.itemId };
+      const entry = { ...row, item, base, name: item ? displayName(item) : row.itemId };
+      return equipmentSlot(entry) ? entry : { ...entry, equipped: false };
     });
+}
+
+export function equipmentSlot({ item, base }) {
+  const definition = base ?? item;
+  if (definition?.id === 'shield' || (item?.kind === 'armor' && /shield/i.test(item.name))) return 'shield';
+  if (definition?.kind === 'armor') return 'armor';
+  if (definition?.weapon || ['weapon', 'staff', 'wand', 'rod'].includes(item?.kind)) return 'weapon';
+  if (item?.kind === 'ring') return 'ring';
+  if (item?.id === 'stone-of-good-luck') return 'carried-charm';
+  if (!['wondrous', 'gear'].includes(item?.kind)) return;
+  const slots = [
+    ['feet', /(?:^|-)(?:boots|shoes|slippers|sandals)(?:-|$)/],
+    ['hands', /(?:^|-)(?:gloves|gauntlets)(?:-|$)/],
+    ['wrists', /(?:^|-)(?:bracers|wraps)(?:-|$)/],
+    ['head', /(?:^|-)(?:helm|helmet|hat|circlet|crown|headband)(?:-|$)/],
+    ['eyes', /(?:^|-)(?:goggles|spectacles)(?:-|$)/],
+    ['neck', /(?:^|-)(?:amulet|necklace|periapt|pendant)(?:-|$)/],
+    ['back', /(?:^|-)(?:cloak|cape|mantle)(?:-|$)/],
+    ['waist', /(?:^|-)(?:belt|girdle)(?:-|$)/],
+    ['clothing', /(?:^|-)(?:robe|robes|clothes)(?:-|$)/],
+  ];
+  return slots.find(([, pattern]) => pattern.test(item.id))?.[0];
+}
+
+export function equipmentConflicts(row, inventory) {
+  const slot = equipmentSlot(row);
+  const equipped = inventory.filter((other) => other.equipped && other.id !== row.id);
+  if (!slot) return [];
+  if (slot !== 'shield' && slot !== 'weapon') {
+    return equipped.filter((other) => equipmentSlot(other) === slot).slice(slot === 'ring' ? 1 : 0);
+  }
+  const twoHanded = (entry) => (entry.base ?? entry.item)?.weapon?.properties?.includes('two-handed');
+  const held = equipped.filter((other) => ['weapon', 'shield'].includes(equipmentSlot(other)));
+  if (twoHanded(row)) return held;
+  const conflicts = held.filter((other) => twoHanded(other) || (slot === 'shield' && equipmentSlot(other) === 'shield'));
+  const remaining = held.filter((other) => !conflicts.includes(other));
+  return [...conflicts, ...remaining.slice(1)];
 }
 
 function individualSlots(entry, level) {
@@ -182,16 +223,8 @@ export function deriveCharacter(draft, projection, catalog) {
   const luckBonus = activeItems.has('stone-of-good-luck') ? 1 : 0;
   const spellAttackBonus = (staffOfPower ? 2 : 0) + (archmagiRobe ? 2 : 0);
   const spellSaveBonus = archmagiRobe ? 2 : 0;
-  const armorItems = equipped.filter(
-    ({ item, base }) =>
-      (base ?? item)?.kind === 'armor' &&
-      (base ?? item)?.id !== 'shield' &&
-      !/shield/i.test(item?.name ?? '')
-  );
-  const shields = equipped.filter(
-    ({ item, base }) =>
-      (base ?? item)?.id === 'shield' || (item?.kind === 'armor' && /shield/i.test(item.name))
-  );
+  const armorItems = equipped.filter((row) => equipmentSlot(row) === 'armor');
+  const shields = equipped.filter((row) => equipmentSlot(row) === 'shield');
   const armor = armorItems[0];
   const shield = shields[0];
   const warnings = [];
@@ -249,7 +282,7 @@ export function deriveCharacter(draft, projection, catalog) {
     if (archmagiRobe) formulas.push([15 + modifiers.dex, 'Manto do Arquimago']);
     [ac, armorSource] = formulas.sort(([a], [b]) => b - a)[0];
   }
-  if (shield) ac += 2 + (shield.itemId === 'repulsion-shield' ? 1 : magicBonus(shield.item));
+  if (shield && training.has('Shield')) ac += 2 + (shield.itemId === 'repulsion-shield' ? 1 : magicBonus(shield.item));
   if (armor && feats.has('defense')) ac++;
   const protectionBonus = ['ring-of-protection', 'cloak-of-protection'].filter((id) =>
     activeItems.has(id)
@@ -258,6 +291,7 @@ export function deriveCharacter(draft, projection, catalog) {
   if (activeItems.has('bracers-of-defense') && !armor && !shield) ac += 2;
   if (armorItems.length > 1) warnings.push('Equipe apenas uma armadura.');
   if (shields.length > 1) warnings.push('Equipe apenas um escudo.');
+  let armorUntrained = false;
   for (const row of [...armorItems, ...shields]) {
     const base = row.base ?? row.item;
     const kind =
@@ -268,7 +302,10 @@ export function deriveCharacter(draft, projection, catalog) {
           : /Medium/.test(base?.shelf)
             ? 'Medium'
             : 'Light';
-    if (!training.has(kind)) warnings.push('Falta treinamento para ' + row.name + '.');
+    if (!training.has(kind)) {
+      if (kind !== 'Shield') armorUntrained = true;
+      warnings.push('Falta treinamento para ' + row.name + '.');
+    }
   }
   const attunementLimit =
     levels.artificer >= 18 ? 6 : levels.artificer >= 14 ? 5 : levels.artificer >= 10 ? 4 : 3;
@@ -279,6 +316,7 @@ export function deriveCharacter(draft, projection, catalog) {
     id,
     name,
     proficient: projection.savingThrows.has(id),
+    disadvantage: armorUntrained && ['str', 'dex'].includes(id),
     bonus: modifiers[id] + (projection.savingThrows.has(id) ? proficiency : 0) + magicSaveBonus,
   }));
   const skills = Object.entries(skillAbilities).map(([id, ability]) => {
@@ -289,7 +327,9 @@ export function deriveCharacter(draft, projection, catalog) {
       modifiers[ability] +
       (expertise ? proficiency * 2 : proficient ? proficiency : half) +
       luckBonus;
-    return { id, name: skillName(id), ability, proficient, expertise, bonus };
+    const disadvantage = (armorUntrained && ['str', 'dex'].includes(ability))
+      || (id === 'Stealth' && baseArmor?.stealth === 'Disadvantage');
+    return { id, name: skillName(id), ability, proficient, expertise, bonus, disadvantage };
   });
   for (const skill of skills) {
     if (
@@ -307,10 +347,7 @@ export function deriveCharacter(draft, projection, catalog) {
     const die = Number(String(cls.hitDie).replace(/\D/g, ''));
     if (!die) continue;
     classCounts[classId] = (classCounts[classId] ?? 0) + 1;
-    const roll = draft.hp?.[index + 1];
-    const base = index === 0 ? die : (roll ?? Math.floor(die / 2) + 1);
-    if (index > 0 && roll != null && (!Number.isInteger(roll) || roll < 1 || roll > die))
-      warnings.push('PV do nível ' + (index + 1) + ' precisam de um valor entre 1 e ' + die + '.');
+    const base = index === 0 ? die : Math.floor(die / 2) + 1;
     maximumHP += Math.max(1, base + modifiers.con);
   }
   for (const [id, count] of Object.entries(classCounts))
@@ -404,6 +441,8 @@ export function deriveCharacter(draft, projection, catalog) {
   }
   return {
     proficiency,
+    scores: projection.scores,
+    armorUntrained,
     modifiers,
     inventory,
     armorClass: ac,

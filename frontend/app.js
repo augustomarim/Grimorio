@@ -21,7 +21,7 @@ import {
 } from './rules.js';
 import { attributeIssue, characterIssues } from './validation.js';
 import {
-  characterInventory, completeRest, deriveCharacter, equippedWeaponRolls, playResources, rollDice, updatePlayHP,
+  characterInventory, completeRest, deriveCharacter, equippedWeaponRolls, equipmentConflicts, equipmentSlot, playResources, rollDice, updatePlayHP,
 } from './mechanics.js';
 import { accountLink, accountView, authRequest, restoreSession, withSessionLock } from './auth.js';
 import { characterRequest, syncCharacters } from './characters.js';
@@ -453,9 +453,7 @@ function home() {
           <small>${plus(modifier(entry.scores[id]))}</small></dd></div>`
           )
           .join('')}</dl>
-        <section class="hub-skills"><h3>Perícias</h3><dl>${stats.skills.map(({ name, bonus, proficient }) =>
-          `<div><dt>${proficient ? '<span class="hub-proficient" title="Proficiente">●</span>' : ''}${name}</dt><dd>${plus(bonus)}</dd></div>`
-        ).join('')}</dl></section></section>`
+        ${skillPanel(stats.skills)}</section>`
           : '<section class="panel hub-empty"><h2>Seu primeiro personagem</h2><p class="muted">Crie uma ficha para ver os atributos e as perícias aqui.</p></section>'
       }
     </div><aside class="hub-rail" aria-label="Personagens e atalhos">
@@ -867,10 +865,14 @@ function pickerControl(group) {
     return '<p class="muted">Nenhuma opção elegível com as escolhas atuais.</p>';
   const selected = group.options.filter(({ id }) => group.selected.includes(id));
   const action = selected.length ? 'Revisar' : 'Escolher';
+  const spellAction = group.name.startsWith('Substituir') || group.name.startsWith('Trocar') || group.name.startsWith('Revisar')
+    ? group.name
+    : group.name.startsWith('Preparar') ? (selected.length ? 'Revisar novas magias' : group.name)
+      : group.name.startsWith('Nova magia') ? action + ' magia substituta'
+        : action + ' ' + group.name.toLocaleLowerCase('pt-BR');
   return `<div class="picker-control">
     <button type="button" class="button secondary" id="picker:${escape(group.key)}" data-picker="${escape(group.key)}"
-      aria-haspopup="dialog">${action} ${group.spellPicker ? 'magias' : escape(group.name)}
-      ${group.spellPicker ? `<span class="sr-only"> · ${escape(group.name)}</span>` : ''}</button>
+      aria-haspopup="dialog">${escape(group.spellPicker ? spellAction : action + ' ' + group.name)}</button>
     ${
       selected.length
         ? `<ul class="chips" aria-label="${escape(group.name)}">
@@ -944,10 +946,10 @@ function origin() {
     </div>
     ${
       projection.background
-        ? `<section class="benefits" aria-label="Antecedente selecionado">
-      <h3>${escape(displayName(projection.background))}</h3>
+        ? `<details class="entry" aria-label="Antecedente selecionado">
+      <summary><strong>Benefícios de ${escape(displayName(projection.background))}</strong></summary>
       ${optionDetails(projection.background)}
-    </section>`
+    </details>`
         : ''
     }
     <div>${select(
@@ -956,11 +958,11 @@ function origin() {
       campaigns.map((name) => ({ id: name, name })),
       draft.campaign
     )}</div>
-    ${projection.groups
+    <div class="builder-choices">${projection.groups
       .filter(({ section }) => section === 'origem')
       .map(choiceBlock)
-      .join('')}
-    ${benefits('origem')}`;
+      .join('')}</div>
+    <details class="entry"><summary>Características da origem</summary>${benefits('origem')}</details>`;
 }
 
 
@@ -1080,10 +1082,13 @@ function attributes() {
       .join('')}</div>`;
 }
 
+let progressionLevel;
+
 function progression() {
   const groups = projection.groups.filter(({ section }) => section === 'progressao');
   const plan = classPlan(draft);
   const requirements = progressionRequirements(draft, projection);
+  const active = Math.min(progressionLevel ?? plan.length, plan.length);
   return `<h2>Classe e níveis</h2><p class="muted">A cada nível, avance em uma classe que já tem ou escolha uma nova.</p>
     <p><strong>Nível total ${plan.length}</strong>${projection.classes.length ? ` · ${escape(classLevels(projection.classes))}` : ''}</p>
     ${requirements.length ? `<p class="score-error" role="alert">${escape(requirements.join('. '))}.</p>` : ''}
@@ -1093,37 +1098,32 @@ function progression() {
         const track = projection.classes.find(({ entry }) => entry.id === id);
         const label =
           track && `${displayName(track.entry)} nível ${track.levels.indexOf(level) + 1}`;
-        return `<section class="level"><h3>Nível total ${level}${label ? ` · ${escape(label)}` : ''}</h3>
+        const expanded = level === active;
+        return `<section class="level"><h3><button class="button secondary level-heading" type="button" data-open-level="${level}" aria-expanded="${expanded}">Nível total ${level}${label ? ` · ${escape(label)}` : ''}</button></h3>
+      ${expanded ? `<div class="score-actions level-actions">
       <button type="button" class="button secondary" id="picker:class-level/${index}" data-picker="class-level/${index}"
         aria-haspopup="dialog">${id ? 'Trocar' : 'Escolher'} classe do nível ${level}</button>
-      ${
-        index > 0 && track
-          ? `<label for="hp-${level}">PV obtidos neste nível, antes de Constituição</label>
-      <input id="hp-${level}" type="number" min="1" max="${Number(String(track.entry.hitDie).replace(/\D/g, ''))}"
-        placeholder="Média (${Math.floor(Number(String(track.entry.hitDie).replace(/\D/g, '')) / 2) + 1})"
-        name="hp" data-level="${level}" value="${draft.hp?.[level] ?? ''}">`
-          : ''
-      }
-      ${groups
+      ${plan.length < 20 && plan.every(Boolean) ? `<button type="button" class="button primary" id="picker:class-level/${plan.length}" data-picker="class-level/${plan.length}" aria-haspopup="dialog">Subir para o nível ${plan.length + 1}</button>` : ''}
+      ${level === plan.length && level > 1 ? '<button type="button" class="button secondary" data-remove-level>Remover último nível</button>' : ''}
+      </div>
+      <div class="builder-choices">${groups
         .filter((group) => group.characterLevel === level)
         .map(choiceBlock)
-        .join('')}</section>`;
+        .join('')}</div>` : ''}</section>`;
       })
       .join('')}
-    <div class="score-actions">
-      ${
-        plan.length < 20 && plan.every(Boolean)
-          ? `<button type="button" class="button primary"
-        data-picker="class-level/${plan.length}" aria-haspopup="dialog">Adicionar nível ${plan.length + 1}</button>`
-          : ''
-      }
-      ${plan.length > 1 ? '<button type="button" class="button secondary" data-remove-level>Remover último nível</button>' : ''}
-    </div>
-    ${benefits('progressao')}`;
+    <details class="entry"><summary>Características de classe</summary>${benefits('progressao')}</details>`;
 }
 
 function missingChoices() {
   return characterIssues(draft, projection, catalog);
+}
+
+function skillPanel(skills, playable = false) {
+  return `<section class="hub-skills"><h3>Perícias</h3><dl>${skills.map(({ id, name, bonus, proficient, expertise, disadvantage }) =>
+    `<div><dt>${proficient || expertise ? `<span class="hub-proficient" title="${expertise ? 'Especialização' : 'Proficiente'}">●</span>` : ''}${escape(name)}${disadvantage ? ' <small>· Desvantagem</small>' : ''}</dt>
+    <dd>${playable ? `<button class="text-button" type="button" data-play="skill" data-check="${escape(id)}" aria-label="Rolar ${escape(name)}">${plus(bonus)}</button>` : plus(bonus)}</dd></div>`
+  ).join('')}</dl></section>`;
 }
 
 function review() {
@@ -1136,8 +1136,14 @@ function review() {
         : '<p>As escolhas disponíveis no construtor estão preenchidas.</p>'
     }
     <p class="muted">Confira também as escolhas e condições descritas no texto das habilidades.</p>
-    <button type="submit" class="button primary" ${pending.length ? 'disabled' : ''}>Salvar ficha</button>
-    ${facts()}`;
+    ${facts()}${skillPanel(deriveCharacter(draft, projection, catalog).skills)}`;
+}
+
+function rollCheck(bonus, disadvantage) {
+  if (!disadvantage) return rollDice(1, 20, bonus);
+  const { dice } = rollDice(2, 20);
+  const kept = Math.min(...dice);
+  return { dice: [kept], discarded: Math.max(...dice), disadvantage: true, sides: 20, bonus, total: kept + bonus };
 }
 
 function withSpellAbility(spell, calculated) {
@@ -1178,8 +1184,10 @@ function showDice(rolls) {
     reveal();
     return;
   }
-  const pieces = rolls.flatMap(({ dice, sides, discarded }) =>
-    dice.map((value, index) => ({ value, sides, dropped: index === dice.indexOf(discarded) }))
+  const pieces = rolls.flatMap(({ dice, sides, discarded, disadvantage }) =>
+    disadvantage
+      ? [...dice.map((value) => ({ value, sides })), { value: discarded, sides, dropped: true }]
+      : dice.map((value, index) => ({ value, sides, dropped: index === dice.indexOf(discarded) }))
   ).slice(0, 30);
   const columns = Math.min(pieces.length, innerWidth < 550 ? 4 : 6);
   const rows = Math.ceil(pieces.length / columns);
@@ -1201,8 +1209,10 @@ function playPanel(calculated) {
   const resources = playResources(draft, calculated);
   const { currentHP, temporaryHP, hitDice, slots, shortRest } = resources;
   const weapons = equippedWeaponRolls(projection, calculated);
-  return `<section class="play-panel">
-    <div class="section-heading"><h3>Durante a sessão</h3>
+  const castable = projection.spells.map((entry, index) => ({ spell: withSpellAbility(entry, calculated), index }))
+    .filter(({ spell }) => spellCastingOptions(spell, resources, draft.play ?? {}).length);
+  return `<div class="combat-columns">
+    <section class="play-panel"><div class="section-heading"><h3>Pontos de vida</h3>
       ${classPlan(draft).length < 20 ? `<a class="button secondary" href="${link('progressao')}">Subir de nível</a>` : ''}
     </div>
     <p><strong>${currentHP} / ${calculated.maximumHP} PV</strong> · ${temporaryHP} temporários</p>
@@ -1215,7 +1225,6 @@ function playPanel(calculated) {
     <div class="play-actions">
       <button type="button" class="button secondary" data-play="short" ${!currentHP && !shortRest ? 'disabled' : ''}>${shortRest ? 'Concluir descanso curto' : 'Iniciar descanso curto'}</button>
       <button type="button" class="button secondary" data-play="long" ${!currentHP ? 'disabled' : ''}>Descanso longo</button>
-      <button type="button" class="button secondary" data-play="initiative">Rolar iniciativa</button>
     </div>
     ${currentHP === 0 ? '<p>Com 0 PV, você precisa recuperar pelo menos 1 PV antes de iniciar um descanso.</p>' : ''}
     <div class="play-actions"><strong>Dados de Vida</strong>
@@ -1223,18 +1232,37 @@ function playPanel(calculated) {
         data-play="hit-die" data-sides="${sides}" ${!shortRest || !remaining ? 'disabled' : ''}>
         Gastar d${sides} · ${remaining}/${maximum}</button>`).join('')}
     </div>
-    ${slots.length ? `<p><strong>Espaços disponíveis</strong> · ${slots.map(({ pact, level, remaining, maximum }) =>
-      `${pact ? 'Pacto ' : ''}${level}º círculo ${remaining}/${maximum}`).join(' · ')}</p>` : ''}
-    ${weapons.length ? `<div><h4>Armas equipadas</h4>${weapons.map(({ id, name, attack, damage, type }) =>
+    </section>
+    <section class="play-panel"><h3>Ataques</h3>
+    ${weapons.length ? weapons.map(({ id, name, attack, damage, type, disadvantage }) =>
       `<div class="play-actions"><strong>${escape(name)}</strong>
-        <button class="button secondary" type="button" data-play="weapon-attack" data-weapon="${escape(id)}">Ataque ${plus(attack)}</button>
+        <button class="button primary" type="button" data-play="weapon-attack" data-weapon="${escape(id)}">Atacar ${plus(attack)}${disadvantage ? ' · Desvantagem' : ''}</button>
         <button class="button secondary" type="button" data-play="weapon-damage" data-weapon="${escape(id)}">
           Dano ${damage.count}d${damage.sides}${damage.bonus ? ' ' + plus(damage.bonus) : ''} · ${escape(damageTypeLabel(type))}</button></div>`
-    ).join('')}</div>` : ''}
-  </section>`;
+    ).join('') : '<p class="muted">Nenhuma arma equipada.</p>'}
+    </section>
+    <section class="play-panel"><h3>Atalhos</h3>
+      ${resources.armorUntrained ? '<p class="score-error">Armadura sem treinamento. Desvantagem em testes de Força e Destreza e conjuração indisponível.</p>' : ''}
+      <button type="button" class="button secondary" data-play="initiative">Rolar iniciativa</button>
+      <div class="play-actions"><label for="combat-skill">Perícia
+        <select id="combat-skill" data-play-control>${calculated.skills.map(({ id, name, bonus }) =>
+          `<option value="${escape(id)}">${escape(name)} ${plus(bonus)}</option>`).join('')}</select></label>
+        <button type="button" class="button secondary" data-play="skill" data-combat-skill>Rolar perícia</button></div>
+      ${castable.length ? `<div class="combat-casting">
+        <label for="combat-spell">Magia rápida</label>
+        <select id="combat-spell" data-play-control>${castable.map(({ spell, index }) =>
+          `<option value="${index}">${escape(spellName(spell))}</option>`).join('')}</select>
+        <div id="combat-spell-actions">${spellPlayActions(castable[0].spell, castable[0].index, resources)}</div>
+      </div>` : ''}
+      ${projection.spells.length ? '<button type="button" class="button secondary" data-sheet-jump="magias">Ver todas as magias</button>' : ''}
+      ${slots.length ? `<p><strong>Espaços disponíveis</strong> · ${slots.map(({ pact, level, remaining, maximum }) =>
+        `${pact ? 'Pacto ' : ''}${level}º círculo ${remaining}/${maximum}`).join(' · ')}</p>` : ''}
+    </section>
+  </div>`;
 }
 
 function spellCastingOptions(spell, resources, play) {
+  if (resources.armorUntrained) return [];
   if (spell.level === 0) return [{ key: 'cantrip', label: 'Truque', level: 0 }];
   const options = [];
   if (spell.ritual) options.push({ key: 'ritual', label: 'Ritual', level: spell.level });
@@ -1260,7 +1288,7 @@ function spellPlayActions(spell, index, resources) {
   return `<div class="play-actions spell-actions" data-spell-index="${index}">
     ${options.length ? `<label>Conjurar com <select aria-label="Recurso para conjurar ${escape(spellName(spell))}" data-play-control>
       ${options.map(({ key, label }) => `<option value="${escape(key)}">${escape(label)}</option>`).join('')}
-    </select></label><button type="button" class="button primary" data-play="cast">Conjurar</button>` : '<span class="muted">Sem conjuração disponível.</span>'}
+    </select></label><button type="button" class="button primary" data-play="cast">Conjurar</button>` : `<span class="muted">${resources.armorUntrained ? 'A armadura sem treinamento impede a conjuração.' : 'Sem conjuração disponível.'}</span>`}
     ${rolls.map(({ label, type }, i) => `<button type="button" class="button secondary" data-play="spell-roll" data-roll-index="${i}">
       Rolar ${escape(label.toLowerCase())}${type ? ` · ${escape(type)}` : ''}</button>`).join('')}
   </div>`;
@@ -1311,13 +1339,16 @@ function narrative() {
       .join('')}`;
 }
 
-function inventoryView(editable) {
+function inventoryView(editable, playable = false) {
   const rows = characterInventory(draft, projection, catalog);
   return rows.length
     ? rows
         .map(
           (row) =>
-            `<details class="entry"><summary>${escape(row.quantity)}× ${escape(row.name)}
+            `<article class="inventory-item">
+    ${(editable || playable) && equipmentSlot(row) ? `<button class="button secondary inventory-equip" type="button"
+      data-equip-item="${escape(row.id)}" aria-label="${row.equipped ? 'Desequipar' : 'Equipar'} ${escape(row.name)}">${row.equipped ? 'Desequipar' : 'Equipar'}</button>` : ''}
+    <details class="entry"><summary>${escape(row.quantity)}× ${escape(row.name)}
     ${row.base ? ' · ' + escape(displayName(row.base)) : ''}
     ${row.equipped ? ' · equipado' : ''}${row.attuned ? ' · sintonizado' : ''}</summary>
     ${row.item ? optionDetails(row.item) : ''}
@@ -1325,7 +1356,6 @@ function inventoryView(editable) {
       editable
         ? `<div class="fields two">
       <label>Quantidade<input name="inventory" data-item-key="${escape(row.id)}" data-property="quantity" type="number" min="1" max="9999" value="${row.quantity}"></label>
-      <label><input name="inventory" data-item-key="${escape(row.id)}" data-property="equipped" type="checkbox" ${row.equipped ? 'checked' : ''}> Equipado</label>
       ${row.item?.attunement ? `<label><input name="inventory" data-item-key="${escape(row.id)}" data-property="attuned" type="checkbox" ${row.attuned ? 'checked' : ''}> Sintonizado</label>` : ''}
       <label>Observações<input name="inventory" data-item-key="${escape(row.id)}" data-property="notes" maxlength="500" value="${escape(row.notes)}"></label>
       ${
@@ -1340,7 +1370,7 @@ function inventoryView(editable) {
       <button type="button" class="text-button" data-remove-item="${escape(row.id)}">Remover item</button>
     </div>`
         : ''
-    }</details>`
+    }</details></article>`
         )
         .join('')
     : '<p>Inventário vazio.</p>';
@@ -1353,7 +1383,7 @@ function equipment() {
     <p>Limite de sintonia · ${calculated.attunementLimit}</p>
     ${calculated.warnings.map((warning) => `<p class="score-error">${escape(warning)}</p>`).join('')}
     <button type="button" class="button secondary" data-picker="inventory-add" aria-haspopup="dialog">Adicionar item</button>
-    ${inventoryView(true)}`;
+    <div class="session-inventory">${inventoryView(true)}</div>`;
 }
 
 function sheet() {
@@ -1382,7 +1412,7 @@ function sheet() {
       </div>
       ${playPanel(calculated)}
     `) : ''}
-    ${panel('testes', `<dl class="scores sheet-scores">${scores}</dl>
+    ${panel('testes', `<div class="session-checks"><section><dl class="scores sheet-scores">${scores}</dl>
     <dl class="facts">${[
       ['Proficiência', plus(calculated.proficiency)],
       ['Classe de Armadura', `${calculated.armorClass} · ${calculated.armorSource}`],
@@ -1405,17 +1435,9 @@ function sheet() {
             ? `<button class="text-button" type="button" data-play="save" data-check="${id}" aria-label="Rolar resistência de ${name}">${plus(bonus)}</button>`
             : plus(bonus)}</dd></div>`
       )
-      .join('')}</dl></section>
-    <section><h3>Perícias</h3><dl class="facts">${calculated.skills
-      .map(
-        ({ id, name, bonus, proficient, expertise }) =>
-          `<div><dt>${name}${expertise ? ' · especialização' : proficient ? ' · proficiente' : ''}</dt><dd>${playable
-            ? `<button class="text-button" type="button" data-play="skill" data-check="${escape(id)}" aria-label="Rolar ${name}">${plus(bonus)}</button>`
-            : plus(bonus)}</dd></div>`
-      )
-      .join('')}</dl></section>`)}
-    ${panel('habilidades', `
-    ${facts()}
+      .join('')}</dl></section></section>
+    ${skillPanel(calculated.skills, playable)}</div>`)}
+    ${panel('habilidades', `<div class="session-reference"><section>${facts()}</section><div>
     ${benefits()}
     ${projection.feats.length ? `<section class="benefits"><h3>Talentos</h3>${projection.feats.map((entry) => details(entry)).join('')}</section>` : ''}
     ${projection.selectedFeatures.length ? `<section class="benefits"><h3>Opções aprendidas e benefícios das escolhas</h3>${projection.selectedFeatures.map((entry) => details(entry)).join('')}</section>` : ''}
@@ -1423,8 +1445,8 @@ function sheet() {
       ? `<details class="entry"><summary><strong>Escolhas registradas</strong></summary><ul class="pending">
       ${choices.map((group) => `<li>${escape(group.name)} · ${escape(group.selected.map((id) => displayName(group.options.find((option) => option.id === id))).join(', '))}</li>`).join('')}
       </ul></details>`
-      : ''}`)}
-    ${panel('magias', `${castingSummary(calculated)}
+      : ''}</div></div>`)}
+    ${panel('magias', `<div class="session-magic">${castingSummary(calculated)}
     ${
       projection.spells.length
         ? `<section class="benefits"><h3>Magias</h3>${[
@@ -1439,24 +1461,24 @@ function sheet() {
                   (spell.preparation ?? (spell.level === 0 ? 'cantrip' : 'always')) === mode
               );
               return spells.length
-                ? `<h4>${title}</h4>${spells.map(({ spell, index }) => {
+                ? `<h4>${title}</h4><div class="session-inventory">${spells.map(({ spell, index }) => {
                     const ready = withSpellAbility(spell, calculated);
                     return spellCard(ready, playable ? spellPlayActions(ready, index, resources) : '');
-                  }).join('')}`
+                  }).join('')}</div>`
                 : '';
             })
             .join('')}</section>`
         : '<p class="muted">Nenhuma magia registrada.</p>'
-    }`)}
-    ${panel('inventario', `<section><h3>Inventário</h3>${inventoryView(false)}</section>`)}
-    ${panel('historia', `
+    }</div>`)}
+    ${panel('inventario', `<section><h3>Inventário</h3><div class="session-inventory">${inventoryView(false, playable)}</div></section>`)}
+    ${panel('historia', `<div class="session-reference"><div class="session-story">
     ${Object.entries(draft.narrative ?? {})
       .filter(([, text]) => text)
       .map(
         ([key, text]) =>
           `<section><h3>${narrativeLabels[key] ?? escape(key)}</h3><p class="description">${escape(text)}</p></section>`
       )
-      .join('')}
+      .join('')}</div><div>
     ${publicSheet ? `<p class="description">${escape(draft.notes)}</p>` : `<label for="notes">Anotações</label><textarea id="notes" name="notes" rows="4" maxlength="10000">${escape(draft.notes)}</textarea>`}
     ${
       !publicSheet && user
@@ -1466,7 +1488,7 @@ function sheet() {
     </section>`
         : ''
     }
-    ${!publicSheet && characterSync?.conflicts.has(draft.id) ? '<p>Esta edição conflita com outra versão da conta.</p><button type="button" class="button secondary" data-copy-conflict>Salvar esta edição como nova ficha</button><button type="button" class="button secondary" data-reload-character>Usar versão da conta</button>' : ''}`) }`;
+    ${!publicSheet && characterSync?.conflicts.has(draft.id) ? '<p>Esta edição conflita com outra versão da conta.</p><button type="button" class="button secondary" data-copy-conflict>Salvar esta edição como nova ficha</button><button type="button" class="button secondary" data-reload-character>Usar versão da conta</button>' : ''}</div></div>`) }`;
 }
 
 function sessionSheet() {
@@ -1493,7 +1515,9 @@ function builder() {
     historia: narrative,
     revisao: review,
   };
-  const next = steps[steps.findIndex(([id]) => id === step) + 1]?.[0];
+  const stepIndex = steps.findIndex(([id]) => id === step);
+  const previous = steps[stepIndex - 1]?.[0];
+  const next = steps[stepIndex + 1]?.[0];
   const summary = [
     ['Espécie', projection.species && displayName(projection.species)],
     ['Antecedente', projection.background && displayName(projection.background)],
@@ -1516,14 +1540,31 @@ function builder() {
             `<a href="${link(id)}" ${id === step ? 'aria-current="step"' : ''}><span>${index + 1}</span> ${label}</a>`
         )
         .join('')}</nav>
-      <form class="panel workspace" id="builder-form">${contents[step]()}
-        ${next && step !== 'revisao' ? `<a class="button primary continue" href="${link(next)}">Continuar</a>` : ''}
+      <form class="panel workspace" id="builder-form">
+        <div class="builder-controls">
+          ${previous ? `<a class="button secondary" href="${link(previous)}">Voltar</a>` : ''}
+          ${next
+          ? `<a class="button primary continue" href="${link(next)}">Continuar</a>`
+          : `<button type="submit" class="button primary" ${missingChoices().length ? 'disabled' : ''}>Salvar ficha</button>`}</div>
+        <div class="builder-fields" tabindex="0" aria-label="Escolhas da etapa">${contents[step]()}</div>
       </form>
       <aside class="panel summary"><h2>Resumo</h2>
         <dl class="facts">${summary.map(([name, value]) => `<div><dt>${name}</dt><dd>${value ? escape(value) : '—'}</dd></div>`).join('')}</dl>
         <p class="muted">${missingChoices().length} escolhas pendentes</p>
       </aside>
     </div>`;
+}
+
+function renderBuilder() {
+  const fields = main.querySelector('.builder-fields');
+  const scroll = fields?.scrollTop ?? 0;
+  const open = [...(fields?.querySelectorAll('details') ?? [])].map((element) => element.open);
+  main.innerHTML = builder();
+  const next = main.querySelector('.builder-fields');
+  next.querySelectorAll('details').forEach((element, index) => {
+    element.open = open[index] ?? false;
+  });
+  next.scrollTop = scroll;
 }
 
 function setUser(nextUser) {
@@ -1753,7 +1794,7 @@ async function loadCatalog() {
 
 function route() {
   if (!initialized) return;
-  main.classList.remove('session-screen');
+  main.classList.remove('session-screen', 'builder-screen');
   if (choiceDialog.open) choiceDialog.close();
   menu();
   const [page, id, section] = location.hash.slice(1).split('/');
@@ -1826,6 +1867,7 @@ function route() {
         '<section class="panel"><h1>Ficha não encontrada</h1><p>Ela pode estar salva em outro navegador.</p><a href="#inicio">Voltar aos personagens</a></section>';
       return;
     }
+    if (viewedCharacter !== accessKey(id)) progressionLevel = undefined;
     markOpened(id);
     if (draft.saved && (page === 'ficha' || section === 'ficha')) {
       if (page !== 'ficha') history.replaceState(null, '', sheetLink(id));
@@ -1839,6 +1881,7 @@ function route() {
     }
     if (page === 'ficha') history.replaceState(null, '', link('revisao'));
     step = page === 'ficha' ? 'revisao' : steps.some(([key]) => key === section) ? section : 'origem';
+    main.classList.add('builder-screen');
     main.innerHTML = builder();
     document.title = title(draft) + ' · Grimório';
     return;
@@ -2015,14 +2058,6 @@ function update(field) {
           ? Number(field.value)
           : field.value;
     draft.inventory = [...(draft.inventory ?? []).filter(({ id }) => id !== row.id), stored];
-  } else if (name === 'hp') {
-    if (!field.checkValidity()) {
-      field.reportValidity();
-      return;
-    }
-    draft.hp ??= {};
-    if (field.value === '') delete draft.hp[field.dataset.level];
-    else draft.hp[field.dataset.level] = Number(field.value);
   } else if (name === 'narrative') {
     draft.narrative ??= {};
     draft.narrative[field.dataset.narrative] = field.value;
@@ -2091,21 +2126,40 @@ function changeScores(button) {
     focusId = 'roll-batch';
   }
   persistChange();
-  main.innerHTML = builder();
+  renderBuilder();
   document.getElementById(focusId)?.focus({ preventScroll: true });
   if (result) document.getElementById('roll-results').textContent = result;
 }
 
 function renderPlay() {
   const hp = document.getElementById('play-hp')?.value;
+  const skill = document.getElementById('combat-skill')?.value;
+  const quickSpell = document.getElementById('combat-spell')?.value;
   const open = [...main.querySelectorAll('details')].map((element) => element.open);
-  const scroll = main.querySelector('[data-sheet-pane]:not([hidden])')?.scrollTop ?? 0;
+  const activePane = '[data-sheet-pane]:not([hidden])';
+  const scroll = main.querySelector(activePane)?.scrollTop ?? 0;
+  const inventoryScroll = main.querySelector(`${activePane} > section`)?.scrollTop ?? 0;
   main.innerHTML = sessionSheet();
   if (hp) document.getElementById('play-hp').value = hp;
+  if (skill) document.getElementById('combat-skill').value = skill;
+  const spellSelect = document.getElementById('combat-spell');
+  if (spellSelect && [...spellSelect.options].some(({ value }) => value === quickSpell)) {
+    spellSelect.value = quickSpell;
+    renderCombatSpell(Number(quickSpell));
+  }
   main.querySelectorAll('details').forEach((element, index) => {
     element.open = open[index] ?? false;
   });
-  main.querySelector('[data-sheet-pane]:not([hidden])').scrollTop = scroll;
+  const pane = main.querySelector(activePane);
+  pane.scrollTop = scroll;
+  const inventory = pane.querySelector(':scope > section');
+  if (inventory) inventory.scrollTop = inventoryScroll;
+}
+
+function renderCombatSpell(index) {
+  const calculated = deriveCharacter(draft, projection, catalog);
+  const spell = withSpellAbility(projection.spells[index], calculated);
+  document.getElementById('combat-spell-actions').innerHTML = spellPlayActions(spell, index, playResources(draft, calculated));
 }
 
 function savePlay(play) {
@@ -2117,7 +2171,8 @@ function savePlay(play) {
 
 function playAction(button) {
   if (step !== 'ficha' || !draft?.saved || publicSheet) return;
-  const { play: action, check, sides } = button.dataset;
+  const { play: action, sides } = button.dataset;
+  const check = button.hasAttribute('data-combat-skill') ? document.getElementById('combat-skill').value : button.dataset.check;
   const calculated = deriveCharacter(draft, projection, catalog);
   const resources = playResources(draft, calculated);
   const play = draft.play ?? {};
@@ -2151,22 +2206,22 @@ function playAction(button) {
   }
   if (action === 'ability') {
     const ability = abilities.find(([id]) => id === check);
-    if (ability) showDice([{ ...rollDice(1, 20, calculated.modifiers[check]), label: ability[2] }]);
+    if (ability) showDice([{ ...rollCheck(calculated.modifiers[check], calculated.armorUntrained && ['str', 'dex'].includes(check)), label: ability[2] }]);
     return;
   }
   if (['initiative', 'save', 'skill'].includes(action)) {
     const selected = action === 'initiative'
-      ? { name: 'Iniciativa', bonus: calculated.initiative }
+      ? { name: 'Iniciativa', bonus: calculated.initiative, disadvantage: calculated.armorUntrained }
       : (action === 'save' ? calculated.savingThrows : calculated.skills).find(({ id }) => id === check);
-    if (selected) showDice([{ ...rollDice(1, 20, selected.bonus), label: selected.name }]);
+    if (selected) showDice([{ ...rollCheck(selected.bonus, selected.disadvantage), label: selected.name }]);
     return;
   }
   if (action === 'weapon-attack' || action === 'weapon-damage') {
     const weapon = equippedWeaponRolls(projection, calculated).find(({ id }) => id === button.dataset.weapon);
     if (!weapon) return;
-    const { name, attack, damage, type } = weapon;
+    const { name, attack, damage, type, disadvantage } = weapon;
     showDice([action === 'weapon-attack'
-      ? { ...rollDice(1, 20, attack), label: `${name} · Ataque` }
+      ? { ...rollCheck(attack, disadvantage), label: `${name} · Ataque` }
       : { ...rollDice(damage.count, damage.sides, damage.bonus), label: `${name} · ${damageTypeLabel(type)}` }]);
     return;
   }
@@ -2421,7 +2476,7 @@ function optionDetails(option, wiki = false, characterArticle = false) {
     ],
     ['Atributos do antecedente', entry.abilityScores?.map(abilityLabel).join(', ')],
     ['Perícias', !wiki && entry.skillsFixed?.map(skillName).join(', ')],
-    ['Ferramenta', entry.tool],
+    ['Ferramenta', entry.tool && (catalog.toolNames.get(entry.tool) ?? entry.tool)],
     [
       'Talento',
       !wiki &&
@@ -2626,19 +2681,20 @@ choiceDialog.addEventListener('click', ({ target }) => {
       const { item, base, name, source, ...stored } = row;
       draft.inventory = [
         ...(draft.inventory ?? []).filter(({ id }) => id !== row.id),
-        { ...stored, baseItemId: id },
+        { ...stored, baseItemId: id, equipped: false },
       ];
     }
     persistChange();
-    main.innerHTML = builder();
+    renderBuilder();
     choiceDialog.close();
     return;
   }
   if (group.index !== undefined) {
     draft.classPlan = [...classPlan(draft)];
     draft.classPlan[group.index] = id;
+    progressionLevel = group.index + 1;
     persistChange();
-    main.innerHTML = builder();
+    renderBuilder();
     choiceDialog.close();
     return;
   }
@@ -2650,7 +2706,7 @@ choiceDialog.addEventListener('click', ({ target }) => {
   if (group.field) draft[group.field] = selected[0] ?? '';
   else draft.selected[group.key] = selected;
   persistChange();
-  main.innerHTML = builder();
+  renderBuilder();
   drawPicker();
   (
     choiceDialog.querySelector('[data-toggle-option]:enabled') ??
@@ -2691,20 +2747,45 @@ choiceDialog.addEventListener('close', () => {
 
 main.addEventListener('click', async ({ target }) => {
   if (publicSheet) return;
-  const tab = target.closest('[data-sheet-tab]');
+  const tab = target.closest('[data-sheet-tab], [data-sheet-jump]');
   if (tab) {
-    sheetTab = tab.dataset.sheetTab;
+    sheetTab = tab.dataset.sheetTab ?? tab.dataset.sheetJump;
     main.querySelectorAll('[data-sheet-tab]').forEach((button) => {
-      button.setAttribute('aria-pressed', String(button === tab));
+      button.setAttribute('aria-pressed', String(button.dataset.sheetTab === sheetTab));
     });
     main.querySelectorAll('[data-sheet-pane]').forEach((pane) => {
       pane.hidden = pane.dataset.sheetPane !== sheetTab;
     });
+    if (tab.dataset.sheetJump) main.querySelector(`[data-sheet-tab="${sheetTab}"]`)?.focus();
     return;
   }
   const playButton = target.closest('button[data-play]');
   if (playButton) {
     playAction(playButton);
+    return;
+  }
+  const equip = target.closest('[data-equip-item]');
+  if (equip) {
+    const inventory = characterInventory(draft, projection, catalog);
+    const row = inventory.find(({ id }) => id === equip.dataset.equipItem);
+    if (!row || !equipmentSlot(row)) return;
+    const conflicts = row.equipped ? [] : equipmentConflicts(row, inventory);
+    const changes = new Map((draft.inventory ?? []).map((item) => [item.id, item]));
+    for (const entry of [row, ...conflicts]) {
+      const { item, base, name, source, ...stored } = entry;
+      changes.set(entry.id, { ...stored, equipped: entry === row && !row.equipped });
+    }
+    draft.inventory = [...changes.values()];
+    if (conflicts.length) showNotice('Desequipado: ' + conflicts.map(({ name }) => name).join(', '));
+    if (step === 'ficha') {
+      draft.updatedAt = Date.now();
+      if (!write()) showNotice('Armazenamento indisponível. As alterações ficam nesta aba.');
+      renderPlay();
+    } else {
+      persistChange();
+      renderBuilder();
+    }
+    main.querySelector(`[data-equip-item="${CSS.escape(row.id)}"]`)?.focus({ preventScroll: true });
     return;
   }
   if (target.closest('[data-retry-gallery]')) {
@@ -2718,7 +2799,7 @@ main.addEventListener('click', async ({ target }) => {
     if (id.startsWith('starter/')) draft.removedEquipment = [...(draft.removedEquipment ?? []), id];
     draft.inventory = (draft.inventory ?? []).filter((row) => row.id !== id);
     persistChange();
-    main.innerHTML = builder();
+    renderBuilder();
     return;
   }
   const deletion = target.closest('[data-delete-character]');
@@ -2772,10 +2853,17 @@ main.addEventListener('click', async ({ target }) => {
     }
     return;
   }
+  const levelHeading = target.closest('[data-open-level]');
+  if (levelHeading) {
+    progressionLevel = Number(levelHeading.dataset.openLevel);
+    renderBuilder();
+    main.querySelector(`[data-open-level="${progressionLevel}"]`)?.focus();
+    return;
+  }
   if (target.closest('[data-remove-level]')) {
     draft.classPlan = classPlan(draft).slice(0, -1);
     persistChange();
-    main.innerHTML = builder();
+    renderBuilder();
     document.getElementById(`picker:class-level/${draft.classPlan.length - 1}`)?.focus();
     return;
   }
@@ -2842,6 +2930,10 @@ main.addEventListener('input', ({ target }) => {
 });
 
 main.addEventListener('change', ({ target }) => {
+  if (target.id === 'combat-spell') {
+    renderCombatSpell(Number(target.value));
+    return;
+  }
   if (target.id === 'account-theme') {
     setTheme(target.value);
     return;
@@ -2850,12 +2942,8 @@ main.addEventListener('change', ({ target }) => {
   if (target.matches('[data-play-control]')) return;
   if (target.form?.id !== 'builder-form' || ['name', 'notes', 'feature-note'].includes(target.name))
     return;
-  const open = [...main.querySelectorAll('details')].map((element) => element.open);
   update(target);
-  main.innerHTML = builder();
-  main.querySelectorAll('details').forEach((element, index) => {
-    element.open = open[index] ?? false;
-  });
+  renderBuilder();
   document.getElementById(target.id)?.focus({ preventScroll: true });
 });
 
@@ -2897,7 +2985,7 @@ window.addEventListener('hashchange', () => {
   diceBoard.replaceChildren();
   if (dicePopup.open) dicePopup.close();
   route();
-  main.focus();
+  main.focus({ preventScroll: true });
 });
 installGlossary();
 window.addEventListener('storage', (event) => {

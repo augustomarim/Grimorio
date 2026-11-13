@@ -369,7 +369,9 @@ export function indexCatalog(raw, localization, reference = {}) {
     items: [...raw.items, ...(reference.extraItems ?? [])].map((item) =>
       localized(
         { ...item, source: item.source ?? 'Catálogo comum de equipamentos' },
-        reference.items?.[item.id]
+        item.kind === 'tool' && reference.tools?.[item.id]
+          ? { ...reference.tools[item.id], ...reference.items?.[item.id] }
+          : reference.items?.[item.id]
       )
     ),
     rules: (raw.rules ?? []).map((rule) => localized(rule, reference.rules?.[rule.id])),
@@ -512,6 +514,12 @@ export function indexCatalog(raw, localization, reference = {}) {
     contentNames: new Map(raw.content.map((entry) => [entry.name, displayName(entry)])),
     byItem: byId(raw.items),
     byTool: byId(raw.tools),
+    toolNames: new Map([
+      ...raw.tools.flatMap((entry) => [[entry.id, displayName(entry)], [entry.name, displayName(entry)]]),
+      ["Choose one kind of Artisan's Tools", 'Escolha um tipo de ferramenta de artesão'],
+      ['Choose one kind of Gaming Set', 'Escolha um tipo de conjunto de jogo'],
+      ['Choose one kind of Musical Instrument', 'Escolha um instrumento musical'],
+    ]),
     byLanguage: byId(raw.languages),
     glossary: raw.glossary ?? [],
     alignments: raw.alignments ?? [],
@@ -1304,7 +1312,7 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
       if (previous.length)
         group(
           `${key}/${rule.id === 'class-cantrips' ? 'replace-cantrip' : 'replace-' + rule.id}/${at}`,
-          'Substituir um truque neste nível',
+          meta.cantripSwapLabel ?? 'Substituir um truque neste nível',
           1,
           previous,
           { ...meta, level: at, spellPicker: true, existingSpell: true, optional: true },
@@ -1354,12 +1362,13 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
         preparation: 'cantrip',
         originKey: key,
       });
-    if (cantrips && swapsOnLevel) {
+    const cantripSwapsOnRest = ['artificer', 'wizard'].includes(entry.id);
+    if (cantrips && (swapsOnLevel || cantripSwapsOnRest)) {
       evolvingCantrips(
         key,
         cantripRule,
         casting.cantrips,
-        meta,
+        cantripSwapsOnRest ? { ...meta, cantripSwapLabel: 'Trocar um truque após descanso longo' } : meta,
         entry.id === 'warlock' ? (at, known) => warlockCantripsByLevel.set(at, [...known]) : undefined
       );
     } else spellChoices([cantripRule], key, meta);
@@ -1383,66 +1392,79 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
         .map(({ id }) => id),
     };
     if (entry.id !== 'wizard') {
-      if (['bard', 'ranger', 'sorcerer', 'warlock'].includes(entry.id)) {
-        const known = new Set();
-        const legacy = draft.selected[`${key}/spell/class-prepared`] ?? [];
-        for (let at = 1; at <= level; at++) {
-          const capacity = casting.prepared[at - 1] ?? 0;
-          const increase = capacity - (casting.prepared[at - 2] ?? 0);
-          const rule = {
-            ...(entry.id === 'bard' && at >= 10
-              ? { lists: ['bard', 'cleric', 'druid', 'wizard'] }
-              : { list: casting.list }),
-            minSpellLevel: 1,
-            maxSpellLevel: casting.maxSpellLevel[at - 1],
-          };
-          if (!rule.maxSpellLevel) continue;
-          const options = spellOptions(rule).filter(({ id }) => !known.has(id));
-          group(
-            `${key}/learned-spells/${at}`,
-            'Magias aprendidas',
-            increase,
-            options,
-            {
-              ...meta,
-              level: at,
-              spellPicker: true,
-              legacySelected: legacy
-                .filter((id) => options.some((option) => option.id === id))
-                .slice(0, increase),
-            },
-            ({ id }) => known.add(id)
-          );
-          if (at <= 1) continue;
-          group(
-            `${key}/replace-spell/${at}`,
-            'Substituir uma magia neste nível',
-            1,
-            [...known].map((id) => ({ ...catalog.bySpell.get(id), id })),
-            { ...meta, level: at, spellPicker: true, existingSpell: true, optional: true },
-            (old, childKey) => {
-              group(
-                `${childKey}/replacement`,
-                'Nova magia no lugar da anterior',
-                1,
-                spellOptions(rule).filter(({ id }) => !known.has(id)),
-                { ...meta, level: at, spellPicker: true, depth: meta.depth + 1 },
-                ({ id }) => {
-                  known.delete(old.id);
-                  known.add(id);
-                }
-              );
-            }
-          );
-        }
-        for (const id of known)
-          noteSpell(id, meta.source, {
-            preparation: 'prepared',
-            castingAbility: abi(casting.ability),
-          });
-      } else {
-        spellChoices([preparedRule], key, meta);
+      const restPreparation = ['artificer', 'cleric', 'druid', 'paladin', 'ranger'].includes(entry.id);
+      const singleRestSwap = ['paladin', 'ranger'].includes(entry.id);
+      const legacyPreparation = restPreparation && entry.id !== 'ranger';
+      const known = new Set();
+      const firstKey = key + '/spell/class-prepared';
+      const legacy = draft.selected[firstKey] ?? [];
+      const migrated = new Set();
+      for (let at = 1; at <= level; at++) {
+        const max = casting.maxSpellLevel[at - 1];
+        if (!max) continue;
+        const capacity = casting.prepared[at - 1] ?? 0;
+        const previousCapacity = casting.prepared[at - 2] ?? 0;
+        const increase = capacity - previousCapacity;
+        const previous = [...known];
+        const rule = {
+          ...(entry.id === 'bard' && at >= 10
+            ? { lists: ['bard', 'cleric', 'druid', 'wizard'] }
+            : { list: casting.list }),
+          minSpellLevel: 1,
+          maxSpellLevel: max,
+          exclude: preparedRule.exclude,
+        };
+        const available = () => spellOptions(rule).filter(({ id }) => !known.has(id));
+        const options = available();
+        const selectionKey = legacyPreparation && !previousCapacity
+          ? firstKey
+          : key + '/learned-spells/' + at;
+        group(
+          selectionKey,
+          restPreparation ? (previousCapacity ? 'Preparar novas magias' : 'Magias preparadas') : 'Magias aprendidas',
+          increase,
+          options,
+          {
+            ...meta,
+            level: at,
+            spellPicker: true,
+            legacySelected: legacy.filter((id) => !migrated.has(id) && options.some((option) => option.id === id)),
+          },
+          ({ id }) => {
+            known.add(id);
+            migrated.add(id);
+          }
+        );
+        if (!previous.length || !available().length) continue;
+        group(
+          key + '/replace-spell/' + at,
+          singleRestSwap ? 'Trocar uma magia preparada após descanso longo'
+            : restPreparation ? 'Trocar magias preparadas após descanso longo' : 'Substituir uma magia neste nível',
+          restPreparation && !singleRestSwap ? previous.length : 1,
+          previous.map((id) => catalog.bySpell.get(id)),
+          { ...meta, level: at, spellPicker: true, existingSpell: true, optional: true },
+          (old, childKey) => {
+            group(
+              childKey + '/replacement',
+              'Nova magia no lugar da anterior',
+              1,
+              available(),
+              { ...meta, level: at, spellPicker: true, depth: meta.depth + 1 },
+              ({ id }) => {
+                known.delete(old.id);
+                known.add(id);
+                migrated.add(id);
+              }
+            );
+          }
+        );
       }
+      for (const id of known)
+        noteSpell(id, meta.source, {
+          preparation: 'prepared',
+          castingAbility: abi(casting.ability),
+          originKey: key,
+        });
       return;
     }
     const book = [];
@@ -1531,7 +1553,12 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
     }
     result.spellbooks.set(entry.id, book);
     spellChoices(
-      [{ ...preparedRule, from: book.filter((id) => !signature.includes(id)), level }],
+      [{
+        ...preparedRule,
+        name: level > 1 ? 'Revisar magias preparadas do grimório' : preparedRule.name,
+        from: book.filter((id) => !signature.includes(id)),
+        level,
+      }],
       key,
       meta
     );
