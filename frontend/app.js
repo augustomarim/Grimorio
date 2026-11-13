@@ -23,7 +23,7 @@ import { attributeIssue, characterIssues } from './validation.js';
 import {
   characterInventory, completeRest, deriveCharacter, equippedWeaponRolls, playResources, rollDice, updatePlayHP,
 } from './mechanics.js';
-import { accountView, authRequest, restoreSession, withSessionLock } from './auth.js';
+import { accountLink, accountView, authRequest, restoreSession, withSessionLock } from './auth.js';
 import { characterRequest, syncCharacters } from './characters.js';
 import { classArticles, classProgression, compendiumHref, sortEntries } from './compendium.js';
 import { installGlossary } from './glossary.js';
@@ -139,6 +139,8 @@ let publicRecord;
 let lastCast;
 let gallery;
 const memory = new Map();
+const characterAccess = new Map();
+let viewedCharacter;
 let picker;
 const slug = (value) => /^[a-f\d-]{36}$/i.test(value ?? '');
 const title = (character) => character.name.trim() || 'Novo personagem';
@@ -148,6 +150,27 @@ const plus = (n) => (n < 0 ? String(n) : `+${n}`);
 const modifier = (n) => Math.floor((n - 10) / 2);
 const storagePrefix = () =>
   user ? `grimorio.account.${user.id}.character.` : 'grimorio.character.';
+const accessKey = (id) => `${storagePrefix()}opened.${id}`;
+
+function lastOpened(id) {
+  const key = accessKey(id);
+  try {
+    return Math.max(characterAccess.get(key) ?? 0, Number(localStorage.getItem(key)) || 0);
+  } catch {
+    return characterAccess.get(key) ?? 0;
+  }
+}
+
+function markOpened(id) {
+  const key = accessKey(id);
+  if (viewedCharacter === key) return;
+  viewedCharacter = key;
+  const opened = Date.now();
+  characterAccess.set(key, opened);
+  try {
+    localStorage.setItem(key, String(opened));
+  } catch {}
+}
 const characterLink = (character) =>
   character.saved ? sheetLink(character.id) : `#personagem/${character.id}/origem`;
 const characterTarget = (character) => character.saved ? 'target="_blank" rel="noopener"' : '';
@@ -184,8 +207,10 @@ function cacheCharacter(character, id = character?.id) {
   if (!id) return;
   if (!character) {
     memory.delete(id);
+    characterAccess.delete(accessKey(id));
     try {
       localStorage.removeItem(storagePrefix() + id);
+      localStorage.removeItem(accessKey(id));
     } catch {}
     return;
   }
@@ -229,7 +254,12 @@ function savedCharacters() {
   }
   return [...entries.values()]
     .filter(Boolean)
-    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    .map((character) => ({
+      character,
+      recentAt: Math.max(lastOpened(character.id), character.updatedAt ?? 0),
+    }))
+    .sort((a, b) => b.recentAt - a.recentAt)
+    .map(({ character }) => character);
 }
 
 const classLevels = (classes) =>
@@ -239,7 +269,7 @@ const classEmblems = new Set('artificer barbarian bard cleric druid fighter monk
 const classEmblemOverrides = {
   cleric: 'class-cross',
   sorcerer: 'class-wand',
-  wizard: 'elf',
+  wizard: 'class-wizard-hat',
   fighter: 'slashing',
 };
 const categoryEmblems = {
@@ -263,6 +293,24 @@ const ruleEmblems = {
   utilize: 'artificer',
 };
 const speciesEmblems = new Set('aasimar dragonborn dwarf elf gnome goliath halfling human orc tiefling'.split(' '));
+const speciesEmblemOverrides = {
+  boggart: 'poison',
+  centaur: 'spell-steed',
+  changeling: 'illusion',
+  dhampir: 'species-fangs',
+  faerie: 'aasimar',
+  flamekin: 'fire',
+  gnome: 'species-gnome',
+  hexblood: 'enchantment',
+  kalashtar: 'psychic',
+  khoravar: 'species-khoravar',
+  'lorwyn-changeling': 'transmutation',
+  lupin: 'species-lupin',
+  reborn: 'necromancy',
+  rimekin: 'cold',
+  shifter: 'species-fangs',
+  warforged: 'artificer',
+};
 const abilityEmblems = { str: 'monk', dex: 'ability-boot', con: 'ability-heart', int: 'ability-book', wis: 'divination', cha: 'ability-jester' };
 
 function catalogEmblem(category, entry) {
@@ -270,7 +318,7 @@ function catalogEmblem(category, entry) {
   if (category === 'classes' || category === 'subclasses') {
     return gameIcon(classEmblemOverrides[id] ?? (classEmblems.has(id) ? id : 'weapon'), 'game-emblem');
   }
-  if (category === 'species') return gameIcon(speciesEmblems.has(id) ? id : 'species', 'game-emblem');
+  if (category === 'species') return gameIcon(speciesEmblemOverrides[id] ?? (speciesEmblems.has(id) ? id : 'species'), 'game-emblem');
   if (category === 'backgrounds') return gameIcon('background', 'game-emblem');
   if (category === 'magias') return spellIcon(entry);
   return gameIcon(categoryEmblems[category] ?? 'ability-book', 'game-emblem');
@@ -297,7 +345,7 @@ function characterList(characters) {
         <span class="icon-label">${characterEmblem(plannedClasses(character, catalog))}<span><strong>${escape(title(character))}</strong><small>
           ${escape(classLevels(plannedClasses(character, catalog)) || 'Classe a escolher')} · Nível total ${classPlan(character).length}
         </small></span></span><span class="tag">${character.saved ? 'Ficha' : 'Rascunho'}${character.cloudDirty ? ' · sincronização pendente' : ''}</span></a>
-        <button class="text-button" type="button" data-delete-character="${escape(character.id)}">Excluir</button></li>`
+        <button class="button secondary character-delete" type="button" data-delete-character="${escape(character.id)}">Excluir</button></li>`
             )
             .join('')}</ul>`
         : '<p class="muted">Você ainda não tem personagens neste navegador.</p>'
@@ -327,6 +375,17 @@ function hubShell(page, content) {
     </div><div class="hub-content">${content}</div></div>`;
 }
 
+function avatarMarkup(avatar) {
+  const image = typeof avatar === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar);
+  return `<span class="profile-icon" aria-hidden="true">${image ? `<img src="${escape(avatar)}" alt="">` : ''}</span>`;
+}
+
+function publicAuthor({ authorName, authorAvatar }) {
+  return authorName
+    ? `<span class="public-author">${avatarMarkup(authorAvatar)}<span>Por ${escape(authorName)}</span></span>`
+    : '';
+}
+
 function publicGallery(page) {
   if (gallery?.page !== page) {
     const request = { page };
@@ -348,6 +407,7 @@ function publicGallery(page) {
         ? `<ul class="character-list">${documents.map((character) => `<li>
           <a href="#publica/${escape(character.id)}"><span class="icon-label">${characterEmblem(plannedClasses(character, catalog))}<span><strong>${escape(title(character))}</strong>
             <small>${escape(classLevels(plannedClasses(character, catalog)))} · Nível total ${classPlan(character).length}</small>
+            ${publicAuthor(character)}
           </span></span></a></li>`).join('')}</ul>`
         : '<p class="muted">Nenhuma ficha pública nesta página.</p>';
   return hubShell('galeria', `<section class="panel"><h1>Galeria pública</h1>${content}
@@ -375,8 +435,11 @@ function home() {
         <header class="hub-character">
           ${characterEmblem(entry.classes)}
           <div><h2>${escape(title(featured))}</h2>
-          <p class="muted">${escape([entry.species && displayName(entry.species), classLevels(entry.classes) || 'Classe a escolher'].filter(Boolean).join(' · '))}</p>
-          <a class="button secondary icon-label" href="${characterLink(featured)}" ${characterTarget(featured)}>${gameIcon('ability-book')}Abrir ficha</a></div>
+          <p class="muted">${escape([entry.species && displayName(entry.species), classLevels(entry.classes) || 'Classe a escolher'].filter(Boolean).join(' · '))}</p></div>
+          <div class="hub-character-actions">
+            ${featured.saved ? `<a class="button secondary icon-label" href="${characterLink(featured)}" ${characterTarget(featured)}>${gameIcon('ability-book')}Abrir ficha</a>` : ''}
+            <a class="button secondary icon-label" href="#personagem/${escape(featured.id)}/origem">${gameIcon('artificer')}Editar ficha</a>
+          </div>
           <dl class="hub-vitals">
             <div><dt>${gameIcon('ability-heart')} Pontos de vida</dt><dd>${health.currentHP} / ${stats.maximumHP}</dd>
               <meter min="0" max="${Math.max(1, stats.maximumHP)}" value="${health.currentHP}" aria-label="Pontos de vida"></meter></div>
@@ -1476,13 +1539,14 @@ function setUser(nextUser) {
 function menu() {
   profileName.textContent = user?.username ?? (guest ? 'Modo local' : 'Conta');
   profileName.title = profileName.textContent;
+  headerMenu.querySelector('summary .profile-icon').outerHTML = avatarMarkup(user?.avatar);
   headerMenu.querySelector('summary').setAttribute('aria-label', 'Menu da conta · ' + profileName.textContent);
   accountMenu.innerHTML = user
-    ? `<a href="#configuracoes">Configurações da conta</a>
-      <button type="button" class="text-button" data-logout>Sair</button>`
+    ? `${accountLink('#configuracoes', 'Configurações da conta', gameIcon('artificer'))}
+      <button type="button" class="navigation-row account-action" data-logout><span class="game-emblem account-action-icon" aria-hidden="true">↪</span><span>Sair</span><span aria-hidden="true">›</span></button>`
     : guest
-      ? '<a href="#configuracoes">Configurações</a><a href="#login">Entrar</a>'
-      : '<a href="#login">Entrar</a>';
+      ? accountLink('#configuracoes', 'Configurações', gameIcon('artificer')) + accountLink('#login', 'Entrar', '→')
+      : accountLink('#login', 'Entrar', '→');
 }
 
 function accountSettings() {
@@ -1492,8 +1556,17 @@ function accountSettings() {
       <p>E-mail <strong>${escape(user.email)}</strong></p>
       <label for="profile-username">Nome de usuário</label>
       <input id="profile-username" name="username" autocomplete="username" value="${escape(user.username)}" minlength="3" maxlength="32" required>
+      <div class="account-avatar-upload">
+        <div class="account-avatar">${avatarMarkup(user.avatar)}</div>
+        <label class="avatar-dropzone" for="profile-avatar">
+          <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Escolher foto de perfil" aria-describedby="profile-avatar-hint">
+          <strong>Arraste uma foto ou clique para escolher</strong>
+          <small id="profile-avatar-hint">JPG, PNG ou WebP de até 10 MB. Visível nas suas fichas públicas.</small>
+        </label>
+      </div>
+      <label class="account-avatar-remove" ${user.avatar ? '' : 'hidden'}><input type="checkbox" name="removeAvatar"> Remover foto atual</label>
       <p role="alert"></p>
-      <button class="button primary" type="submit">Salvar nome</button>
+      <button class="button primary" type="submit">Salvar perfil</button>
     </form>
     <form class="account-settings-form" data-account-update="password">
       <h2>Alterar senha</h2>
@@ -1515,6 +1588,85 @@ function accountSettings() {
     </select>
   </section>`;
 }
+
+async function prepareAvatar(file) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    throw new Error('Escolha uma foto JPG, PNG ou WebP de até 10 MB.');
+  }
+  const bitmap = await createImageBitmap(file).catch(() => {
+    throw new Error('Não foi possível abrir a foto. Escolha outro arquivo.');
+  });
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const context = canvas.getContext('2d');
+    const size = Math.min(bitmap.width, bitmap.height);
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, 128, 128);
+    context.drawImage(bitmap, (bitmap.width - size) / 2, (bitmap.height - size) / 2, size, size, 0, 0, 128, 128);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } finally {
+    bitmap.close();
+  }
+}
+
+const avatarPreviews = new WeakMap();
+
+async function previewAvatar(input) {
+  const form = input.form;
+  const file = input.files[0];
+  const message = form.querySelector('[role="alert"]');
+  const preview = form.querySelector('.account-avatar');
+  const remove = form.elements.removeAvatar;
+  message.textContent = '';
+  avatarPreviews.delete(input);
+  preview.innerHTML = avatarMarkup(remove.checked ? null : user?.avatar);
+  if (!file) return;
+  const pending = prepareAvatar(file);
+  avatarPreviews.set(input, pending);
+  try {
+    const avatar = await pending;
+    if (avatarPreviews.get(input) !== pending) return;
+    remove.checked = false;
+    preview.innerHTML = avatarMarkup(avatar);
+  } catch (error) {
+    if (avatarPreviews.get(input) !== pending) return;
+    input.value = '';
+    message.textContent = error.message;
+  }
+}
+
+main.addEventListener('dragover', (event) => {
+  const zone = event.target.closest('.avatar-dropzone');
+  if (!zone || !event.dataTransfer.types.includes('Files')) return;
+  event.preventDefault();
+  zone.classList.add('is-dragging');
+});
+main.addEventListener('dragleave', (event) => {
+  const zone = event.target.closest('.avatar-dropzone');
+  if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove('is-dragging');
+});
+main.addEventListener('drop', (event) => {
+  const zone = event.target.closest('.avatar-dropzone');
+  if (!zone) return;
+  event.preventDefault();
+  zone.classList.remove('is-dragging');
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+  const input = zone.querySelector('input');
+  const files = new DataTransfer();
+  files.items.add(file);
+  input.files = files.files;
+  void previewAvatar(input);
+});
+main.addEventListener('change', ({ target }) => {
+  if (target.id === 'profile-avatar') void previewAvatar(target);
+  if (target.matches('.account-avatar-remove input')) {
+    const input = target.form.elements.avatar;
+    if (target.checked) input.value = '';
+    void previewAvatar(input);
+  }
+});
 
 async function submitAccountUpdate(form) {
   if (accountBusy || !user) return;
@@ -1538,6 +1690,11 @@ async function submitAccountUpdate(form) {
   message.textContent = '';
   const send = () => withSessionLock(() => authRequest(action, body));
   try {
+    if (action === 'profile') {
+      const file = fields.get('avatar');
+      if (file.size) body.avatar = await (avatarPreviews.get(form.elements.avatar) ?? prepareAvatar(file));
+      else if (fields.has('removeAvatar')) body.avatar = null;
+    }
     const result = await send().catch(async (error) => {
       if (error.status !== 401) throw error;
       const restored = await restoreSession();
@@ -1547,10 +1704,19 @@ async function submitAccountUpdate(form) {
     ++accountSync;
     setUser(result.user);
     if (action === 'password') form.reset();
-    else form.elements.username.value = result.user.username;
+    else {
+      form.elements.username.value = result.user.username;
+      form.elements.avatar.value = '';
+      avatarPreviews.delete(form.elements.avatar);
+      form.elements.removeAvatar.checked = false;
+      form.querySelector('.account-avatar-remove').hidden = !result.user.avatar;
+      form.querySelector('.account-avatar').innerHTML = avatarMarkup(result.user.avatar);
+      gallery = undefined;
+      publicRecord = undefined;
+    }
     menu();
     accounts?.postMessage('changed');
-    showNotice(action === 'profile' ? 'Nome de usuário atualizado.' : 'Senha atualizada.');
+    showNotice(action === 'profile' ? 'Perfil atualizado.' : 'Senha atualizada.');
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -1591,6 +1757,7 @@ function route() {
   if (choiceDialog.open) choiceDialog.close();
   menu();
   const [page, id, section] = location.hash.slice(1).split('/');
+  if (!['personagem', 'ficha'].includes(page)) viewedCharacter = undefined;
   if (page !== 'galeria') gallery = undefined;
   publicSheet = page === 'publica';
   const accountPage =
@@ -1610,6 +1777,7 @@ function route() {
     return;
   }
   if (page === 'configuracoes') {
+    draft = undefined;
     main.innerHTML = hubShell(page, accountSettings());
     return;
   }
@@ -1639,7 +1807,7 @@ function route() {
       draft = publicRecord.draft;
       projection = projectCharacter(draft, catalog);
       main.innerHTML = `<a class="back" href="#galeria">Voltar à galeria pública</a>
-        <article class="panel"><h1>${escape(title(draft))}</h1>${sheet()}</article>`;
+        <article class="panel"><h1>${escape(title(draft))}</h1>${publicAuthor(publicRecord)}${sheet()}</article>`;
     }
     return;
   }
@@ -1652,12 +1820,13 @@ function route() {
     return;
   }
   if (['personagem', 'ficha'].includes(page) && slug(id)) {
-    draft = read(id);
+    draft = read(id) ?? (draft?.id === id && viewedCharacter === accessKey(id) ? draft : undefined);
     if (!draft) {
       main.innerHTML =
         '<section class="panel"><h1>Ficha não encontrada</h1><p>Ela pode estar salva em outro navegador.</p><a href="#inicio">Voltar aos personagens</a></section>';
       return;
     }
+    markOpened(id);
     if (draft.saved && (page === 'ficha' || section === 'ficha')) {
       if (page !== 'ficha') history.replaceState(null, '', sheetLink(id));
       if (sessionId !== id) sheetTab = 'combate';
@@ -1683,7 +1852,8 @@ function route() {
     main.innerHTML = hubShell(
       page,
       `<header class="section-heading"><h1>Personagens</h1>${createLink()}</header>
-      <label for="character-search">Buscar personagem ou classe</label><input type="search" id="character-search" value="${escape(characterFilter)}">
+      <div class="character-search"><label for="character-search">Buscar personagem ou classe</label>
+        <input type="search" id="character-search" value="${escape(characterFilter)}"></div>
       <div id="character-results">${characterList(savedCharacters())}</div>`
     );
   } else if (page === 'busca') {
@@ -1803,9 +1973,10 @@ async function submitAccount(form) {
 }
 
 accountMenu.addEventListener('click', async ({ target }) => {
-  if (!target.closest('[data-logout]') || accountBusy) return;
+  const logout = target.closest('[data-logout]');
+  if (!logout || accountBusy) return;
   accountBusy = true;
-  target.disabled = true;
+  logout.disabled = true;
   try {
     await characterSync?.flush();
     await withSessionLock(() => authRequest('logout', {}));
@@ -1820,7 +1991,7 @@ accountMenu.addEventListener('click', async ({ target }) => {
     showNotice(error.message);
   } finally {
     accountBusy = false;
-    target.disabled = false;
+    logout.disabled = false;
   }
 });
 
@@ -2305,9 +2476,9 @@ function optionDetails(option, wiki = false, characterArticle = false) {
     : facts + description;
   return `${overview}
     ${backgroundFeats.length ? `<section class="benefits"><h4>Talentos do antecedente</h4>
-      ${backgroundFeats.map(({ feat, note }) => `<section class="entry">
-        <h5>${escape(displayName(feat))}${note ? ` · ${escape(classLabel(note))}` : ''}</h5>
-        ${entryDescription(feat, true, wiki)}</section>`).join('')}
+      ${backgroundFeats.map(({ feat, note }) => `<details class="entry background-feat">
+        <summary><strong class="icon-label">${catalogEmblem('feats', feat)}${escape(displayName(feat))}${note ? ` · ${escape(classLabel(note))}` : ''}</strong></summary>
+        ${entryDescription(feat, true, wiki)}</details>`).join('')}
     </section>` : ''}
     ${backgroundFeatChoices.map(({ count, options }) => `<section class="benefits">
       <h4>Talentos à escolha (${escape(count)})</h4>
@@ -2340,7 +2511,8 @@ function drawPicker() {
   const query = normalizeSearch(search.trim());
   const name = group.spellPicker ? spellName : displayName;
   const tags = group.readOnly ? (entry) => [entry.prereq?.text ?? 'Bruxo nível 1+'] : optionLabels;
-  const emblem = (entry) => group.spellPicker ? spellIcon(entry) : catalogEmblem(entry.collection, entry);
+  const emblem = (entry) => group.spellPicker ? spellIcon(entry)
+    : entry.emblem ? gameIcon(entry.emblem, 'game-emblem') : catalogEmblem(entry.collection, entry);
   const tagMarkup = (entry) => group.spellPicker
     ? spellTagMarkup(entry)
     : tags(entry).map((tag) => `<span class="tag">${escape(tag)}</span>`).join('');
@@ -2486,6 +2658,31 @@ choiceDialog.addEventListener('click', ({ target }) => {
   ).focus();
 });
 
+const deleteDialog = document.querySelector('#delete-character-dialog');
+let deletionCandidate;
+deleteDialog.addEventListener('close', async () => {
+  const candidate = deletionCandidate;
+  deletionCandidate = undefined;
+  if (!candidate || deleteDialog.returnValue !== 'delete') return;
+  const { character, button, sync, prefix } = candidate;
+  if (storagePrefix() !== prefix || characterSync !== sync) return;
+  button.disabled = true;
+  try {
+    if (sync) await sync.remove(character);
+    else cacheCharacter(undefined, character.id);
+    if (location.hash === '#personagens') route();
+    showNotice('Ficha excluída.');
+  } catch (error) {
+    if (error.code === 'REVISION_CONFLICT' && sync === characterSync) {
+      await sync.load().catch(() => {});
+      if (location.hash === '#personagens') route();
+      showNotice('A ficha mudou em outra aba. Confira a versão atual antes de excluir.');
+    } else showNotice(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 choiceDialog.addEventListener('close', () => {
   const key = picker?.key;
   picker = undefined;
@@ -2527,16 +2724,11 @@ main.addEventListener('click', async ({ target }) => {
   const deletion = target.closest('[data-delete-character]');
   if (deletion) {
     const character = read(deletion.dataset.deleteCharacter);
-    if (!character || !confirm(`Excluir "${title(character)}"?`)) return;
-    try {
-      deletion.disabled = true;
-      if (characterSync) await characterSync.remove(character);
-      else cacheCharacter(undefined, character.id);
-      route();
-    } catch (error) {
-      showNotice(error.message);
-      deletion.disabled = false;
-    }
+    if (!character || deleteDialog.open) return;
+    deletionCandidate = { character, button: deletion, sync: characterSync, prefix: storagePrefix() };
+    deleteDialog.returnValue = '';
+    deleteDialog.querySelector('p').textContent = `A ficha “${title(character)}” será excluída.`;
+    deleteDialog.showModal();
     return;
   }
   if (target.closest('[data-copy-conflict]')) {
@@ -2699,6 +2891,7 @@ main.addEventListener('submit', (event) => {
 });
 
 window.addEventListener('hashchange', () => {
+  if (deleteDialog.open) deleteDialog.close('cancel');
   clearTimeout(diceTimer);
   diceBoard.hidden = true;
   diceBoard.replaceChildren();
@@ -2724,17 +2917,29 @@ accounts?.addEventListener('message', () => {
 });
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden || !user || accountBusy) return;
+  const owner = user.id;
   await syncSession(false, false);
+  if (user?.id !== owner) {
+    route();
+    return;
+  }
+  if (/^#(?:personagem|ficha)\//.test(location.hash)) return;
   try {
     await characterSync?.load();
   } catch (error) {
     showNotice(error.message);
   }
-  route();
+  if (!/^#(?:personagem|ficha)\//.test(location.hash)) route();
 });
 window.addEventListener('online', () => {
+  if (/^#(?:personagem|ficha)\//.test(location.hash)) {
+    void characterSync?.flush();
+    return;
+  }
   void characterSync
     ?.load()
-    .then(() => route())
+    .then(() => {
+      if (!/^#(?:personagem|ficha)\//.test(location.hash)) route();
+    })
     .catch((error) => showNotice(error.message));
 });

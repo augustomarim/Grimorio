@@ -341,14 +341,98 @@ textarea {
 .header-menu[open] > .header-menu-trigger {
   background: var(--accent-soft);
 }
-.header-menu-trigger .profile-icon {
+.profile-icon {
+  display: inline-block;
   flex: none;
   position: relative;
   width: 1.65rem;
   height: 1.65rem;
   border-radius: 50%;
+  overflow: hidden;
   color: var(--accent);
   background: var(--accent-soft);
+}
+.profile-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.header-menu-trigger .profile-icon:has(img) {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.public-author .profile-icon:has(img) {
+  width: 2rem;
+  height: 2rem;
+}
+.profile-icon:has(img)::before,
+.profile-icon:has(img)::after {
+  content: none;
+}
+.public-author {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-block: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.account-avatar-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-block: 0.85rem;
+}
+.account-avatar .profile-icon {
+  width: 6rem;
+  height: 6rem;
+}
+.account-avatar .profile-icon::before {
+  top: 23%;
+  width: 27%;
+  height: 27%;
+}
+.account-avatar .profile-icon::after {
+  bottom: 20%;
+  width: 54%;
+  height: 24%;
+}
+.avatar-dropzone {
+  position: relative;
+  display: grid;
+  flex: 1 1 12rem;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 0.65rem;
+  background: var(--soft-surface);
+  text-align: center;
+  cursor: pointer;
+}
+.avatar-dropzone input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.avatar-dropzone:is(:hover, :focus-within, .is-dragging) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.avatar-dropzone:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.account-avatar-remove input {
+  width: auto;
+}
+.account-settings-form .account-avatar-remove[hidden] {
+  display: none;
 }
 .header-menu-trigger .profile-name {
   max-width: min(11rem, 33vw);
@@ -404,16 +488,17 @@ textarea {
 .header-menu-panel #account-menu {
   display: grid;
   justify-items: stretch;
-  gap: 0.15rem;
-  padding-bottom: 0.4rem;
+  gap: 0;
 }
-.header-menu-panel #account-menu > * {
-  text-align: start;
-  padding: 0.35rem;
+.header-menu-panel {
+  --menu-icon-column: 1.95rem;
+  --menu-row-gap: 0.6rem;
+  --menu-row-padding: 0.55rem 0.35rem;
 }
-.header-menu-panel #account-menu > :is(a, button):hover {
-  border-radius: 0.35rem;
-  background: var(--accent-soft);
+.header-menu-panel .navigation-row.account-action {
+  grid-template-columns: var(--menu-icon-column) minmax(0, 1fr) auto;
+  gap: var(--menu-row-gap);
+  padding: var(--menu-row-padding);
 }
 .account-settings {
   max-width: 34rem;
@@ -445,12 +530,14 @@ textarea {
   justify-content: space-between;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.65rem 0.35rem 0.25rem;
+  min-height: 3.1rem;
+  padding: var(--menu-row-padding);
+  padding-inline-start: calc(0.35rem + var(--menu-icon-column) + var(--menu-row-gap));
   border: 0;
   border-top: 1px solid var(--line);
   color: var(--ink);
   background: transparent;
-  font: inherit;
+  font-weight: 650;
   cursor: pointer;
 }
 .theme-option:hover {
@@ -564,11 +651,26 @@ footer {
   width: 100%;
 }
 .account-links {
-  justify-content: space-between;
+  display: grid;
+  gap: 0;
   margin-top: 0.85rem;
 }
-.account-panel .text-button {
-  margin-top: 0.75rem;
+.navigation-row.account-action {
+  width: 100%;
+  text-align: start;
+}
+.navigation-row.account-action:is(a, button) {
+  border: 0;
+  border-block-start: 1px solid var(--line);
+  border-radius: 0;
+}
+button.account-action {
+  background: transparent;
+}
+.account-action-icon {
+  display: grid;
+  place-items: center;
+  line-height: 1;
 }
 #account-error:not(:empty) {
   margin-bottom: 0.7rem;
@@ -647,7 +749,7 @@ footer {
 }
 .hub-character {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(8.5rem, 0.55fr);
+  grid-template-columns: auto minmax(0, 1fr) max-content minmax(8.5rem, 0.65fr);
   align-items: start;
   gap: 0.8rem;
 }
@@ -663,6 +765,13 @@ footer {
 }
 .hub-character p {
   margin: 0.25rem 0 0.65rem;
+}
+.hub-character-actions {
+  display: grid;
+  gap: 0.4rem;
+}
+.hub-character-actions > .button {
+  justify-content: start;
 }
 .hub-vitals,
 .hub-skills {
@@ -732,10 +841,19 @@ footer {
     align-items: start;
   }
 }
+.hub-feature { container-type: inline-size; }
+@container (max-width: 34rem) {
+  .hub-character {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .hub-character-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  }
+  .hub-vitals { grid-column: 1 / -1; }
+}
 @media (max-width: 560px) {
   .quick-search { order: 1; max-width: none; flex-basis: 100%; }
-  .hub-character { grid-template-columns: auto minmax(0, 1fr); }
-  .hub-vitals { grid-column: 1 / -1; }
 }
 .hub-feature,
 .hub-shortcuts,
@@ -805,6 +923,11 @@ footer {
 }
 .wiki-class-links .spell-art {
   padding: 0;
+  width: 2.65rem;
+  height: 2.65rem;
+}
+.wiki-class-links .wiki-result:has(> .spell-art) {
+  grid-template-columns: 2.65rem minmax(0, 1fr) 0.55rem;
 }
 .compendium-results button {
   justify-self: start;
@@ -993,6 +1116,27 @@ small {
 .character-list {
   padding: 0;
   list-style: none;
+}
+.character-search {
+  margin-block: 1rem;
+}
+.character-search input {
+  margin-block-end: 0;
+}
+.character-delete {
+  margin: 0.3rem 0 0.55rem;
+  color: var(--danger);
+}
+#delete-character-dialog {
+  width: min(28rem, calc(100% - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+#delete-character-dialog::backdrop {
+  background: #0008;
 }
 .character-list a {
   padding: 0.65rem 0.35rem;

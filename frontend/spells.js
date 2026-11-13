@@ -403,13 +403,24 @@ export function gameIcon(id, className = '') {
 const illustratedSpells = new Set([
   'alarm', 'cure-wounds', 'fireball', 'ice-knife', 'lightning-bolt', 'magic-missile', 'shield',
 ]);
+const spellEmblemOverrides = {
+  'false-life': 'necromancy',
+  'find-steed': 'spell-steed',
+  'mage-armor': 'abjuration',
+  'armor-of-agathys': 'cold',
+  'otilukes-freezing-sphere': 'ice-knife',
+  'speak-with-animals': 'druid',
+};
 
 export function spellIcon(spell) {
   if (spell.localIcon === '/spell-icons/' + spell.id + '.webp') {
     return `<img class="game-icon game-emblem spell-art" src="${escapeHtml(spell.localIcon)}" alt="" width="32" height="32" loading="lazy" decoding="async">`;
   }
+  const emblem = spellEmblemOverrides[spell.id];
+  if (emblem) return gameIcon(emblem, 'game-emblem');
   const school = Object.hasOwn(spellSchools, spell.school) ? spell.school.toLowerCase() : 'evocation';
-  return gameIcon(illustratedSpells.has(spell.id) ? spell.id : school, 'game-emblem');
+  const damage = spellDamageTypes(spell)[0];
+  return gameIcon(illustratedSpells.has(spell.id) ? spell.id : damage === 'lightning' ? 'lightning-bolt' : damage ?? school, 'game-emblem');
 }
 
 export function spellTagMarkup(spell) {

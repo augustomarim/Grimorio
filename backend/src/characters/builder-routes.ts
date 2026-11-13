@@ -62,7 +62,8 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
       const rows = await db
         .prepare(
           `SELECT b.id, b.data->>'name' AS name, b.data->'classPlan' AS "classPlan",
-                  b.data->>'class' AS class, b.data->'level' AS level
+                  b.data->>'class' AS class, b.data->'level' AS level,
+                  u.username AS "authorName", u.avatar AS "authorAvatar"
            FROM builder_document b JOIN app_user u ON u.id=b.owner_id
            WHERE b.is_public=TRUE AND u.is_active=1
            ORDER BY b.updated_at DESC, b.id DESC LIMIT ? OFFSET ?`
@@ -75,15 +76,16 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
   app.get<{ Params: { id: string } }>(
     '/builder/public/:id',
     { schema: { params } },
-    async (req) => {
+    async (req, reply) => {
       const row = (await db
         .prepare(
-          'SELECT b.id,b.data,b.revision,b.is_public FROM builder_document b JOIN app_user u ON u.id=b.owner_id WHERE b.id=? AND b.is_public=TRUE AND u.is_active=1'
+          'SELECT b.id,b.data,b.revision,b.is_public,u.username AS "authorName",u.avatar AS "authorAvatar" FROM builder_document b JOIN app_user u ON u.id=b.owner_id WHERE b.id=? AND b.is_public=TRUE AND u.is_active=1'
         )
-        .get(req.params.id)) as DocumentRow | undefined;
+        .get(req.params.id)) as (DocumentRow & { authorName: string; authorAvatar: string | null }) | undefined;
       if (!row) throw missing();
       const { play: _play, ...draft } = row.data;
-      return output({ ...row, data: draft });
+      reply.header('Cache-Control', 'no-store');
+      return { ...output({ ...row, data: draft }), authorName: row.authorName, authorAvatar: row.authorAvatar };
     }
   );
   app.put<{
@@ -273,7 +275,7 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
       return db
         .transaction(async () => {
           const existing = await db
-            .prepare('SELECT owner_id,revision FROM builder_document WHERE id=?')
+            .prepare('SELECT owner_id,revision FROM builder_document WHERE id=? FOR UPDATE')
             .get(req.params.id);
           if (existing && existing.owner_id !== user.id) throw missing();
           if ((existing?.revision ?? 0) !== revision)

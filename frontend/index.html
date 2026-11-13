@@ -35,6 +35,16 @@
     </header>
     <main id="main" tabindex="-1"><p>Preparando o Grimório…</p></main>
     <dialog id="choice-picker" aria-labelledby="choice-picker-title"></dialog>
+    <dialog id="delete-character-dialog" aria-labelledby="delete-character-title">
+      <form method="dialog">
+        <h2 id="delete-character-title">Excluir ficha?</h2>
+        <p id="delete-character-message"></p>
+        <div class="hub-actions">
+          <button class="button secondary" value="cancel" autofocus>Cancelar</button>
+          <button class="button primary" value="delete">Excluir ficha</button>
+        </div>
+      </form>
+    </dialog>
     <div id="dice-board" class="dice-board" aria-hidden="true" hidden></div>
     <dialog id="dice-popup" class="dice-popup" aria-labelledby="dice-title">
       <header class="section-heading">

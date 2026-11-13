@@ -22,10 +22,11 @@ export default {
       for (const name of forwardedHeaders) {
         if (request.headers.has(name)) headers.set(name, request.headers.get(name));
       }
+      const payload = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.arrayBuffer();
       const upstream = await fetch(target, {
         method: request.method,
         headers,
-        body: ['GET', 'HEAD'].includes(request.method) ? undefined : await request.arrayBuffer(),
+        body: payload?.byteLength ? payload : undefined,
         redirect: 'manual',
         signal: AbortSignal.timeout(25000),
       });

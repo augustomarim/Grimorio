@@ -4,7 +4,7 @@ export async function characterRequest(path = '', options = {}, retry = true, ex
   const response = await fetch('/api/builder' + path, {
     credentials: 'same-origin',
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...options.headers },
   }).catch(() => {
     throw new Error('Não foi possível conectar à conta. Sua edição permanece neste navegador.');
   });
@@ -32,6 +32,13 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
   let publishing;
   const pending = new Set();
   const conflicts = new Set();
+  const deleting = new Set();
+  const schedule = (id) => {
+    if (stopped) return;
+    pending.add(id);
+    clearTimeout(timer);
+    timer = setTimeout(flush, 900);
+  };
   const store = (character) => cache(character);
   const payload = (character) => {
     const { cloudVersion, cloudDirty, cloudPublic, ...draft } = character;
@@ -67,7 +74,7 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
       for (const id of [...pending]) {
         if (stopped) break;
         pending.delete(id);
-        if (conflicts.has(id)) continue;
+        if (conflicts.has(id) || deleting.has(id)) continue;
         const character = read(id);
         if (!character?.cloudDirty) continue;
         try {
@@ -106,6 +113,7 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
         if (stopped) return;
         const remoteIds = new Set(documents.map(({ id }) => id));
         for (const document of documents) {
+          if (deleting.has(document.id)) continue;
           const local = read(document.id);
           if (!local?.cloudDirty) {
             store({
@@ -119,6 +127,7 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
           } else pending.add(local.id);
         }
         for (const character of list()) {
+          if (deleting.has(character.id)) continue;
           if (remoteIds.has(character.id)) continue;
           if (!character.cloudVersion) {
             store({ ...character, cloudDirty: true });
@@ -131,12 +140,7 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
       });
       return loading.then(flush);
     },
-    schedule(id) {
-      if (stopped) return;
-      pending.add(id);
-      clearTimeout(timer);
-      timer = setTimeout(flush, 900);
-    },
+    schedule,
     setPublication(id, isPublic) {
       if (publishing) return publishing;
       const currentLoad = loading;
@@ -161,20 +165,35 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
       return publishing;
     },
     async remove(character) {
-      pending.delete(character.id);
-      await publishing?.catch(() => {});
-      await running;
-      pending.delete(character.id);
-      const current = read(character.id);
-      if (current?.cloudVersion) {
-        await characterRequest(
-          '/' + current.id + '?revision=' + current.cloudVersion,
-          { method: 'DELETE' },
-          true,
-          owner
-        );
+      const { id } = character;
+      if (deleting.has(id)) return;
+      deleting.add(id);
+      pending.delete(id);
+      try {
+        await publishing?.catch(() => {});
+        await loading?.catch(() => {});
+        await running;
+        if (stopped) throw new Error('A sessão mudou. Abra a lista de fichas novamente.');
+        const current = read(id);
+        if (current?.cloudVersion) {
+          await characterRequest(
+            '/' + id + '?revision=' + current.cloudVersion,
+            { method: 'DELETE' },
+            true,
+            owner
+          ).catch((error) => {
+            if (error.code !== 'NOT_FOUND') throw error;
+          });
+        }
+        if (!stopped) cache(undefined, id);
+        pending.delete(id);
+        conflicts.delete(id);
+      } catch (error) {
+        if (error.code !== 'REVISION_CONFLICT' && read(id)?.cloudDirty) schedule(id);
+        throw error;
+      } finally {
+        deleting.delete(id);
       }
-      cache(undefined, character.id);
     },
     async reload(id) {
       await publishing?.catch(() => {});

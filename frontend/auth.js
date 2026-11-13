@@ -77,6 +77,10 @@ const passwordField = (
 const confirmField =
   '<label for="confirmation">Confirmar senha</label><input id="confirmation" name="confirmation" type="password" autocomplete="new-password" maxlength="128" required>';
 
+export function accountLink(href, label, icon) {
+  return `<a class="navigation-row account-action" href="${href}"><span class="game-emblem account-action-icon" aria-hidden="true">${icon}</span><span>${label}</span><span aria-hidden="true">›</span></a>`;
+}
+
 export function accountView(view) {
   const forms = {
     login: [
@@ -84,7 +88,7 @@ export function accountView(view) {
       'Acesse seu painel de aventuras.',
       `${emailField}${passwordField(false)}`,
       'Entrar',
-      '<a href="#recuperar">Esqueci a senha</a><a href="#cadastro">Criar conta</a>',
+      accountLink('#recuperar', 'Esqueci a senha', '?') + accountLink('#cadastro', 'Criar conta', '+'),
     ],
     cadastro: [
       'Criar conta',
@@ -92,21 +96,21 @@ export function accountView(view) {
       `<label for="username">Nome de usuário</label><input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" required>
       ${emailField}${passwordField(true).replace('Nova senha', 'Senha')}${confirmField}`,
       'Cadastrar',
-      '<a href="#login">Já tenho conta</a>',
+      accountLink('#login', 'Já tenho conta', '→'),
     ],
     recuperar: [
       'Recuperar senha',
       'Informe o e-mail da conta para solicitar um link.',
       emailField,
       'Solicitar link',
-      '<a href="#login">Voltar para entrar</a>',
+      accountLink('#login', 'Voltar para entrar', '←'),
     ],
     redefinir: [
       'Redefinir senha',
       'Escolha a nova senha para sua conta.',
       `${passwordField(true)}${confirmField}`,
       'Salvar nova senha',
-      '<a href="/#login">Voltar para entrar</a>',
+      accountLink('/#login', 'Voltar para entrar', '←'),
     ],
   };
   const [heading, description, fields, action, links] = forms[view];
@@ -118,7 +122,8 @@ export function accountView(view) {
       <form class="account-form" id="account-form" data-view="${view}">
         ${fields}<p id="account-error" role="alert"></p><button class="button primary" type="submit">${action}</button>
       </form>
-      <div class="account-links">${links}</div>
-      ${view === 'login' ? '<button class="text-button" type="button" data-guest>Usar fichas locais sem conta</button>' : ''}
+      <div class="account-links">${links}
+        ${view === 'login' ? '<button class="navigation-row account-action" type="button" data-guest><span class="game-emblem account-action-icon" aria-hidden="true">↪</span><span>Usar fichas locais sem conta</span><span aria-hidden="true">›</span></button>' : ''}
+      </div>
     </section></div>`;
 }

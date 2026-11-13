@@ -15,6 +15,7 @@ export interface User {
   id: number;
   email: string;
   username: string;
+  avatar?: string | null;
   role: 'user' | 'admin';
   is_active: number;
   password_hash: string;
@@ -30,6 +31,7 @@ export const publicUser = (u: User) => ({
   id: u.id,
   email: u.email,
   username: u.username,
+  avatar: u.avatar ?? null,
   role: u.role,
 });
 const invalid = () =>
@@ -357,15 +359,15 @@ export class AuthService {
       })
       .immediate();
   }
-  async updateUsername(user: User, username: string) {
+  async updateProfile(user: User, username: string, avatar?: string | null) {
     try {
       return await this.db.transaction(async () => {
         const result = await this.db
-          .prepare('UPDATE app_user SET username=?,updated_at=? WHERE id=? AND is_active=1')
-          .run(username, this.now().toISOString(), user.id);
-        if (result.changes !== 1) throw invalid();
-        await this.audit(user.id, 'account.update_username', 'app_user', user.id);
-        return publicUser({ ...user, username });
+          .prepare('UPDATE app_user SET username=?,avatar=CASE WHEN ? THEN ? ELSE avatar END,updated_at=? WHERE id=? AND is_active=1 RETURNING *')
+          .get(username, avatar !== undefined, avatar ?? null, this.now().toISOString(), user.id) as User | undefined;
+        if (!result) throw invalid();
+        await this.audit(user.id, 'account.update_profile', 'app_user', user.id);
+        return publicUser(result);
       }).immediate();
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505')

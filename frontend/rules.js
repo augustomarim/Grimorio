@@ -1760,7 +1760,16 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
         `${key}/order`,
         order.title,
         1,
-        named([order.martial, order.caster]),
+        [
+          opt(order.martial, order.martial, {
+            body: `Você ganha proficiência com armas marciais e treinamento com armaduras ${order.armor.toLowerCase()}s.`,
+            emblem: 'shield',
+          }),
+          opt(order.caster, order.caster, {
+            body: `Você aprende um truque adicional da lista da classe. Some seu modificador de Sabedoria (mínimo de +1) aos testes de Inteligência (${order.skill}).`,
+            emblem: 'class-wand',
+          }),
+        ],
         meta,
         (option, childKey) => {
           const source = displayName(option);

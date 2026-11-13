@@ -90,10 +90,14 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
   app.get('/auth/me', async (req) => ({
     user: publicUser(await auth.authenticate(req.cookies[ACCESS])),
   }));
-  app.post<{ Body: { username: string } }>('/auth/profile', {
-    schema: { body: object({ username }) },
+  app.post<{ Body: { username: string; avatar?: string | null } }>('/auth/profile', {
+    bodyLimit: 70 * 1024,
+    schema: { body: object({
+      username,
+      avatar: { type: ['string', 'null'], maxLength: 65536, pattern: '^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$' },
+    }, ['username']) },
   }, async (req) => ({
-    user: await auth.updateUsername(await auth.authenticate(req.cookies[ACCESS]), req.body.username),
+    user: await auth.updateProfile(await auth.authenticate(req.cookies[ACCESS]), req.body.username, req.body.avatar),
   }));
   app.post<{ Body: { currentPassword: string; password: string } }>('/auth/password', {
     config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },

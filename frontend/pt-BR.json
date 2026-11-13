@@ -271,7 +271,7 @@
     },
     "mind-sliver": {
       "name": "Estilhaço Mental",
-      "text": "O alvo deve ter sucesso em um lançamento da Inteligência, ou levar 1d6 de dano psíquico e subtrair 1d4 do próximo lançamento antes do fim do próximo turno.\n\nO dano aumenta em 1d6 quando você atinge os níveis 5 (2d6), 11 (3d6) e 17 (4d6)."
+      "text": "Você tenta fragmentar temporariamente a mente de uma criatura que possa ver dentro do alcance. O alvo faz um teste de resistência de Inteligência. Se falhar, sofre 1d6 de dano psíquico e subtrai 1d4 do próximo teste de resistência que fizer antes do fim do seu próximo turno.\n\n**Aprimoramento do truque.** O dano aumenta em 1d6 nos níveis 5 (2d6), 11 (3d6) e 17 (4d6)."
     },
     "minor-illusion": {
       "name": "Ilusão Menor",
@@ -347,7 +347,7 @@
     },
     "word-of-radiance": {
       "name": "Palavra de Radiância",
-      "text": "Cada criatura de sua escolha deve ter sucesso em uma Constituição salvando ou levando 1d6 de danos radioativos.\n\nO dano aumenta em 1d6 quando você atinge os níveis 5 (2d6), 11 (3d6) e 17 (4d6)."
+      "text": "Uma luz abrasadora irrompe de você em uma emanação de 5 pés. Cada criatura à sua escolha que você possa ver nessa área faz um teste de resistência de Constituição. Se falhar, sofre 1d6 de dano radiante.\n\n**Aprimoramento do truque.** O dano aumenta em 1d6 nos níveis 5 (2d6), 11 (3d6) e 17 (4d6)."
     },
     "alarm": {
       "name": "Alarme",
@@ -733,7 +733,7 @@
     },
     "elminsters-elusion": {
       "name": "Evasão de Elminster",
-      "text": "Você tem vantagem em economizar contra feitiços e efeitos mágicos, além disso, se conseguir salvar um feitiço ou um efeito mágico e normalmente sofrer a metade dos danos, não terá nenhum dano."
+      "text": "Proteções arcanas defendem você contra magia pela duração. Você tem vantagem em testes de resistência contra magias e efeitos mágicos. Se passar em um desses testes e normalmente sofreria metade do dano, você evita todo o dano."
     },
     "enhance-ability": {
       "name": "Aumentar a habilidade",
@@ -1012,7 +1012,7 @@
     },
     "feign-death": {
       "name": "Fingir a Morte",
-      "text": "Você toca uma criatura disposta e a coloca em um estado cataléptico indistinguível da morte.\n\nO alvo tem as condições cegas e incapacitadas, e sua velocidade é 0.\n\nO alvo também tem resistência a todos os danos exceto danos psíquicos, e tem imunidade à condição envenenada."
+      "text": "Você toca uma criatura voluntária e a coloca em um estado cataléptico indistinguível da morte.\n\nPela duração, o alvo parece morto tanto a uma inspeção externa quanto a magias usadas para determinar seu estado. Ele fica cego e incapacitado, com deslocamento 0.\n\nO alvo também tem resistência a todos os tipos de dano, exceto psíquico, e imunidade à condição envenenado."
     },
     "fireball": {
       "name": "Bola de Fogo",
@@ -1063,7 +1063,7 @@
     },
     "lightning-bolt": {
       "name": "Relâmpago",
-      "text": "Cada criatura na linha faz um teste de resistência de Destreza salvando, levando 8d6 de dano elétrico se falhar no teste, ou metade do dano se passar.\n\nusando um espaço de magia de Nível Superior O dano aumenta em 1d6 para cada espaço de magia acima de 3."
+      "text": "Um relâmpago parte de você na direção escolhida, formando uma linha de 100 pés de comprimento e 5 pés de largura. Cada criatura na linha faz um teste de resistência de Destreza. Se falhar, sofre 8d6 de dano elétrico. Se passar, sofre metade do dano.\n\n**Com um espaço de magia superior.** O dano aumenta em 1d6 por círculo do espaço acima do 3º."
     },
     "magic-circle": {
       "name": "Círculo Mágico",
@@ -1101,7 +1101,7 @@
     },
     "remove-curse": {
       "name": "Remova a maldição",
-      "text": "Se o objeto é um objeto mágico amaldiçoado, a maldição permanece, mas o feitiço quebra a Atuação de seu dono para que possa ser removido ou descartado."
+      "text": "Ao tocar uma criatura ou um objeto, você encerra todas as maldições que o afetam. Se o objeto for um item mágico amaldiçoado, a maldição permanece, mas a magia rompe a sintonização do dono com o item, permitindo removê-lo ou descartá-lo."
     },
     "revivify": {
       "name": "Revivificar",
@@ -1253,7 +1253,7 @@
     },
     "festering-blast": {
       "name": "Explosão Purulenta",
-      "text": "Cada criatura da linha deve fazer uma defesa da Constituição, em uma defesa fracassada, um alvo leva dano necrótico 4d10 e tem a condição envenenada para a duração.\n\nUma criatura envenenada por este feitiço leva 2d10 danos venenosos no início de cada uma de suas voltas.\n\nusando um espaço de magia de Nível Superior O dano inicial aumenta em 1d10 para cada espaço de magia acima de 4."
+      "text": "Uma linha de miasma de 60 pés de comprimento e 10 pés de largura parte de você na direção escolhida. Cada criatura na linha faz um teste de resistência de Constituição. Se falhar, sofre 4d10 de dano necrótico e fica envenenada pela duração.\n\nUma criatura envenenada por esta magia sofre 2d10 de dano venenoso no início de cada um de seus turnos. No fim de cada turno, repete o teste e encerra a magia sobre si em caso de sucesso.\n\n**Com um espaço de magia superior.** O dano inicial aumenta em 1d10 por círculo do espaço acima do 4º."
     },
     "fire-shield": {
       "name": "Escudo de fogo",
@@ -1269,7 +1269,7 @@
     },
     "giant-insect": {
       "name": "Inseto gigante",
-      "text": "Você invoca uma centopeia gigante, aranha, ou vespa (escolhida quando você lança o feitiço), que se manifesta em um espaço desocupado, você pode ver dentro do alcance e usa o bloco de estatísticas do **Inseto Gigante**.\n\nA criatura é aliada de vocês e de seus aliados, em combate, a criatura compartilha sua contagem de Iniciativas, mas ela toma sua vez imediatamente após a sua.\n\nusando um espaço de magia de Nível Superior. Use o nível do feitiço para o nível do feitiço no bloco de estatísticas."
+      "text": "Ao conjurar, escolha uma centopeia, aranha ou vespa gigante. Ela aparece em um espaço desocupado que você possa ver dentro do alcance e usa o bloco de estatísticas de Inseto Gigante, com as características da forma escolhida. Ela desaparece ao chegar a 0 Pontos de Vida ou quando a magia termina.\n\nO inseto é aliado seu e de seus aliados. Ele compartilha sua Iniciativa e age logo após seu turno. Ele obedece aos seus comandos verbais, que não exigem uma ação. Sem comando, ele usa a ação Esquivar e se move para evitar perigo.\n\n**Com um espaço de magia superior.** Use o círculo do espaço como círculo da magia no bloco de estatísticas."
     },
     "grasping-vine": {
       "name": "Vinha de grisalho",
@@ -1527,7 +1527,7 @@
     },
     "rarys-telepathic-bond": {
       "name": "Vínculo Telepático de Rary",
-      "text": "Você forja uma ligação telepática entre até oito criaturas voluntárias de sua escolha dentro do alcance, psiquicamente ligando cada criatura a todas as outras durante a duração.\n\nAté que o feitiço termine, os alvos podem se comunicar telepaticamente através do vínculo, quer eles compartilhem ou não uma linguagem."
+      "text": "Você cria um vínculo telepático entre até oito criaturas voluntárias à sua escolha dentro do alcance. Cada criatura fica ligada a todas as outras pela duração da magia. Criaturas incapazes de se comunicar em qualquer idioma ficam fora do vínculo.\n\nAté a magia terminar, os alvos podem se comunicar telepaticamente pelo vínculo mesmo que falem idiomas diferentes. A comunicação funciona a qualquer distância dentro do mesmo plano de existência."
     },
     "reincarnate": {
       "name": "Reencarnar",
@@ -1601,7 +1601,7 @@
     },
     "waves-of-exhaustion": {
       "name": "Ondas de exaustão",
-      "text": "Você evoca um nimbus de luz cinza cintilante ao redor de seu corpo durante a duração, você pode tomar uma ação mágica para emitir uma onda de luz cinza em um cone de 60 pés.\n\nOs níveis de exaustão obtidos com este feitiço são removidos quando o feitiço termina."
+      "text": "Você evoca uma auréola de luz cinzenta tremeluzente ao redor do corpo. Pela duração, você pode usar uma ação Mágica para emitir uma onda de luz cinzenta em um cone de 60 pés. Cada criatura na área faz um teste de resistência de Constituição. Se falhar, ganha 1 nível de exaustão. Esta magia pode elevar a exaustão de uma criatura até o nível 4.\n\nOs níveis de exaustão causados por esta magia desaparecem quando ela termina."
     },
     "yolandes-regal-presence": {
       "name": "Presença Regal de Yolande",
@@ -1884,7 +1884,7 @@
     },
     "animal-shapes": {
       "name": "Formas de Animais",
-      "text": "Cada alvo muda de forma em uma grande ou menor besta de sua escolha que tem uma classificação de desafio de 4 ou menor.\n\nAs estatísticas do jogo de um alvo são substituídas pelas estatísticas da Besta escolhida, mas o alvo mantém seu tipo de criatura, Pontos de vida, Dados de vida, alinhamento, capacidade de comunicação, inteligência, sabedoria e Carisma. As ações do alvo são limitadas pela anatomia da Fera, e não pode lançar feitiços. O equipamento do alvo se funde no novo formulário, e o alvo não pode usar nenhum desses equipamentos enquanto estiver nessa forma.\n\nO alvo ganha vários pontos temporários iguais aos pontos de vida da primeira forma em que ele muda de forma."
+      "text": "Escolha qualquer número de criaturas voluntárias que você possa ver dentro do alcance. Cada alvo assume a forma de uma Besta Grande ou menor, com Nível de Desafio 4 ou inferior, à sua escolha. Você pode escolher uma forma diferente para cada alvo. Em turnos posteriores, pode usar uma ação Mágica para transformar os alvos novamente.\n\nAs estatísticas da Besta substituem as do alvo, que conserva seu tipo de criatura, Pontos de Vida, Dados de Vida, alinhamento, capacidade de se comunicar e valores de Inteligência, Sabedoria e Carisma. A anatomia da Besta limita suas ações. Na nova forma, o alvo não pode conjurar magias e seu equipamento se funde ao corpo, ficando indisponível.\n\nO alvo ganha Pontos de Vida temporários iguais aos Pontos de Vida da primeira forma assumida. Os pontos temporários restantes somem quando a magia termina. A transformação dura até o fim da magia ou até o alvo encerrá-la com uma ação bônus."
     },
     "antimagic-field": {
       "name": "Campo Antimágico",
@@ -1909,7 +1909,7 @@
     },
     "demiplane": {
       "name": "Demiplano",
-      "text": "Você cria uma porta média sombreada em uma superfície plana sólida que você pode ver dentro do alcance.\n\nQuando o feitiço termina, a porta desaparece, e qualquer objeto dentro do demiplano permanece lá.\n\nCada vez que você lança esse feitiço, você pode criar um novo demiplano ou conectar a porta escura a um demiplano que você criou com um elenco anterior deste feitiço. Além disso, se você conhece a natureza e o conteúdo de um demiplano criado por um elenco deste feitiço por outra criatura, você pode conectar a porta sombria a esse demiplano em vez disso."
+      "text": "Você cria uma porta sombria de tamanho Médio em uma superfície plana e sólida que possa ver dentro do alcance. A porta pode ser aberta e fechada e leva a um semiplano, uma sala vazia de madeira ou pedra à sua escolha, com 30 pés em cada dimensão.\n\nQuando a magia termina, a porta desaparece. Os objetos ficam dentro do semiplano. As criaturas também ficam, mas podem optar por ser expelidas pela porta quando ela desaparece. Nesse caso, ficam caídas nos espaços desocupados mais próximos do local onde a porta estava.\n\nA cada conjuração, você pode criar um semiplano ou ligar a porta a um semiplano que criou com esta magia antes. Se souber a natureza e o conteúdo de um semiplano criado por outra criatura com esta magia, também pode ligar a porta a ele."
     },
     "dominate-monster": {
       "name": "Domine o Monstro",
@@ -3750,7 +3750,7 @@
         },
         {
           "name": "Ordem Divina",
-          "body": "Você se dedicou a um dos seguintes papéis sagrados de sua escolha.\n\nTreinado para batalha, você ganha proficiência com armas marciais e treinamento com armadura pesada.\n\nAlém disso, sua conexão mística com o divino lhe dá um bônus para seus cheques de Inteligência (Arcana ou Religião) O bônus é igual ao seu modificador de Sabedoria (mínimo de +1)."
+          "body": "Escolha um papel sagrado.\n\n**Protetor.** Você ganha proficiência com armas marciais e treinamento com armaduras pesadas.\n\n**Taumaturgo.** Você aprende um truque adicional da lista de Clérigo. Some seu modificador de Sabedoria (mínimo de +1) aos testes de Inteligência (Arcanismo ou Religião)."
         },
         {
           "name": "Canalizar Divindade",
@@ -4694,7 +4694,7 @@
       "traits": [
         {
           "name": "Instintos de Metamorfo",
-          "body": "Graças à sua conexão com o reino feérico, você ganha proficiência em duas das seguintes habilidades de sua escolha: Decepção, Insight, Intimidação, Desempenho ou Persuasão."
+          "body": "Graças à sua conexão com o reino feérico, você ganha proficiência em duas das seguintes perícias à sua escolha: Enganação, Intuição, Intimidação, Atuação ou Persuasão."
         },
         {
           "name": "Metamorfose",
@@ -4723,7 +4723,17 @@
         },
         {
           "name": "Mordida Vampírica",
-          "body": "Quando usar seu golpe desarmado e causar danos, pode escolher morder com suas presas, lidar com danos perfurantes iguais a 1d4 mais seu modificador da Constituição em vez do dano normal de um ataque desarmado.\n\nAlém disso, quando você lida com esse dano a uma criatura que não é um Construtor ou um Morto-vivo, você pode se fortalecer de uma das seguintes maneiras:"
+          "body": "Quando você causa dano com um Ataque Desarmado, pode morder com suas presas. A mordida causa 1d4 + seu modificador de Constituição de dano perfurante no lugar do dano normal do Ataque Desarmado.\n\nAo causar esse dano a uma criatura que não seja um Constructo nem um Morto-Vivo, você pode obter um dos benefícios abaixo.",
+          "options": {
+            "drain": {
+              "name": "Drenar",
+              "summary": "Você recupera Pontos de Vida iguais ao dano perfurante causado."
+            },
+            "strengthen": {
+              "name": "Fortalecer",
+              "summary": "Você recebe um bônus igual ao dano perfurante causado no próximo teste de atributo ou rolagem de ataque que fizer dentro de 1 minuto.\n\nVocê pode obter um desses benefícios um número de vezes igual ao seu Bônus de Proficiência e recupera todos os usos gastos ao terminar um Descanso Longo."
+            }
+          }
         }
       ],
       "tags": [
@@ -4857,7 +4867,7 @@
         },
         {
           "name": "Sentidos Aguçados",
-          "body": "Você tem proficiência na habilidade Insight, Percepção ou Sobrevivência."
+          "body": "Você ganha proficiência em uma perícia à sua escolha entre Intuição, Percepção e Sobrevivência."
         },
         {
           "name": "Transe",
@@ -7938,7 +7948,7 @@
     "alert": {
       "name": "Alerta",
       "summary": "Proficiência de Iniciativa · Troca de Iniciativas",
-      "text": "Quando você lançar a Iniciativa, você pode adicionar seu Bônus de Proficiência à rolagem.\n\nImediatamente após iniciar a Iniciativa, você pode trocar sua Iniciativa com a Iniciativa de um aliado disposto no mesmo combate."
+      "text": "**Proficiência em Iniciativa.** Some seu Bônus de Proficiência à sua rolagem de Iniciativa.\n\n**Trocar Iniciativa.** Logo após rolar Iniciativa, você pode trocar seu resultado com um aliado voluntário no mesmo combate. Para fazer a troca, ambos precisam estar aptos a agir, sem a condição incapacitado."
     },
     "arcane-artist": {
       "name": "Artista Arcano",
@@ -8058,7 +8068,7 @@
     "boon-of-fate": {
       "name": "Dádiva do Destino",
       "summary": "Aumente a pontuação da habilidade. Melhore o destino.",
-      "text": "Aumente a pontuação de uma habilidade de sua escolha em 1, para um máximo de 30.\n\nQuando você ou outra criatura a menos de 60 pés de você tiver sucesso ou falhar em um teste D20, você pode rolar 2d4 e aplicar o total rolado como um bônus ou penalidade para a rolagem D20."
+      "text": "Aumente um atributo à sua escolha em 1, até o máximo de 30.\n\nQuando você ou outra criatura a até 60 pés de você passa ou falha em um Teste de d20, você pode rolar 2d4 e aplicar o total como bônus ou penalidade à rolagem. Você recupera esse uso ao rolar Iniciativa ou terminar um Descanso Curto ou Longo."
     },
     "boon-of-fluid-forms": {
       "name": "Dádiva das Formas Fluidas",
@@ -8078,7 +8088,7 @@
     "boon-of-irresistible-offense": {
       "name": "Dádiva do Ataque Irresistível",
       "summary": "Aumento da pontuação de habilidade · Superação das defesas · Greve esmagadora",
-      "text": "Aumente sua pontuação de força ou destreza em 1, para um máximo de 30.\n\nAs defesas superadas. Os danos que você faz sempre ignoram a Resistência.\n\nQuando você joga um 20 no D20 para uma jogada de ataque, você pode lidar com danos extras ao alvo igual à pontuação de habilidade aumentada por este talento."
+      "text": "**Aumento de atributo.** Aumente sua Força ou Destreza em 1, até o máximo de 30.\n\n**Superar defesas.** O dano contundente, perfurante e cortante que você causa ignora resistência.\n\n**Golpe avassalador.** Quando tirar 20 no d20 de uma rolagem de ataque, você pode causar dano adicional ao alvo igual ao valor do atributo aumentado por este talento. O dano adicional tem o mesmo tipo do dano do ataque."
     },
     "boon-of-looming-shadows": {
       "name": "Dádiva das Sombras Ameaçadoras",
@@ -8103,7 +8113,7 @@
     "boon-of-recovery": {
       "name": "Dádiva da Recuperação",
       "summary": "Aumente a pontuação da habilidade. Última posição. Recupere a vitalidade.",
-      "text": "Aumente a pontuação de uma habilidade de sua escolha em 1, para um máximo de 30.\n\nQuando você seria reduzido para 0 pontos de vida, você pode cair para 1 ponto de hit em vez disso e recuperar um número de pontos de hit igual a metade do seu ponto de hit máximo.\n\nComo uma ação bônus, você pode gastar dados da piscina, jogar esses dados, e recuperar um número de pontos de vida igual ao total da rolagem."
+      "text": "**Aumento de atributo.** Aumente um atributo à sua escolha em 1, até o máximo de 30.\n\n**Última resistência.** Quando seus Pontos de Vida cairiam a 0, você pode ficar com 1 PV e recuperar PV iguais à metade do seu máximo. Após usar esse benefício, termine um Descanso Longo para recuperá-lo.\n\n**Recuperar vitalidade.** Você tem uma reserva de dez d10. Como ação bônus, gaste e role dados da reserva para recuperar PV iguais ao total da rolagem. Você recupera os dados gastos ao terminar um Descanso Longo."
     },
     "boon-of-revelry": {
       "name": "Dádiva da Festança",
@@ -8158,7 +8168,7 @@
     "boon-of-the-soul-drinker": {
       "name": "Dádiva do Devorador de Almas",
       "summary": "A pontuação da habilidade aumenta a resistência do túmulo a vida do sifão.",
-      "text": "Aumente a pontuação de uma habilidade de sua escolha em 1, para um máximo de 30.\n\nVocê tem resistência a danos frios e necróticos.\n\nQuando um inimigo a menos de 60 metros de você é reduzido a 0 pontos de acesso, você pode ter uma reação para recuperar 50 pontos de acesso."
+      "text": "Aumente um atributo à sua escolha em 1, até o máximo de 30.\n\nVocê tem resistência a dano de frio e necrótico.\n\nQuando um inimigo a até 120 pés de você cai a 0 Pontos de Vida, você pode usar uma reação para recuperar 50 Pontos de Vida. Você recupera esse uso ao terminar um Descanso Curto ou Longo."
     },
     "boon-of-truesight": {
       "name": "Dádiva da Visão Verdadeira",
@@ -8228,7 +8238,7 @@
     "delicious-pain": {
       "name": "Dor Deliciosa",
       "summary": "Pontuação de habilidade Aumentar · Carne endurecida",
-      "text": "Aumente o escore de habilidade. Aumente uma habilidade de sua escolha em 1, para um máximo de 20.\n\nLogo após tomar o dano contundente, perfurante ou cortante, pode ter uma reação para ganhar resistência ao dano contundente, perfurante e cortante até o início do seu próximo turno."
+      "text": "Aumente um atributo à sua escolha em 1, até o máximo de 20.\n\nLogo após sofrer dano contundente, perfurante ou cortante, você pode usar uma reação para ganhar resistência a esses três tipos de dano até o início do seu próximo turno. Você recupera esse uso ao terminar um Descanso Curto ou Longo."
     },
     "divination-adept": {
       "name": "Adepto de Adivinhação",
@@ -8293,7 +8303,7 @@
     "fairy-trickster": {
       "name": "Trapaceiro Feérico",
       "summary": "Poder de pontuação Aumentar · Fada Trod Trotter · Ataque Flustering",
-      "text": "Aumente a pontuação de habilidade. Aumente sua pontuação de habilidade de Dexteridade ou Carisma em 1, para um máximo de 20.\n\nQuando você toma a ação de desengatar em sua vez, o Terreno Difícil não lhe custa um movimento extra pelo resto da volta.\n\nQuando você atinge uma criatura com uma jogada de ataque, você pode tentar agitar o alvo.\n\nVocê pode usar esse benefício várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo."
+      "text": "Aumente sua Destreza ou seu Carisma em 1, até o máximo de 20.\n\nAo usar a ação Desengajar no seu turno, o terreno difícil deixa de custar movimento adicional pelo resto do turno.\n\nAo acertar uma criatura com uma rolagem de ataque, você pode tentar desconcertá-la. O alvo faz um teste de resistência de Sabedoria com CD igual a 8 + seu Bônus de Proficiência + o modificador do atributo aumentado por este talento. Se falhar, sofre desvantagem em testes de resistência até o fim do seu próximo turno. Você pode usar esse benefício um número de vezes igual ao seu Bônus de Proficiência e recupera os usos gastos ao terminar um Descanso Longo."
     },
     "familiar-friend": {
       "name": "Amigo Familiar",
@@ -8463,12 +8473,12 @@
     "keen-mind": {
       "name": "Mente Aguçada",
       "summary": "A pontuação da habilidade aumenta o conhecimento da Lore. Estudo rápido.",
-      "text": "Aumente a pontuação da sua inteligência em 1, para um máximo de 20.\n\nSe você não tiver proficiência na habilidade escolhida, você ganha proficiência nela, e se você já tiver proficiência nela, você ganha expertise nela.\n\nVocê pode tomar a ação de estudo como uma ação bônus."
+      "text": "**Aumento de atributo.** Aumente sua Inteligência em 1, até o máximo de 20.\n\n**Conhecimento.** Escolha Arcanismo, História, Investigação, Natureza ou Religião. Você ganha proficiência na perícia escolhida. Se já tiver proficiência nela, ganha especialização.\n\n**Estudo rápido.** Você pode usar a ação Estudar como ação bônus."
     },
     "light-bringer": {
       "name": "Portador da Luz",
       "summary": "A pontuação da habilidade aumenta a magia sagrada, a luminosidade solar, a cura do sol.",
-      "text": "Aumente a pontuação de sua habilidade. Aumente sua inteligência, sabedoria ou Carisma em 1, para um máximo de 20.\n\nSe você já sabe que pode viajar, você aprende uma truque Clérigo diferente de sua escolha.\n\nQuando você lança a Luz, você pode ter a luz do feitiço sendo a luz do sol, uma vez que você usa este benefício, você não pode usá-lo novamente até que você termine um descanso longo.\n\nComo uma ação bônus enquanto estiver ao sol, você pode gastar um de seus Dados de Ponto de vida, rolar o dado e recuperar um número de Pontos de Hit iguais à rolagem."
+      "text": "Aumente sua Inteligência, Sabedoria ou Carisma em 1, até o máximo de 20.\n\nVocê aprende Luz e pode conjurá-la sem componentes materiais. Se já conhece o truque, escolha outro truque de Clérigo. O atributo de conjuração é o aumentado por este talento.\n\nAo conjurar Luz, você pode fazer com que ela produza luz solar. Você recupera esse uso ao terminar um Descanso Longo.\n\nSob luz solar, você pode usar uma ação bônus para gastar e rolar um Dado de Vida e recuperar Pontos de Vida iguais ao resultado. Você recupera esse uso ao terminar um Descanso Curto ou Longo."
     },
     "lightly-armored": {
       "name": "Uso de Armadura Leve",
@@ -8511,9 +8521,9 @@
       "text": "Aumente a pontuação de sua habilidade. Aumente sua inteligência, sabedoria ou Carisma em 1, para um máximo de 20.\n\nEscolha um feitiço de nível 1 e nível 2 da mesma lista que você selecionou para os truques do feito mágico. Você sempre tem aqueles feitiços preparados. Você pode lançar cada feitiço uma vez sem um feitiço, e você recuperar a capacidade de lançá-lo desta forma quando você terminar um descanso longo. Você também pode lançar esses feitiços usando qualquer espaço de magia que você tem do nível apropriado. A atributo de conjuração para esses feitiços é a mesma que a atributo de conjuração escolhida para seus feitiços de Iniciação Mágica.\n\nSempre que você ganha um novo nível, você pode substituir um dos feitiços que você escolheu para este feito com um feitiço diferente do mesmo nível da lista de feitiços escolhida."
     },
     "magic-initiate": {
-      "name": "Iniciado por magia",
-      "summary": "2 truques Nível 1 Feitiço Mudança de Feitiço",
-      "text": "Você aprende duas truques de sua escolha com a lista de feitiços Clérigo, Druida ou Mago.\n\nEscolha um feitiço de nível 1 da mesma lista que você escolheu para as truques deste feito, você sempre tem esse feitiço preparado, você pode jogá-lo uma vez sem um feitiço, e você recupera a capacidade de lançá-lo dessa forma quando você terminar um Descanso Longo, você também pode lançar o feitiço usando qualquer feitiço que você tiver.\n\nSempre que você ganha um novo nível, você pode substituir um dos feitiços que você escolheu para este feito com um feitiço diferente do mesmo nível da lista de feitiços escolhida.\n\nVocê pode fazer esse talento mais de uma vez, mas você deve escolher uma lista de feitiços diferente cada vez."
+      "name": "Iniciado em Magia",
+      "summary": "Aprenda dois truques e uma magia de 1º círculo de uma lista de classe.",
+      "text": "Escolha a lista de magias de Clérigo, Druida ou Mago. Aprenda dois truques e escolha uma magia de 1º círculo dessa lista. Ao escolher o talento, defina Inteligência, Sabedoria ou Carisma como seu atributo de conjuração para essas magias.\n\nA magia de 1º círculo fica sempre preparada. Você pode conjurá-la uma vez sem gastar um espaço de magia e recupera esse uso ao terminar um Descanso Longo. Também pode conjurá-la usando seus espaços de magia.\n\nAo subir de nível, você pode substituir uma das magias escolhidas por outra do mesmo círculo e da mesma lista. Você pode adquirir este talento mais de uma vez, escolhendo uma lista diferente a cada vez."
     },
     "mark-of-detection": {
       "name": "Marca de Detecção",
@@ -8618,7 +8628,7 @@
     "observant": {
       "name": "Observador",
       "summary": "Aumente a pontuação de habilidade.",
-      "text": "Aumente sua pontuação de inteligência ou sabedoria em 1, para um máximo de 20.\n\nSe não tiver proficiência com a habilidade escolhida, ganha proficiência nela, e se já tiver proficiência nela, ganha Expertise nela.\n\nVocê pode tomar a ação de busca como uma ação bônus."
+      "text": "**Aumento de atributo.** Aumente sua Inteligência ou Sabedoria em 1, até o máximo de 20.\n\n**Observação aguçada.** Escolha Intuição, Investigação ou Percepção. Você ganha proficiência na perícia escolhida. Se já tiver proficiência nela, ganha especialização.\n\n**Busca rápida.** Você pode usar a ação Procurar como ação bônus."
     },
     "orders-resilience": {
       "name": "Resiliência da Ordem",
@@ -8688,7 +8698,7 @@
     "rebuke": {
       "name": "Repreensão",
       "summary": "Aumento da pontuação de habilidade · Greve Radiante",
-      "text": "Aumente o escore de habilidade. Aumente uma habilidade de sua escolha em 1, para um máximo de 20.\n\nQuando você faz uma rolagem de dano que causa danos radiantes, você pode causar uma criatura enorme ou menor levando o dano para ter a condição Prone."
+      "text": "Aumente um atributo à sua escolha em 1, até o máximo de 20.\n\nAo fazer uma rolagem de dano radiante, você pode derrubar uma criatura Enorme ou menor que sofra esse dano, impondo a condição Caído. Você recupera esse uso ao terminar um Descanso Curto ou Longo."
     },
     "resilient": {
       "name": "Resiliente",
