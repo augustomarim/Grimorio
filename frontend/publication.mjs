@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import * as data from '@freshmag/one-dndb/data';
-import { indexCatalog, projectCharacter } from './rules.js';
+import { displayName, indexCatalog, plannedClasses, projectCharacter, skillName } from './rules.js';
+import { normalizeSearch, spellName } from './spells.js';
 import { characterIssues } from './validation.js';
 
 const read = (name) => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'));
@@ -20,4 +21,34 @@ export function validatePublication(draft) {
     }
   }
   return { issues, selected: projection.validSelections };
+}
+
+export function publicGalleryMatcher({ search, classId, subclassId }) {
+  const authorOnly = search.startsWith('@');
+  const query = normalizeSearch(authorOnly ? search.slice(1).trim() : search);
+  const terms = query ? query.split(/\s+/) : [];
+  return ({ data, authorName }) => {
+    const draft = { ...data, selected: data.selected ?? {} };
+    const classes = plannedClasses(draft, catalog);
+    if ((classId || subclassId) && !classes.some(({ entry, subclass }) =>
+      (!classId || entry.id === classId) && (!subclassId || subclass?.id === subclassId))) return false;
+    if (!terms.length) return true;
+    if (authorOnly) return normalizeSearch(authorName).includes(query);
+
+    const projection = projectCharacter(draft, catalog);
+    const entries = [
+      projection.species, projection.background,
+      ...classes.flatMap(({ entry, subclass }) => [entry, subclass]),
+      ...projection.feats, ...projection.features, ...projection.selectedFeatures,
+      ...[...projection.tools].map((id) => catalog.byTool.get(id)),
+      ...[...projection.languages].map((id) => catalog.byLanguage.get(id)),
+    ].filter(Boolean);
+    const haystack = normalizeSearch([
+      draft.name,
+      ...entries.flatMap((entry) => [displayName(entry), entry.name]),
+      ...projection.spells.flatMap((spell) => [spellName(spell), spell.name]),
+      ...[...projection.skills].map(skillName),
+    ].filter(Boolean).join(' '));
+    return terms.every((term) => haystack.includes(term));
+  };
 }

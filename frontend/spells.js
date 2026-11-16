@@ -135,6 +135,8 @@ export const spellSchools = {
   Necromancy: 'Necromancia',
   Transmutation: 'Transmutação',
 };
+const schoolEmblems = { Divination: 'school-sheikah-eye', Evocation: 'feat-evocation-adept' };
+export const schoolEmblem = (school) => schoolEmblems[school] ?? school.toLowerCase();
 const damageTypes = {
   acid: 'Ácido',
   bludgeoning: 'Contundente',
@@ -330,13 +332,14 @@ export function spellRolls(spell, characterLevel, slotLevel = spell.level) {
   return rolls;
 }
 
-export function spellDescription(spell, { glossary = false } = {}) {
+export function spellDescription(spell, { glossary = false, editorial = false } = {}) {
+  const effects = spellEffects(spell);
   const fields = [
     ['Fonte', spell.publication],
     ['Conjuração', translateMeasure(spell.time)],
     ['Alcance', translateMeasure(spell.range)],
-    ['Duração', translateMeasure(spell.duration)],
     ['Componentes', spell.components?.split('').join(', ')],
+    ['Duração', translateMeasure(spell.duration)],
     [
       'Usos gratuitos',
       spell.free
@@ -350,25 +353,30 @@ export function spellDescription(spell, { glossary = false } = {}) {
         ? (spell.attackBonus >= 0 ? '+' : '') + spell.attackBonus
         : undefined,
     ],
-    ...(glossary
-      ? [['Tipos de dano', spellDamageTypes(spell).map(damageTypeLabel).join(' · ')]]
-      : []),
-    ...spellEffects(spell),
+    ...(editorial ? [] : effects.filter(([label]) => label !== 'Dano')),
   ].filter(([, value]) => value);
+  const shownEffects = editorial ? effects : effects.filter(([label]) => label === 'Dano');
+  const effectMarkup = shownEffects.length ? `<dl class="wiki-spell-effects">${shownEffects.map(([label, value]) =>
+    `<div data-effect="${label}"><dt>${label}</dt><dd>${label === 'Dano' ? spellDamageMarkup(value) : escapeHtml(value)}</dd></div>`
+  ).join('')}</dl>` : '';
+  const damageTags = glossary ? spellDamageTypes(spell).map((type) => damageTag(type)).join(' ') : '';
+  const description = formatRulesDescription(spell.translation?.text ?? spell.text, glossary, spell.translation?.text ? 'pt-BR' : 'en');
   return `<div class="spell-description">
     <dl class="spell-facts">${fields
-      .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
+      .map(([label, value]) => `<div${label === 'Fonte' ? ' class="spell-source"' : ''}><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
       .join('')}</dl>
     ${
-      spell.concentration || spell.ritual
+      damageTags || spell.concentration || spell.ritual
         ? `<p class="spell-tags">
+      ${damageTags}
       ${spell.concentration ? '<span class="tag">Concentração</span>' : ''}
       ${spell.ritual ? '<span class="tag">Ritual</span>' : ''}</p>`
         : ''
     }
     ${spell.material ? `<p><strong>Material</strong> · ${escapeHtml(spell.translation?.material ?? spell.material)}</p>` : ''}
     ${spell.triggered ? `<p><strong>Gatilho</strong> · ${escapeHtml(spell.translation?.triggered ?? spell.triggered)}</p>` : ''}
-    ${formatRulesDescription(spell.translation?.text ?? spell.text, glossary, spell.translation?.text ? 'pt-BR' : 'en')}
+    ${effectMarkup}
+    ${editorial ? `<div class="wiki-spell-prose">${description}</div>` : description}
     ${
       spell.references
         ?.map(
@@ -407,7 +415,7 @@ const spellEmblemOverrides = {
   'false-life': 'necromancy',
   'find-steed': 'spell-steed',
   'mage-armor': 'abjuration',
-  'armor-of-agathys': 'cold',
+  'armor-of-agathys': 'snowflake',
   'otilukes-freezing-sphere': 'ice-knife',
   'speak-with-animals': 'druid',
 };
@@ -418,26 +426,56 @@ export function spellIcon(spell) {
   }
   const emblem = spellEmblemOverrides[spell.id];
   if (emblem) return gameIcon(emblem, 'game-emblem');
-  const school = Object.hasOwn(spellSchools, spell.school) ? spell.school.toLowerCase() : 'evocation';
+  const school = schoolEmblem(Object.hasOwn(spellSchools, spell.school) ? spell.school : 'Evocation');
   const damage = spellDamageTypes(spell)[0];
-  return gameIcon(illustratedSpells.has(spell.id) ? spell.id : damage === 'lightning' ? 'lightning-bolt' : damage ?? school, 'game-emblem');
+  return gameIcon(illustratedSpells.has(spell.id) ? spell.id : damage ? damageEmblem(damage) : school, 'game-emblem');
+}
+
+export const damageEmblem = (type) => ({ cold: 'snowflake', lightning: 'lightning-bolt' })[type] ?? type;
+
+export function damageTag(type, label = `Dano · ${damageTypeLabel(type)}`) {
+  return `<span class="tag damage-tag" data-damage="${escapeHtml(type)}">${gameIcon(damageEmblem(type))}${escapeHtml(label)}</span>`;
+}
+
+function spellDamageMarkup(value) {
+  return value.split(' · ').map((effect) => {
+    const parts = /^(.*?) de (.+)$/.exec(effect);
+    if (!parts) return `<span class="tag">${escapeHtml(effect)}</span>`;
+    const [, dice, types] = parts;
+    const damage = types.split(' / ').map((label) =>
+      Object.keys(damageTypes).find((type) => damageTypes[type] === label)
+    );
+    return damage.every(Boolean)
+      ? damage.map((type) => damageTag(type, `${dice} · ${damageTypeLabel(type)}`)).join(' / ')
+      : `<span class="tag">${escapeHtml(effect)}</span>`;
+  }).join(' ');
+}
+
+export function spellTheme(spell, rainbow = false) {
+  const school = Object.hasOwn(spellSchools, spell.school) ? spell.school : '';
+  const types = rainbow ? spellDamageTypes(spell) : [];
+  const spectrum = types.length > 1
+    ? ` style="--spell-spectrum:linear-gradient(105deg,${types.map((type) => `var(--spell-damage-${type})`).join(',')})"`
+    : '';
+  return ` data-spell-school="${school}"${spectrum}`;
 }
 
 export function spellTagMarkup(spell) {
   const tag = (label) => label && `<span class="tag">${escapeHtml(label)}</span>`;
-  const damageTags = spellDamageTypes(spell).map((type) => {
-    const icon = type === 'lightning' ? 'lightning-bolt' : type;
-    const symbol = type === 'cold' ? '<span class="damage-snowflake" aria-hidden="true">❄︎</span>' : gameIcon(icon);
-    return `<span class="tag damage-tag" data-damage="${type}">${symbol}${escapeHtml(damageTypeLabel(type))}</span>`;
-  });
-  return [tag(spellSubtitle(spell)), ...damageTags, tag(spell.publication)].filter(Boolean).join(' ');
+  const damageTags = spellDamageTypes(spell).map((type) => damageTag(type));
+  const schoolIcon = Object.hasOwn(spellSchools, spell.school) ? gameIcon(schoolEmblem(spell.school)) : '';
+  return [
+    `<span class="tag spell-school-tag">${schoolIcon}${escapeHtml(spellSubtitle(spell))}</span>`,
+    ...damageTags,
+    tag(spell.publication),
+  ].filter(Boolean).join(' ');
 }
 
 export function spellCard(spell, actions = '') {
   const headline = spellEffects(spell).find(([label]) => label === 'Dano' || label === 'Cura');
-  return `<details class="entry"><summary><strong class="icon-label">${spellIcon(spell)}${escapeHtml(spellName(spell))}</strong>
-    ${spellTagMarkup(spell)}
-    ${headline ? `<span class="spell-headline">${headline[0]} · ${escapeHtml(headline[1])}</span>` : ''}</summary>
+  return `<details class="entry spell-card"${spellTheme(spell)}><summary><strong class="icon-label">${spellIcon(spell)}<span>${escapeHtml(spellName(spell))}</span></strong>
+    <span class="entry-tags">${spellTagMarkup(spell)}</span>
+    ${headline ? `<span class="spell-headline">${headline[0]} · ${headline[0] === 'Dano' ? spellDamageMarkup(headline[1]) : escapeHtml(headline[1])}</span>` : ''}</summary>
     ${spell.grantedBy ? `<p class="muted">Concedida por ${escapeHtml(spell.grantedBy)}</p>` : ''}
     ${actions}
     ${spellDescription(spell)}</details>`;

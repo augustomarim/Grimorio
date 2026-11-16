@@ -21,7 +21,7 @@ import {
 } from './rules.js';
 import { attributeIssue, characterIssues } from './validation.js';
 import {
-  characterInventory, completeRest, deriveCharacter, equippedWeaponRolls, equipmentConflicts, equipmentSlot, playResources, rollDice, updatePlayHP,
+  characterInventory, completeRest, deriveCharacter, equippedWeaponRolls, equipmentConflicts, equipmentSlot, playResources, rollDice, skillAbilities, updatePlayHP,
 } from './mechanics.js';
 import { accountLink, accountView, authRequest, restoreSession, withSessionLock } from './auth.js';
 import { characterRequest, syncCharacters } from './characters.js';
@@ -29,6 +29,8 @@ import { classArticles, classProgression, compendiumHref, sortEntries } from './
 import { installGlossary } from './glossary.js';
 import {
   damageTypeLabel,
+  damageEmblem,
+  damageTag,
   escapeHtml as escape,
   filterSpells,
   formatRulesDescription,
@@ -37,19 +39,23 @@ import {
   originalDescription,
   rulesDescriptionParts,
   rulesTable,
+  schoolEmblem,
   spellCard,
   spellCircle,
   spellDamageTypes,
   spellDescription,
   spellIcon,
+  spellSubtitle,
   spellName,
   spellRolls,
   spellSchools,
   spellTagMarkup,
+  spellTheme,
 } from './spells.js';
 
 const main = document.querySelector('#main');
 const choiceDialog = document.querySelector('#choice-picker');
+const publicSpellDialog = document.querySelector('#public-spell-dialog');
 const notice = document.querySelector('#notice');
 const accountMenu = document.querySelector('#account-menu');
 const headerMenu = document.querySelector('#header-menu');
@@ -74,7 +80,7 @@ function setTheme(theme) {
 themeToggle.addEventListener('click', () => {
   setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
   const themeSelect = main.querySelector('#account-theme');
-  if (themeSelect) themeSelect.value = chosenTheme;
+  if (themeSelect) setChipValue(themeSelect, chosenTheme);
 });
 systemTheme.addEventListener('change', applyTheme);
 applyTheme();
@@ -129,7 +135,7 @@ let catalogRequest;
 let catalogError;
 let catalogCategory = 'classes';
 let catalogFilter = '';
-let catalogSource = '';
+let catalogFilters = {};
 let catalogSpellFilters = {};
 let catalogLimit = 24;
 let characterSync;
@@ -138,6 +144,9 @@ let publicSheet = false;
 let publicRecord;
 let lastCast;
 let gallery;
+let gallerySearch = '';
+let gallerySearchTimer;
+const galleryFilters = {};
 const memory = new Map();
 const characterAccess = new Map();
 let viewedCharacter;
@@ -263,18 +272,49 @@ function savedCharacters() {
 }
 
 const classLevels = (classes) =>
-  classes.map(({ entry, levels }) => `${displayName(entry)} nível ${levels.length}`).join(' · ');
+  classes.map(({ entry, levels, subclass }) =>
+    `${displayName(entry)}${subclass ? ` · ${displayName(subclass)}` : ''} nível ${levels.length}`
+  ).join(' · ');
 
 const classEmblems = new Set('artificer barbarian bard cleric druid fighter monk paladin ranger rogue sorcerer warlock wizard'.split(' '));
 const classEmblemOverrides = {
   cleric: 'class-cross',
+  druid: 'class-herbs',
   sorcerer: 'class-wand',
   wizard: 'class-wizard-hat',
   fighter: 'slashing',
 };
+const subclassEmblems = {
+  alchemist: 'subclass-potion', armorer: 'shield', artillerist: 'force',
+  'battle-smith': 'bludgeoning', cartographer: 'subclass-map', reanimator: 'necromancy',
+  'path-of-the-berserker': 'barbarian', 'path-of-the-wild-heart': 'ability-heart',
+  'path-of-the-world-tree': 'druid', 'path-of-the-zealot': 'subclass-sacred-flame',
+  'college-of-dance': 'subclass-dance', 'college-of-glamour': 'enchantment', 'college-of-lore': 'ability-book',
+  'college-of-spirits': 'necromancy', 'college-of-the-moon': 'subclass-moon', 'college-of-valor': 'slashing',
+  'arcana-domain': 'wizard', 'grave-domain': 'necrotic', 'knowledge-domain': 'ability-book',
+  'life-domain': 'ability-heart', 'light-domain': 'subclass-round-sun', 'trickery-domain': 'illusion', 'war-domain': 'weapon',
+  'circle-of-the-land': 'druid', 'circle-of-the-moon': 'subclass-moon',
+  'circle-of-the-sea': 'subclass-wave', 'circle-of-the-stars': 'subclass-stars',
+  'arcane-archer': 'ranger', banneret: 'paladin', 'battle-master': 'fighter',
+  champion: 'slashing', 'eldritch-knight': 'evocation', 'psi-warrior': 'psychic',
+  'warrior-of-mercy': 'subclass-mercy-mask', 'warrior-of-shadow': 'subclass-moon',
+  'warrior-of-the-elements': 'fire', 'warrior-of-the-mystic-arts': 'conjuration', 'warrior-of-the-open-hand': 'subclass-open-palm',
+  'oath-of-devotion': 'class-cross', 'oath-of-glory': 'subclass-holy-reliquary', 'oath-of-the-ancients': 'druid',
+  'oath-of-the-noble-genies': 'evocation', 'oath-of-vengeance': 'slashing',
+  'beast-master': 'subclass-paw', 'fey-wanderer': 'subclass-fairy', 'gloom-stalker': 'subclass-third-eye',
+  'hollow-warden': 'subclass-hollow', hunter: 'ranger', 'winter-walker': 'snowflake',
+  'arcane-trickster': 'illusion', assassin: 'piercing', phantom: 'necromancy',
+  'scion-of-the-three': 'necrotic', soulknife: 'psychic', thief: 'rogue',
+  'aberrant-sorcery': 'psychic', 'clockwork-sorcery': 'artificer', 'draconic-sorcery': 'dragonborn',
+  'shadow-sorcery': 'subclass-moon', 'spellfire-sorcery': 'fire', 'wild-magic-sorcery': 'evocation',
+  'archfey-patron': 'enchantment', 'celestial-patron': 'aasimar', 'fiend-patron': 'tiefling',
+  'great-old-one-patron': 'subclass-third-eye', 'undead-patron': 'necromancy', 'vestige-patron': 'warlock',
+  abjurer: 'abjuration', bladesinger: 'slashing', conjurer: 'conjuration', diviner: schoolEmblem('Divination'),
+  enchanter: 'enchantment', evoker: schoolEmblem('Evocation'), illusionist: 'illusion', necromancer: 'necromancy', transmuter: 'transmutation',
+};
 const categoryEmblems = {
-  classes: 'ability-book', subclasses: 'shield', species: 'species',
-  backgrounds: 'background', magias: 'class-wand',
+  classes: 'paladin', subclasses: 'shield', species: 'species',
+  backgrounds: 'origin-traveler', magias: 'class-wand',
   feats: 'radiant', items: 'weapon', tools: 'artificer', languages: 'ability-book',
   rules: 'background', glossary: 'ability-book', creatures: 'dragonborn',
 };
@@ -292,40 +332,352 @@ const ruleEmblems = {
   study: 'ability-book',
   utilize: 'artificer',
 };
-const speciesEmblems = new Set('aasimar dragonborn dwarf elf gnome goliath halfling human orc tiefling'.split(' '));
-const speciesEmblemOverrides = {
-  boggart: 'poison',
-  centaur: 'spell-steed',
-  changeling: 'illusion',
+const speciesEmblems = {
+  aasimar: 'aasimar',
+  boggart: 'species-boggart',
+  centaur: 'species-centaur',
+  changeling: 'species-changeling',
   dhampir: 'species-fangs',
-  faerie: 'aasimar',
-  flamekin: 'fire',
+  dragonborn: 'dragonborn',
+  dwarf: 'dwarf',
+  elf: 'elf',
+  faerie: 'species-fairy-wings',
+  flamekin: 'species-flamekin',
   gnome: 'species-gnome',
-  hexblood: 'enchantment',
-  kalashtar: 'psychic',
+  goliath: 'goliath',
+  halfling: 'halfling',
+  hexblood: 'species-hexblood',
+  human: 'human',
+  kalashtar: 'species-kalashtar',
   khoravar: 'species-khoravar',
-  'lorwyn-changeling': 'transmutation',
+  'lorwyn-changeling': 'species-lorwyn-changeling',
   lupin: 'species-lupin',
-  reborn: 'necromancy',
-  rimekin: 'cold',
-  shifter: 'species-fangs',
-  warforged: 'artificer',
+  orc: 'orc',
+  reborn: 'species-reborn',
+  rimekin: 'species-rimekin',
+  shifter: 'species-shifter',
+  tiefling: 'tiefling',
+  warforged: 'species-warforged',
 };
 const abilityEmblems = { str: 'monk', dex: 'ability-boot', con: 'ability-heart', int: 'ability-book', wis: 'divination', cha: 'ability-jester' };
+const featEmblems = {
+  Origin: 'feat-skilled', General: 'radiant', 'Fighting Style': 'weapon', 'Epic Boon': 'subclass-stars',
+  'Dark Gift': 'warlock', Dragonmark: 'dragonborn', 'Planar Pact': 'conjuration',
+};
+const namedFeatEmblems = {
+  alert: 'feat-alert', lucky: 'feat-lucky', healer: 'feat-healer', crafter: 'feat-crafter',
+  musician: 'feat-musician', 'tavern-brawler': 'feat-tavern', 'magic-initiate': 'feat-magic',
+  skilled: 'feat-skilled', tough: 'feat-tough', 'savage-attacker': 'feat-attacker',
+
+  'sharp-eye': 'feat-sharp-eye',
+  'arcane-artist': 'feat-arcane-artist',
+  'arcane-eloquence': 'feat-arcane-eloquence',
+  'arcane-infiltrator': 'feat-arcane-infiltrator',
+  'arcane-omens': 'feat-arcane-omens',
+  'arcane-overload': 'feat-arcane-overload',
+  'arcane-safeguard': 'feat-arcane-safeguard',
+  'arcane-undertaker': 'feat-arcane-undertaker',
+  'child-of-the-sun': 'feat-child-of-the-sun',
+  'cult-of-the-dragon-initiate': 'feat-cult-of-the-dragon-initiate',
+  'emerald-enclave-fledgling': 'feat-emerald-enclave-fledgling',
+  'familiar-friend': 'feat-familiar-friend',
+  'harper-agent': 'feat-harper-agent',
+  'lords-alliance-agent': 'feat-lords-alliance-agent',
+  'portal-jumper': 'feat-portal-jumper',
+  'purple-dragon-rook': 'feat-purple-dragon-rook',
+  'shadowmoor-hexer': 'feat-shadowmoor-hexer',
+  'spellfire-spark': 'feat-spellfire-spark',
+  'survivor': 'feat-survivor',
+  'tireless-reveler': 'feat-tireless-reveler',
+  'transmuted-anatomy': 'feat-transmuted-anatomy',
+  'tyro-of-the-gauntlet': 'feat-tyro-of-the-gauntlet',
+  'vampire-hunter': 'feat-vampire-hunter',
+  'vampires-plaything': 'feat-vampires-plaything',
+  'zhentarim-ruffian': 'feat-zhentarim-ruffian',
+  'actor': 'feat-actor',
+  'athlete': 'feat-athlete',
+  'archery': 'feat-archery',
+  'blind-fighting': 'feat-blind-fighting',
+  'bloodlust': 'feat-bloodlust',
+  'bomber': 'feat-bomber',
+  'charger': 'feat-charger',
+  'chef': 'feat-chef',
+  'cold-caster': 'feat-cold-caster',
+  'crossbow-expert': 'feat-crossbow-expert',
+  'crusher': 'feat-crusher',
+  'defense': 'feat-defense',
+  'defensive-duelist': 'feat-defensive-duelist',
+  'dragonscarred': 'feat-dragonscarred',
+  'dual-wielder': 'feat-dual-wielder',
+  'dueling': 'feat-dueling',
+  'durable': 'feat-durable',
+  'elemental-adept': 'feat-elemental-adept',
+  'elemental-familiar': 'feat-elemental-familiar',
+  'fey-touched': 'feat-fey-touched',
+  'grappler': 'feat-grappler',
+  'heavy-armor-master': 'feat-heavy-armor-master',
+  'inspiring-leader': 'feat-inspiring-leader',
+  'keen-mind': 'feat-keen-mind',
+  'light-bringer': 'feat-light-bringer',
+  'mage-slayer': 'feat-mage-slayer',
+  'mounted-combatant': 'feat-mounted-combatant',
+  'observant': 'feat-observant',
+  'piercer': 'feat-piercer',
+  'poisoner': 'feat-poisoner',
+  'polearm-master': 'feat-polearm-master',
+  'protection': 'feat-protection',
+  'ritual-caster': 'feat-ritual-caster',
+  'sentinel': 'feat-sentinel',
+  'sharpshooter': 'feat-sharpshooter',
+  'shield-master': 'feat-shield-master',
+  'skulker': 'feat-skulker',
+  'slasher': 'feat-slasher',
+  'speedy': 'feat-speedy',
+  'spell-sniper': 'feat-spell-sniper',
+  'telekinetic': 'feat-telekinetic',
+  'telepathic': 'feat-telepathic',
+  'unarmed-fighting': 'feat-unarmed-fighting',
+  'war-caster': 'feat-war-caster',
+  'weapon-master': 'feat-weapon-master',
+  'aberrant-anatomy': 'feat-aberrant-anatomy',
+  'aberrant-dragonmark': 'feat-aberrant-dragonmark',
+  'ability-score-improvement': 'feat-ability-score-improvement',
+  'abjuration-adept': 'feat-abjuration-adept',
+  'arcane-warrior': 'feat-arcane-warrior',
+  'boon-of-blazing-dawn': 'feat-boon-of-blazing-dawn',
+  'boon-of-bloodshed': 'feat-boon-of-bloodshed',
+  'boon-of-bountiful-health': 'feat-boon-of-bountiful-health',
+  'boon-of-combat-prowess': 'feat-boon-of-combat-prowess',
+  'boon-of-communication': 'feat-boon-of-communication',
+  'boon-of-desperate-resilience': 'feat-boon-of-desperate-resilience',
+  'boon-of-dimensional-travel': 'feat-boon-of-dimensional-travel',
+  'boon-of-energy-resistance': 'feat-boon-of-energy-resistance',
+  'boon-of-erupting-spellpower': 'feat-boon-of-erupting-spellpower',
+  'boon-of-exquisite-radiance': 'feat-boon-of-exquisite-radiance',
+  'boon-of-fate': 'feat-boon-of-fate',
+  'boon-of-fluid-forms': 'feat-boon-of-fluid-forms',
+  'boon-of-fortitude': 'feat-boon-of-fortitude',
+  'boon-of-fortunes-favor': 'feat-boon-of-fortunes-favor',
+  'boon-of-irresistible-offense': 'feat-boon-of-irresistible-offense',
+  'boon-of-looming-shadows': 'feat-boon-of-looming-shadows',
+  'boon-of-magic-school-mastery': 'feat-boon-of-magic-school-mastery',
+  'boon-of-misty-escape': 'feat-boon-of-misty-escape',
+  'boon-of-poison-mastery': 'feat-boon-of-poison-mastery',
+  'boon-of-recovery': 'feat-boon-of-recovery',
+  'boon-of-revelry': 'feat-boon-of-revelry',
+  'boon-of-siberys': 'feat-boon-of-siberys',
+  'boon-of-skill': 'feat-boon-of-skill',
+  'boon-of-speed': 'feat-boon-of-speed',
+  'boon-of-spell-recall': 'feat-boon-of-spell-recall',
+  'boon-of-terror': 'feat-boon-of-terror',
+  'boon-of-the-bright-sun': 'feat-boon-of-the-bright-sun',
+  'boon-of-the-furious-storm': 'feat-boon-of-the-furious-storm',
+  'boon-of-the-iron-mind': 'feat-boon-of-the-iron-mind',
+  'boon-of-the-night-spirit': 'feat-boon-of-the-night-spirit',
+  'boon-of-the-soul-drinker': 'feat-boon-of-the-soul-drinker',
+  'boon-of-truesight': 'feat-boon-of-truesight',
+  'cloying-mists': 'feat-cloying-mists',
+  'conjuration-adept': 'feat-conjuration-adept',
+  'delicious-pain': 'feat-delicious-pain',
+  'divination-adept': 'feat-divination-adept',
+  'echoing-soul': 'feat-echoing-soul',
+  'enchantment-adept': 'feat-enchantment-adept',
+  'enclave-magic': 'feat-enclave-magic',
+  'evocation-adept': 'feat-evocation-adept',
+  'fairy-trickster': 'feat-fairy-trickster',
+  'fey-pact': 'feat-fey-pact',
+  'fey-sentinel': 'feat-fey-sentinel',
+  'gathered-whispers': 'feat-gathered-whispers',
+  'genie-magic': 'feat-genie-magic',
+  'great-weapon-fighting': 'feat-great-weapon-fighting',
+  'great-weapon-master': 'feat-great-weapon-master',
+  'greater-aberrant-mark': 'feat-greater-aberrant-mark',
+  'greater-mark-of-detection': 'feat-greater-mark-of-detection',
+  'greater-mark-of-finding': 'feat-greater-mark-of-finding',
+  'greater-mark-of-handling': 'feat-greater-mark-of-handling',
+  'greater-mark-of-healing': 'feat-greater-mark-of-healing',
+  'greater-mark-of-hospitality': 'feat-greater-mark-of-hospitality',
+  'greater-mark-of-making': 'feat-greater-mark-of-making',
+  'greater-mark-of-passage': 'feat-greater-mark-of-passage',
+  'greater-mark-of-scribing': 'feat-greater-mark-of-scribing',
+  'greater-mark-of-sentinel': 'feat-greater-mark-of-sentinel',
+  'greater-mark-of-shadow': 'feat-greater-mark-of-shadow',
+  'greater-mark-of-storm': 'feat-greater-mark-of-storm',
+  'greater-mark-of-warding': 'feat-greater-mark-of-warding',
+  'harper-teamwork': 'feat-harper-teamwork',
+  'heavily-armored': 'feat-heavily-armored',
+  'illusion-adept': 'feat-illusion-adept',
+  'infernal-bulwark': 'feat-infernal-bulwark',
+  'infernal-dragoon': 'feat-infernal-dragoon',
+  'infernal-pact': 'feat-infernal-pact',
+  'interception': 'feat-interception',
+  'lightly-armored': 'feat-lightly-armored',
+  'living-shadow': 'feat-living-shadow',
+  'lordly-resolve': 'feat-lordly-resolve',
+  'love-bites': 'feat-love-bites',
+  'magic-connoisseur': 'feat-magic-connoisseur',
+  'mark-of-detection': 'feat-mark-of-detection',
+  'mark-of-finding': 'feat-mark-of-finding',
+  'mark-of-handling': 'feat-mark-of-handling',
+  'mark-of-healing': 'feat-mark-of-healing',
+  'mark-of-hospitality': 'feat-mark-of-hospitality',
+  'mark-of-making': 'feat-mark-of-making',
+  'mark-of-passage': 'feat-mark-of-passage',
+  'mark-of-scribing': 'feat-mark-of-scribing',
+  'mark-of-sentinel': 'feat-mark-of-sentinel',
+  'mark-of-shadow': 'feat-mark-of-shadow',
+  'mark-of-storm': 'feat-mark-of-storm',
+  'mark-of-warding': 'feat-mark-of-warding',
+  'martial-weapon-training': 'feat-martial-weapon-training',
+  'medium-armor-master': 'feat-medium-armor-master',
+  'mist-walker': 'feat-mist-walker',
+  'moderately-armored': 'feat-moderately-armored',
+  'mythal-touched': 'feat-mythal-touched',
+  'necromancy-adept': 'feat-necromancy-adept',
+  'orders-resilience': 'feat-orders-resilience',
+  'otherworldly-familiar': 'feat-otherworldly-familiar',
+  'pack-fighting': 'feat-pack-fighting',
+  'potent-dragonmark': 'feat-potent-dragonmark',
+  'prone-fighting': 'feat-prone-fighting',
+  'purple-dragon-commandant': 'feat-purple-dragon-commandant',
+  'putrefy': 'feat-putrefy',
+  'rebuke': 'feat-rebuke',
+  'resilient': 'feat-resilient',
+  'second-skin': 'feat-second-skin',
+  'shadow-touched': 'feat-shadow-touched',
+  'shifting-combatant': 'feat-shifting-combatant',
+  'skill-expert': 'feat-skill-expert',
+  'soothing-familiar': 'feat-soothing-familiar',
+  'spell-resistant': 'feat-spell-resistant',
+  'spell-subterfuge': 'feat-spell-subterfuge',
+  'spellfire-adept': 'feat-spellfire-adept',
+  'street-justice': 'feat-street-justice',
+  'symbiotic-being': 'feat-symbiotic-being',
+  'tactical-combatant': 'feat-tactical-combatant',
+  'thrown-weapon-fighting': 'feat-thrown-weapon-fighting',
+  'touch-of-death': 'feat-touch-of-death',
+  'transmutation-adept': 'feat-transmutation-adept',
+  'treacherous-allure': 'feat-treacherous-allure',
+  'two-weapon-fighting': 'feat-two-weapon-fighting',
+  'vampire-touched': 'feat-vampire-touched',
+  'warlike-familiar': 'feat-warlike-familiar',
+  'watchers': 'feat-watchers',
+  'zhentarim-tactics': 'feat-zhentarim-tactics',
+};
+const backgroundEmblems = {
+  acolyte: 'origin-acolyte', archaeologist: 'origin-explorer', artisan: 'origin-artisan',
+  criminal: 'origin-outlaw', farmer: 'origin-farmer', guard: 'origin-guard', merchant: 'origin-merchant',
+  noble: 'origin-noble', sage: 'origin-scholar', sailor: 'origin-sailor', scribe: 'origin-scribe',
+  soldier: 'origin-soldier', wayfarer: 'origin-traveler',
+  'aberrant-heir': 'origin-aberrant-heir',
+  'bejeweled-conclave-spy': 'origin-bejeweled-conclave-spy',
+  'carouser': 'origin-carouser',
+  'charlatan': 'origin-charlatan',
+  'chondathan-freebooter': 'origin-chondathan-freebooter',
+  'cosmic-dawn-experiment': 'origin-cosmic-dawn-experiment',
+  'covenant-of-the-grave-recruit': 'origin-covenant-of-the-grave-recruit',
+  'crucible-storm-chaser': 'origin-crucible-storm-chaser',
+  'dead-magic-dweller': 'origin-dead-magic-dweller',
+  'dragon-cultist': 'origin-dragon-cultist',
+  'emerald-enclave-caretaker': 'origin-emerald-enclave-caretaker',
+  'familiar-trainer': 'origin-familiar-trainer',
+  'flaming-fist-mercenary': 'origin-flaming-fist-mercenary',
+  'genie-touched': 'origin-genie-touched',
+  'harper': 'origin-harper',
+  'haunted-one': 'origin-haunted-one',
+  'hermit': 'origin-hermit',
+  'horizon-weaver-initiate': 'origin-horizon-weaver-initiate',
+  'house-agent': 'origin-house-agent',
+  'house-cannith-heir': 'origin-house-cannith-heir',
+  'house-deneith-heir': 'origin-house-deneith-heir',
+  'house-ghallanda-heir': 'origin-house-ghallanda-heir',
+  'house-jorasco-heir': 'origin-house-jorasco-heir',
+  'house-kundarak-heir': 'origin-house-kundarak-heir',
+  'house-lyrandar-heir': 'origin-house-lyrandar-heir',
+  'house-medani-heir': 'origin-house-medani-heir',
+  'house-orien-heir': 'origin-house-orien-heir',
+  'house-phiarlan-heir': 'origin-house-phiarlan-heir',
+  'house-sivis-heir': 'origin-house-sivis-heir',
+  'house-tharashk-heir': 'origin-house-tharashk-heir',
+  'house-thuranni-heir': 'origin-house-thuranni-heir',
+  'house-vadalis-heir': 'origin-house-vadalis-heir',
+  'ice-fisher': 'origin-ice-fisher',
+  'inquisitive': 'origin-inquisitive',
+  'investigator': 'origin-investigator',
+  'knight-of-the-gauntlet': 'origin-knight-of-the-gauntlet',
+  'lords-alliance-vassal': 'origin-lords-alliance-vassal',
+  'lorwyn-expert': 'origin-lorwyn-expert',
+  'mist-wanderer': 'origin-mist-wanderer',
+  'moonwell-pilgrim': 'origin-moonwell-pilgrim',
+  'mulhorandi-tomb-raider': 'origin-mulhorandi-tomb-raider',
+  'mythalkeeper': 'origin-mythalkeeper',
+  'pact-seeker': 'origin-pact-seeker',
+  'phantasmic-circus-trouper': 'origin-phantasmic-circus-trouper',
+  'purple-dragon-squire': 'origin-purple-dragon-squire',
+  'rashemi-wanderer': 'origin-rashemi-wanderer',
+  'seer-apprentice': 'origin-seer-apprentice',
+  'shadowmasters-exile': 'origin-shadowmasters-exile',
+  'shadowmoor-expert': 'origin-shadowmoor-expert',
+  'spellfire-initiate': 'origin-spellfire-initiate',
+  'spirit-medium': 'origin-spirit-medium',
+  'vampire-devotee': 'origin-vampire-devotee',
+  'vampire-survivor': 'origin-vampire-survivor',
+  'ward-of-the-sheltering-hands': 'origin-ward-of-the-sheltering-hands',
+  'zhentarim-mercenary': 'origin-zhentarim-mercenary',
+  'agent-of-the-ninth-quill': 'origin-agent-of-the-ninth-quill',
+  'entertainer': 'origin-entertainer',
+  'guide': 'origin-guide',
+};
+const toolEmblems = { artisan: 'artificer', gaming: 'ability-jester', instrument: 'bard', other: 'divination' };
+
+function entryAbility(category, entry) {
+  const name = category === 'backgrounds' ? entry.abilityScores?.[0]
+    : category === 'glossary' && entry.kind?.endsWith(' skill') ? entry.kind.split(' ')[0]
+    : undefined;
+  return abilities.find(([, english]) => english === name)?.[0];
+}
+
+function classEmblemId(id, subclassId) {
+  return subclassEmblems[subclassId] ?? classEmblemOverrides[id] ?? (classEmblems.has(id) ? id : 'weapon');
+}
 
 function catalogEmblem(category, entry) {
-  const id = category === 'subclasses' ? classEntry(entry.class)?.id : entry.id;
-  if (category === 'classes' || category === 'subclasses') {
-    return gameIcon(classEmblemOverrides[id] ?? (classEmblems.has(id) ? id : 'weapon'), 'game-emblem');
-  }
-  if (category === 'species') return gameIcon(speciesEmblemOverrides[id] ?? (speciesEmblems.has(id) ? id : 'species'), 'game-emblem');
-  if (category === 'backgrounds') return gameIcon('background', 'game-emblem');
+  const { id } = entry;
+  if (category === 'subclasses') return gameIcon(classEmblemId(classEntry(entry.class)?.id, id), 'game-emblem');
+  if (category === 'classes') return gameIcon(classEmblemId(id), 'game-emblem');
+  if (category === 'species') return gameIcon(speciesEmblems[id] ?? 'species', 'game-emblem');
+  if (category === 'backgrounds') return gameIcon(backgroundEmblems[id]
+    ?? 'origin-traveler', 'game-emblem');
+  if (category === 'feats') return gameIcon(namedFeatEmblems[id] ?? featEmblems[entry.category] ?? 'radiant', 'game-emblem');
+  if (category === 'tools') return gameIcon(toolEmblems[entry.group] ?? 'artificer', 'game-emblem');
+  if (category === 'languages') return gameIcon(entry.tier === 'rare' ? 'divination' : 'ability-book', 'game-emblem');
   if (category === 'magias') return spellIcon(entry);
   return gameIcon(categoryEmblems[category] ?? 'ability-book', 'game-emblem');
 }
 
+function catalogTheme(category, entry) {
+  if (category === 'magias') return spellTheme(entry);
+  if (category === 'feats') return ` data-feat-theme="${escape(entry.category)}"`;
+  if (category === 'tools') return ` data-tool-theme="${escape(entry.group)}"`;
+  if (category === 'languages') return ` data-language-theme="${escape(entry.tier)}"`;
+  if (category === 'rules') return ` data-rule-theme="${escape(entry.category)}"`;
+  const ability = entryAbility(category, entry);
+  if (ability) return ` data-ability="${ability}"`;
+  if (category === 'species') return ` data-species-theme="${escape(entry.id)}"`;
+  const id = category === 'classes' ? entry.id
+    : category === 'subclasses' ? classEntry(entry.class)?.id : undefined;
+  return id ? ` data-class-theme="${escape(id)}"` : '';
+}
+
+function optionCategory(entry) {
+  if (entry.collection === 'fighting-styles') return 'feats';
+  return entry.collection ?? (entry.category && catalog.byFeat.has(entry.id) ? 'feats' : undefined);
+}
+
 function characterEmblem(classes) {
-  return classes.length ? catalogEmblem('classes', classes[0].entry) : gameIcon('species', 'game-emblem');
+  const track = classes[0];
+  return track ? `<span class="character-emblem"${catalogTheme('classes', track.entry)}>${gameIcon(classEmblemId(track.entry.id, track.subclass?.id), 'game-emblem')}</span>`
+    : gameIcon('species', 'game-emblem');
 }
 
 function characterList(characters) {
@@ -386,35 +738,93 @@ function publicAuthor({ authorName, authorAvatar }) {
     : '';
 }
 
-function publicGallery(page) {
-  if (gallery?.page !== page) {
-    const request = { page };
-    gallery = request;
-    const refresh = () => {
-      if (gallery === request && location.hash.startsWith('#galeria')) route();
-    };
-    characterRequest('/public?page=' + page, {}, false)
-      .then((result) => Object.assign(request, result))
-      .catch(() => { request.error = true; })
-      .finally(refresh);
-  }
-  const { documents, hasMore, error } = gallery;
+function publicCharacterTags(classes, level, species) {
+  return `<span class="public-tags">
+    ${classes.map(({ entry, levels, subclass }) => `<span class="tag public-tag"${catalogTheme('classes', entry)}>${escape(displayName(entry))} nível ${levels.length}</span>
+      ${subclass ? `<span class="tag public-tag"${catalogTheme('classes', entry)}>${gameIcon(classEmblemId(entry.id, subclass.id))}${escape(displayName(entry))} · ${escape(displayName(subclass))}</span>` : ''}`).join('')}
+    ${species ? `<a class="tag public-tag public-species" href="${compendiumHref('species', species.id)}"${catalogTheme('species', species)}>${gameIcon(speciesEmblems[species.id] ?? 'species')}${escape(displayName(species))}</a>` : ''}
+    <span class="tag">Nível total ${level}</span>
+  </span>`;
+}
+
+function galleryFilterControls() {
+  const classes = sortEntries(catalog.classes);
+  const parent = galleryFilters.class && classEntry(galleryFilters.class);
+  const subclasses = sortEntries(catalog.subclasses.filter((entry) => !parent || entry.class === parent.name));
+  return filterControls([
+    ['class', 'Classe', 'Todas', classes.map((entry) => [entry.id, displayName(entry)])],
+    ['subclass', 'Subclasse', 'Todas', subclasses.map((entry) => [entry.id, displayName(entry), entry])],
+  ], galleryFilters);
+}
+
+function loadGallery(page) {
+  const params = new URLSearchParams({ page: String(page) });
+  if (gallerySearch.trim()) params.set('search', gallerySearch.trim());
+  if (galleryFilters.class) params.set('classId', galleryFilters.class);
+  if (galleryFilters.subclass) params.set('subclassId', galleryFilters.subclass);
+  const query = params.toString();
+  if (gallery?.query === query) return;
+  const request = { page, query, filtered: params.size > 1 };
+  gallery = request;
+  characterRequest('/public?' + query, {}, false)
+    .then((result) => Object.assign(request, result))
+    .catch((error) => { request.error = error; })
+    .finally(() => {
+      const results = main.querySelector('#gallery-results');
+      if (gallery === request && results) results.innerHTML = galleryResults(request);
+    });
+}
+
+function galleryResults({ page, documents, hasMore, error, filtered }) {
+  const incompatibleSearch = filtered && error?.code === 'INVALID_INPUT';
   const content = error
-    ? '<p>Não foi possível carregar a galeria.</p><button type="button" class="button secondary" data-retry-gallery>Tentar novamente</button>'
+    ? `<div class="gallery-empty">
+        ${gameIcon('alarm', 'game-emblem')}
+        <h2>${incompatibleSearch ? 'Busca indisponível nesta versão' : 'Galeria indisponível'}</h2>
+        <p class="muted">${incompatibleSearch ? 'Atualize o servidor para usar a busca e os filtros.' : 'Tente carregar as fichas novamente.'}</p>
+        <button type="button" class="button secondary" data-retry-gallery>Tentar novamente</button>
+      </div>`
     : !documents
       ? '<p role="status">Carregando fichas públicas…</p>'
       : documents.length
-        ? `<ul class="character-list">${documents.map((character) => `<li>
-          <a href="#publica/${escape(character.id)}"><span class="icon-label">${characterEmblem(plannedClasses(character, catalog))}<span><strong>${escape(title(character))}</strong>
-            <small>${escape(classLevels(plannedClasses(character, catalog)))} · Nível total ${classPlan(character).length}</small>
-            ${publicAuthor(character)}
-          </span></span></a></li>`).join('')}</ul>`
-        : '<p class="muted">Nenhuma ficha pública nesta página.</p>';
-  return hubShell('galeria', `<section class="panel"><h1>Galeria pública</h1>${content}
+        ? `<ul class="character-list public-gallery-list">${documents.map((character) => {
+          const classes = plannedClasses(character, catalog);
+          return `<li><a href="#publica/${escape(character.id)}">
+            ${characterEmblem(classes)}
+            <span class="public-gallery-name"><strong>${escape(title(character))}</strong>${publicCharacterTags(classes, classPlan(character).length)}</span>
+            ${publicAuthor(character)}<span class="public-gallery-arrow" aria-hidden="true">›</span>
+          </a></li>`;
+        }).join('')}</ul>`
+        : `<div class="gallery-empty">
+            ${gameIcon('divination', 'game-emblem')}
+            <h2>${filtered ? 'Nenhum resultado encontrado' : 'Nenhuma ficha pública nesta página'}</h2>
+            ${filtered ? '<p class="muted">Tente outro termo ou limpe os filtros para ver todas as fichas.</p><button type="button" class="button secondary" data-clear-gallery>Limpar busca e filtros</button>' : ''}
+          </div>`;
+  return `${content}
     <div class="hub-actions">
       ${page > 1 ? `<a class="button secondary" href="#galeria/${page - 1}">Página anterior</a>` : ''}
       ${hasMore ? `<a class="button secondary" href="#galeria/${page + 1}">Próxima página</a>` : ''}
-    </div></section>`);
+    </div>`;
+}
+
+function publicGallery(page) {
+  loadGallery(page);
+  return hubShell('galeria', `<section class="panel public-gallery"><h1>Galeria pública</h1>
+    <div class="gallery-search"><label for="gallery-search">Buscar na galeria</label>
+      <input type="search" id="gallery-search" maxlength="120" value="${escape(gallerySearch)}"
+        aria-describedby="gallery-search-help" placeholder="Nome, classe, talento, antecedente…">
+      <small id="gallery-search-help">Comece com @ para buscar pelo usuário que publicou a ficha.</small></div>
+    <div data-gallery-filters>${galleryFilterControls()}</div>
+    <div id="gallery-results" aria-live="polite">${galleryResults(gallery)}</div>
+  </section>`);
+}
+
+function refreshGallerySearch() {
+  clearTimeout(gallerySearchTimer);
+  history.replaceState(history.state, '', '#galeria');
+  loadGallery(1);
+  const results = main.querySelector('#gallery-results');
+  if (results) results.innerHTML = galleryResults(gallery);
 }
 
 function home() {
@@ -494,7 +904,7 @@ const compendiumTabs = [
   ['creatures', 'Criaturas e invocações'],
 ];
 
-function spellFilterControls(prefix, spells, filters = {}) {
+function spellFilterControls(spells, filters = {}) {
   const levels = [...new Set(spells.map(({ level }) => level))].sort((a, b) => a - b);
   const schools = Object.entries(spellSchools)
     .filter(([id]) => spells.some(({ school }) => school === id))
@@ -505,33 +915,69 @@ function spellFilterControls(prefix, spells, filters = {}) {
   const damage = [...new Set(spells.flatMap(spellDamageTypes))]
     .map((type) => [type, damageTypeLabel(type)])
     .sort(([, a], [, b]) => a.localeCompare(b, 'pt-BR'));
-  return [
-    ['level', 'Círculo', 'Todos', levels.map((level) => [String(level), spellCircle(level)])],
+  const groups = [
+    ['level', 'Círculo', 'Todos', levels.map((level) => [String(level), level ? `${level}º` : 'Truque'])],
     ['school', 'Escola', 'Todas', schools],
-    ['publication', 'Fonte', 'Todas', publications.map((book) => [book, book])],
     ['damage', 'Tipo de dano', 'Todos', damage],
-  ]
-    .map(
-      ([key, label, all, options]) => `<div><label for="${prefix}-${key}">${label}</label>
-      <select id="${prefix}-${key}" data-spell-filter="${key}"><option value="">${all}</option>
-      ${options
-        .map(
-          ([id, name]) =>
-            `<option value="${escape(id)}" ${filters[key] === id ? 'selected' : ''}>${escape(name)}</option>`
-        )
-        .join('')}</select></div>`
-    )
-    .join('');
+    ['publication', 'Fonte', 'Todas', publications.map((book) => [book, book])],
+  ];
+  return filterControls(groups, filters);
+}
+
+function filterControls(groups, filters) {
+  return `<div class="spell-filter-groups">${groups.filter(([, , , options]) => options.length)
+    .map(([key, label, all, options]) => `<fieldset class="spell-filter-group">
+      <legend>${label}</legend><div class="spell-filter-options">${[['', all], ...options].map(([id, name, entry], index) => {
+        const color = !id ? '' : {
+          level: `data-spell-circle="${escape(id)}"`,
+          school: `data-spell-school="${escape(id)}"`,
+          damage: `data-damage="${escape(id)}"`,
+          publication: `data-source-color="${(index - 1) % 6}"`,
+          class: `data-class-theme="${escape(id)}"`,
+          subclass: entry ? catalogTheme('subclasses', entry) : '',
+        }[key];
+        const emblem = { school: schoolEmblem, damage: damageEmblem, class: classEmblemId }[key];
+        const icon = entry ? gameIcon(classEmblemId(classEntry(entry.class)?.id, id))
+          : id && emblem ? gameIcon(emblem(id)) : '';
+        const title = id && key === 'level' ? spellCircle(Number(id)) : name;
+        return `<button class="tag spell-filter-option${id && key === 'damage' ? ' damage-tag' : ''}" type="button"
+          data-spell-filter="${key}" value="${escape(id)}" ${color} aria-label="${escape(title)}"
+          aria-pressed="${(filters[key] ?? '') === id}">${icon}${escape(name)}</button>`;
+      }).join('')}</div></fieldset>`).join('')}</div>`;
+}
+
+function catalogFilterControls() {
+  const entries = catalog[catalogCategory];
+  const sources = [...new Set(entries.map(({ source }) => source).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const classes = catalogCategory === 'subclasses'
+    ? sortEntries(catalog.classes.filter((cls) => entries.some((entry) => entry.class === cls.name)))
+    : [];
+  return filterControls([
+    ['class', 'Classe', 'Todas', classes.map((cls) => [cls.id, displayName(cls)])],
+    ['publication', 'Fonte', 'Todas', sources.map((source) => [source, source])],
+  ], catalogFilters);
+}
+
+function applySpellFilter(button, filters) {
+  const { spellFilter } = button.dataset;
+  const value = button.value === filters[spellFilter] ? '' : button.value;
+  filters[spellFilter] = value;
+  button.closest('.spell-filter-options').querySelectorAll('[data-spell-filter]').forEach((option) => {
+    option.setAttribute('aria-pressed', String(option.value === value));
+  });
 }
 
 function compendiumResults() {
   const query = normalizeSearch(catalogFilter.trim());
+  const parentClass = catalogCategory === 'subclasses' && classEntry(catalogFilters.class)?.name;
   const entries =
     catalogCategory === 'magias'
       ? filterSpells(catalog.spells, { ...catalogSpellFilters, search: catalogFilter })
       : catalog[catalogCategory].filter(
           (entry) =>
-            (!catalogSource || entry.source === catalogSource) &&
+            (!catalogFilters.publication || entry.source === catalogFilters.publication) &&
+            (!parentClass || entry.class === parentClass) &&
             normalizeSearch(
               [
                 displayName(entry),
@@ -557,9 +1003,9 @@ function compendiumResults() {
 function articleLink(category, entry, note = '') {
   const tags = category === 'magias'
     ? spellTagMarkup(entry)
-    : [category === 'subclasses' && classLabel(entry.class), featCategories[entry.category], entry.source]
+    : [category === 'subclasses' && classLabel(entry.class), category === 'feats' && featCategories[entry.category], entry.source]
       .filter(Boolean).map((tag) => `<span class="tag">${escape(tag)}</span>`).join(' ');
-  return `<a class="navigation-row wiki-result" href="${compendiumHref(category, entry.id)}">
+  return `<a class="navigation-row wiki-result"${catalogTheme(category, entry)} href="${compendiumHref(category, entry.id)}">
     ${catalogEmblem(category, entry)}
     <span class="wiki-result-content"><strong>${escape(displayName(entry))}</strong>
       ${note ? `<small>${escape(note)}</small>` : ''}
@@ -624,21 +1070,7 @@ function compendium(articleId) {
         ? compendiumArticle(articleId)
         : `<div class="compendium-filters"><div><label for="catalog-search">Buscar no compêndio</label>
       <input id="catalog-search" type="search" value="${escape(catalogFilter)}"></div>
-      ${
-        catalogCategory !== 'magias'
-          ? `<div><label for="catalog-source">Livro</label>
-        <select id="catalog-source"><option value="">Todos</option>${[
-          ...new Set(catalog[catalogCategory].map(({ source }) => source).filter(Boolean)),
-        ]
-          .sort()
-          .map(
-            (source) =>
-              `<option ${catalogSource === source ? 'selected' : ''} value="${escape(source)}">${escape(source)}</option>`
-          )
-          .join('')}</select></div>`
-          : ''
-      }
-      ${catalogCategory === 'magias' ? spellFilterControls('catalog', catalog.spells, catalogSpellFilters) : ''}
+      ${catalogCategory === 'magias' ? spellFilterControls(catalog.spells, catalogSpellFilters) : catalogFilterControls()}
     </div>
       <div class="compendium-results" id="compendium-results">${compendiumResults()}</div>
       <details class="entry"><summary>Cobertura e fontes do catálogo</summary>
@@ -679,22 +1111,30 @@ function compendiumArticle(id) {
   const lore = entry.lore ?? [];
   const progression = classProgression(entry);
   const isCharacterArticle = ['classes', 'subclasses', 'species'].includes(catalogCategory);
+  const classId = catalogCategory === 'classes' ? entry.id : parent?.id;
+  const speciesId = catalogCategory === 'species' ? entry.id : undefined;
+  const motif = speciesId
+    ? speciesEmblems[speciesId] ?? 'species'
+    : classId && classEmblemId(classId, catalogCategory === 'subclasses' ? entry.id : undefined);
+  const articleTheme = isSpell ? spellTheme(entry, true) : catalogTheme(catalogCategory, entry);
+  const editorial = isCharacterArticle || catalogCategory === 'backgrounds';
   const isReference = ['rules', 'glossary'].includes(catalogCategory);
   const relatedRules = isReference ? (entry.related ?? []).flatMap((key) => {
     const rule = catalog.rules.find(({ id }) => id === key);
     return rule ? [rule] : [];
   }) : [];
   document.title = displayName(entry) + ' · Compêndio · Grimório';
-  return `<article class="wiki-article ${isCharacterArticle ? 'wiki-character-article' : ''} ${isReference ? 'wiki-reference' : ''}">
+  return `<article class="wiki-article ${editorial ? 'wiki-character-article' : ''} ${isReference ? 'wiki-reference' : ''} ${isSpell ? 'wiki-spell-article' : ''}"${articleTheme}>
     <nav class="wiki-breadcrumb" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
-    <header class="wiki-article-header"><h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}${escape(displayName(entry))}</h2>
-      ${isSpell
-        ? `<div class="picker-tags">${spellTagMarkup(entry)}</div>`
-        : `<p class="muted">${[featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
+    <header class="wiki-article-header">
+      ${motif ? `<span class="wiki-banner-emblem" aria-hidden="true">${gameIcon(motif)}</span>` : ''}
+      ${isSpell ? `<p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSubtitle(entry))}</p>` : ''}
+      <h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
+      ${isSpell ? '' : `<p class="muted">${[catalogCategory === 'feats' && featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
     </header>
-    ${isSpell ? spellDescription(entry, { glossary: true }) : isReference
+    ${isSpell ? spellDescription(entry, { glossary: true, editorial: true }) : isReference
       ? `<section class="wiki-reference-body">${entryDescription(entry, true, true, ruleReference)}</section>`
-      : optionDetails(entry, true, isCharacterArticle)}
+      : optionDetails(entry, true, editorial)}
     ${relatedRules.length ? `<section><h3>Regras relacionadas</h3><ul class="wiki-class-links">${relatedRules.map((rule) =>
       `<li>${articleLink('rules', rule)}</li>`).join('')}</ul></section>` : ''}
     ${classLinks.length ? `<section><h3>Listas de classe</h3><ul class="wiki-class-links">${classLinks.map((cls) =>
@@ -742,17 +1182,32 @@ function compendiumArticle(id) {
   </article>`;
 }
 
+function chipSelect(id, label, choices, { value = choices[0]?.[0], name, play = false } = {}) {
+  const selected = choices.some(([key]) => key === value) ? value : choices[0]?.[0];
+  return `<fieldset class="spell-filter-group chip-select">
+    <legend>${escape(label)}</legend>
+    <select hidden${id ? ` id="${escape(id)}"` : ''}${name ? ` name="${escape(name)}"` : ''}${play ? ' data-play-control' : ''}>
+      ${choices.map(([key, text, disabled]) => `<option value="${escape(key)}" ${key === selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${escape(text)}</option>`).join('')}
+    </select>
+    <div class="spell-filter-options">
+      ${choices.map(([key, text, disabled, color = ''], index) => `<button type="button" class="tag spell-filter-option"
+        data-chip-value="${escape(key)}" ${color || `data-source-color="${index % 6}"`} ${disabled ? 'disabled' : ''}
+        aria-pressed="${key === selected}">${escape(text)}</button>`).join('')}
+    </div></fieldset>`;
+}
+
+function setChipValue(select, value) {
+  select.value = value;
+  select.closest('.chip-select').querySelectorAll('[data-chip-value]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.chipValue === select.value));
+  });
+}
+
 function select(field, label, values, selected) {
-  return `<label for="${escape(field)}">${escape(label)}</label>
-    <select name="${escape(field)}" id="${escape(field)}">
-      <option value="">Selecione…</option>${values
-        .map(
-          (option) =>
-            `<option value="${escape(option.id)}" ${selected === option.id ? 'selected' : ''}>${escape(displayName(option))}${
-              option.source ? ' · ' + escape(option.source) : ''
-            }</option>`
-        )
-        .join('')}</select>`;
+  return chipSelect(field, label, [
+    ['', 'Selecione…'],
+    ...values.map((option) => [option.id, [displayName(option), option.source].filter(Boolean).join(' · ')]),
+  ], { name: field, value: selected });
 }
 
 function ruleReference(id, label) {
@@ -822,11 +1277,31 @@ function referenceDetails(entry, glossary) {
     ${glossary && spell ? `<p>${articleLink('magias', spell)}</p>` : ''}`;
 }
 
+function publicFeatureSource(entry) {
+  if (!entry.source) return;
+  const [kind, id] = entry.key?.split('/') ?? [];
+  const collection = { class: 'classes', subclass: 'subclasses', species: 'species', background: 'backgrounds' }[kind];
+  const parent = collection ? catalog[collection].find((item) => item.id === id)
+    : [projection.species, projection.background, ...projection.classes.flatMap(({ entry, subclass }) => [entry, subclass])]
+      .find((item) => item && displayName(item) === entry.source);
+  const feat = !parent && catalog.feats.find((item) => displayName(item) === entry.source);
+  const category = parent?.collection ?? (feat ? 'feats' : undefined);
+  const origin = parent || feat;
+  return {
+    badge: `<span class="tag public-tag"${origin ? catalogTheme(category, origin) : ''}>${origin ? catalogEmblem(category, origin) : gameIcon('feat-skilled')}${escape(entry.source)}</span>`,
+    href: origin ? compendiumHref(category, origin.id) : '',
+  };
+}
+
 function details(entry, glossary = false, full = false) {
-  return `<details class="entry"><summary><strong>${escape(displayName(entry))}</strong>
+  const origin = publicSheet ? publicFeatureSource(entry) : undefined;
+  return `<details class="entry${origin ? ' public-feature' : ''}"><summary><strong>${escape(displayName(entry))}</strong>
+    <span class="entry-tags">${origin?.badge ?? ''}
     ${entry.level ? `<span class="tag">Nível ${entry.level}</span>` : ''}
-    ${(entry.translation?.tags ?? []).map((tag) => `<span class="tag">${escape(tag)}</span>`).join('')}</summary>
-    ${entry.source ? `<p class="muted">${escape(entry.source)}</p>` : ''}
+    ${(entry.translation?.tags ?? []).map((tag) => `<span class="tag">${escape(tag)}</span>`).join('')}</span></summary>
+    ${origin?.href ? `<a class="public-feature-link" href="${origin.href}"
+      aria-label="Ver ${escape(entry.source)} no compêndio">Compêndio <span aria-hidden="true">›</span></a>`
+      : entry.source && !origin ? `<p class="muted">${escape(entry.source)}</p>` : ''}
     ${entryDescription(entry, full, glossary)}
     ${entry.options?.length ? `<div class="feature-references">${entry.options.map((option) => details(option, glossary)).join('')}</div>` : ''}
     ${referenceDetails(entry, glossary)}
@@ -878,9 +1353,10 @@ function pickerControl(group) {
         ? `<ul class="chips" aria-label="${escape(group.name)}">
       ${selected.map((entry) => {
         const spell = group.spellPicker && catalog.bySpell.get(entry.id);
+        const category = optionCategory(entry);
         return spell
           ? `<li class="icon-label">${spellIcon(spell)}${escape(spellName(spell))}</li>`
-          : `<li>${escape(displayName(entry))}</li>`;
+          : `<li class="icon-label"${catalogTheme(category, entry)}>${category ? catalogEmblem(category, entry) : ''}${escape(displayName(entry))}</li>`;
       }).join('')}</ul>`
         : ''
     }
@@ -905,6 +1381,14 @@ function benefits(section) {
 }
 
 function facts() {
+  const skillTags = (ids) => [...ids].map((id) =>
+    `<span class="tag public-tag" data-ability="${escape(skillAbilities[id])}">${escape(skillName(id))}</span>`).join('');
+  const referenceTags = (ids, entries, category) => [...ids].map((id) => {
+    const entry = entries.get(id);
+    return entry
+      ? `<a class="tag public-tag public-reference-tag" href="${compendiumHref(category, id)}"${catalogTheme(category, entry)}>${escape(displayName(entry))}</a>`
+      : `<span class="tag">${escape(id)}</span>`;
+  }).join('');
   const entries = [
     ...projection.facts,
     { name: 'Perícias proficientes', value: [...projection.skills].map(skillName).join(', ') },
@@ -922,8 +1406,22 @@ function facts() {
     { name: 'Alinhamento', value: catalog.alignments.find(({ id }) => id === draft.alignment) &&
       displayName(catalog.alignments.find(({ id }) => id === draft.alignment)) },
   ].filter(({ value }) => value);
+  const colored = (name, value) => {
+    if (name === 'Perícias proficientes') return skillTags(projection.skills);
+    if (name === 'Especializações') return skillTags(projection.expertise);
+    if (name === 'Ferramentas proficientes') return referenceTags(projection.tools, catalog.byTool, 'tools');
+    if (name === 'Idiomas') return referenceTags(projection.languages, catalog.byLanguage, 'languages');
+    if (name === 'Testes de resistência proficientes') return value.split(', ').map((label) => {
+      const ability = abilities.find(([, english, localized]) => label === english || label === localized);
+      return ability ? `<span class="tag public-tag" data-ability="${ability[0]}">${gameIcon(abilityEmblems[ability[0]])}${escape(label)}</span>` : escape(label);
+    }).join(' ');
+    return '';
+  };
   return `<dl class="facts">${entries
-    .map(({ name, value }) => `<div><dt>${escape(name)}</dt><dd>${escape(value)}</dd></div>`)
+    .map(({ name, value }) => {
+      const tags = publicSheet && colored(name, value);
+      return `<div><dt>${escape(name)}</dt><dd${tags ? ' class="public-tags"' : ''}>${tags || escape(value)}</dd></div>`;
+    })
     .join('')}</dl>`;
 }
 
@@ -996,16 +1494,10 @@ function scoreControl(id, label) {
     const taken = Object.entries(batch.assignments)
       .filter(([ability]) => ability !== id)
       .map(([, index]) => index);
-    return `<select name="roll-${id}" id="roll-${id}" aria-label="Resultado para ${label}">
-      <option value="">Escolha um resultado</option>
-      ${batch.rolls
-        .map(
-          ({ score }, index) => `<option value="${index}"
-        ${batch.assignments[id] === index ? 'selected' : ''} ${taken.includes(index) ? 'disabled' : ''}>
-        #${index + 1} · ${escape(score)}</option>`
-        )
-        .join('')}
-    </select>`;
+    return chipSelect(`roll-${id}`, `Resultado para ${label}`, [
+      ['', 'Sem resultado'],
+      ...batch.rolls.map(({ score }, index) => [String(index), `#${index + 1} · ${score}`, taken.includes(index)]),
+    ], { name: `roll-${id}`, value: String(batch.assignments[id] ?? '') });
   }
   return `<div class="score-manual">
     <input name="score-${id}" id="score-${id}" aria-label="Valor base de ${label}" type="number"
@@ -1099,7 +1591,7 @@ function progression() {
         const label =
           track && `${displayName(track.entry)} nível ${track.levels.indexOf(level) + 1}`;
         const expanded = level === active;
-        return `<section class="level"><h3><button class="button secondary level-heading" type="button" data-open-level="${level}" aria-expanded="${expanded}">Nível total ${level}${label ? ` · ${escape(label)}` : ''}</button></h3>
+        return `<section class="level"${track ? catalogTheme('classes', track.entry) : ''}><h3><button class="button secondary level-heading icon-label" type="button" data-open-level="${level}" aria-expanded="${expanded}">${track ? catalogEmblem('classes', track.entry) : ''}Nível total ${level}${label ? ` · ${escape(label)}` : ''}</button></h3>
       ${expanded ? `<div class="score-actions level-actions">
       <button type="button" class="button secondary" id="picker:class-level/${index}" data-picker="class-level/${index}"
         aria-haspopup="dialog">${id ? 'Trocar' : 'Escolher'} classe do nível ${level}</button>
@@ -1120,8 +1612,8 @@ function missingChoices() {
 }
 
 function skillPanel(skills, playable = false) {
-  return `<section class="hub-skills"><h3>Perícias</h3><dl>${skills.map(({ id, name, bonus, proficient, expertise, disadvantage }) =>
-    `<div><dt>${proficient || expertise ? `<span class="hub-proficient" title="${expertise ? 'Especialização' : 'Proficiente'}">●</span>` : ''}${escape(name)}${disadvantage ? ' <small>· Desvantagem</small>' : ''}</dt>
+  return `<section class="hub-skills"><h3>Perícias</h3><dl>${skills.map(({ id, name, ability, bonus, proficient, expertise, disadvantage }) =>
+    `<div data-ability="${escape(ability)}"><dt>${proficient || expertise ? `<span class="hub-proficient" title="${expertise ? 'Especialização' : 'Proficiente'}">●</span>` : ''}${escape(name)}${disadvantage ? ' <small>· Desvantagem</small>' : ''}</dt>
     <dd>${playable ? `<button class="text-button" type="button" data-play="skill" data-check="${escape(id)}" aria-label="Rolar ${escape(name)}">${plus(bonus)}</button>` : plus(bonus)}</dd></div>`
   ).join('')}</dl></section>`;
 }
@@ -1244,14 +1736,12 @@ function playPanel(calculated) {
     <section class="play-panel"><h3>Atalhos</h3>
       ${resources.armorUntrained ? '<p class="score-error">Armadura sem treinamento. Desvantagem em testes de Força e Destreza e conjuração indisponível.</p>' : ''}
       <button type="button" class="button secondary" data-play="initiative">Rolar iniciativa</button>
-      <div class="play-actions"><label for="combat-skill">Perícia
-        <select id="combat-skill" data-play-control>${calculated.skills.map(({ id, name, bonus }) =>
-          `<option value="${escape(id)}">${escape(name)} ${plus(bonus)}</option>`).join('')}</select></label>
+      <div class="play-actions">${chipSelect('combat-skill', 'Perícia', calculated.skills.map(({ id, name, bonus, ability }) =>
+        [id, `${name} ${plus(bonus)}`, false, `data-ability="${escape(ability)}"`]), { play: true })}
         <button type="button" class="button secondary" data-play="skill" data-combat-skill>Rolar perícia</button></div>
       ${castable.length ? `<div class="combat-casting">
-        <label for="combat-spell">Magia rápida</label>
-        <select id="combat-spell" data-play-control>${castable.map(({ spell, index }) =>
-          `<option value="${index}">${escape(spellName(spell))}</option>`).join('')}</select>
+        ${chipSelect('combat-spell', 'Magia rápida', castable.map(({ spell, index }) =>
+          [String(index), spellName(spell), false, spellTheme(spell)]), { play: true })}
         <div id="combat-spell-actions">${spellPlayActions(castable[0].spell, castable[0].index, resources)}</div>
       </div>` : ''}
       ${projection.spells.length ? '<button type="button" class="button secondary" data-sheet-jump="magias">Ver todas as magias</button>' : ''}
@@ -1286,38 +1776,42 @@ function spellPlayActions(spell, index, resources) {
     : spell.level;
   const rolls = spellRolls(spell, classPlan(draft).length, level);
   return `<div class="play-actions spell-actions" data-spell-index="${index}">
-    ${options.length ? `<label>Conjurar com <select aria-label="Recurso para conjurar ${escape(spellName(spell))}" data-play-control>
-      ${options.map(({ key, label }) => `<option value="${escape(key)}">${escape(label)}</option>`).join('')}
-    </select></label><button type="button" class="button primary" data-play="cast">Conjurar</button>` : `<span class="muted">${resources.armorUntrained ? 'A armadura sem treinamento impede a conjuração.' : 'Sem conjuração disponível.'}</span>`}
+    ${options.length ? `${chipSelect('', 'Conjurar com', options.map(({ key, label }) => [key, label]), { play: true })}
+    <button type="button" class="button primary" data-play="cast">Conjurar</button>` : `<span class="muted">${resources.armorUntrained ? 'A armadura sem treinamento impede a conjuração.' : 'Sem conjuração disponível.'}</span>`}
     ${rolls.map(({ label, type }, i) => `<button type="button" class="button secondary" data-play="spell-roll" data-roll-index="${i}">
       Rolar ${escape(label.toLowerCase())}${type ? ` · ${escape(type)}` : ''}</button>`).join('')}
   </div>`;
 }
 
-function castingSummary(calculated) {
-  return `<section><h3>Conjuração</h3>
-    ${calculated.casting
-      .map(
-        ({ name, ability, saveDC, attack, pact, slots }) =>
-          `<p><strong>${escape(name)}</strong> · ${abilityLabel(ability)} · CD ${saveDC} · Ataque ${plus(attack)}
-      ${
-        pact
-          ? `<br>Espaços de pacto · ${(slots ?? [])
-              .filter(({ maximum }) => maximum)
-              .map(({ level, maximum }) => `${maximum} de ${level}º círculo`)
-              .join(', ')} · descanso curto ou longo`
-          : ''
-      }</p>`
-      )
-      .join('')}
-    ${
-      calculated.commonSlots.some(({ maximum }) => maximum)
-        ? `<p><strong>Espaços de magia</strong> · ${calculated.commonSlots
-            .filter(({ maximum }) => maximum)
-            .map(({ level, maximum }) => `${level}º círculo × ${maximum}`)
-            .join(' · ')} · descanso longo</p>`
-        : ''
-    }
+function castingSummary(calculated, resources) {
+  if (!calculated.casting.length) return '';
+  const slots = resources?.slots ?? [
+    ...calculated.commonSlots,
+    ...calculated.casting.filter(({ pact }) => pact)
+      .flatMap(({ slots }) => (slots ?? []).map((slot) => ({ ...slot, pact: true }))),
+  ];
+  return `<section class="casting-summary"><h3>Conjuração</h3>
+    <div class="casting-casters">${calculated.casting.map(({ id, name, ability, saveDC, attack }) => `
+      <div class="casting-caster">
+        <strong class="tag public-tag" data-class-theme="${escape(id)}">${gameIcon(classEmblemId(id))}${escape(name)}</strong>
+        <span class="tag public-tag" data-ability="${escape(ability)}">${gameIcon(abilityEmblems[ability])}${escape(abilityLabel(ability))}</span>
+        <span class="tag" title="Classe de Dificuldade">${gameIcon('shield')} CD <strong>${saveDC}</strong></span>
+        <span class="tag">${gameIcon('class-wand')} Ataque <strong>${plus(attack)}</strong></span>
+      </div>`).join('')}</div>
+    ${[
+      [false, 'Espaços de magia', 'Descanso longo'],
+      [true, 'Espaços de pacto', 'Descanso curto ou longo'],
+    ].map(([pact, label, rest]) => {
+      const group = slots.filter((slot) => Boolean(slot.pact) === pact && slot.maximum > 0);
+      if (!group.length) return '';
+      return `<section class="casting-slots"><h4>${label} <small>${rest}</small></h4>
+        <ul>${group.map(({ level, maximum, remaining }) => `<li data-spell-circle="${level}">
+          <span class="casting-slot-label">${spellCircle(level)}</span>
+          <span class="casting-slot-pips" aria-hidden="true">${Array.from({ length: maximum }, (_, i) =>
+            `<span class="${i < (remaining ?? maximum) ? 'available' : ''}"></span>`).join('')}</span>
+          <small>${remaining == null ? `${maximum} ${maximum === 1 ? 'espaço' : 'espaços'}` : `${remaining}/${maximum} disponíveis`}</small>
+        </li>`).join('')}</ul></section>`;
+    }).join('')}
   </section>`;
 }
 
@@ -1386,13 +1880,41 @@ function equipment() {
     <div class="session-inventory">${inventoryView(true)}</div>`;
 }
 
+function publicSpellCard(spell, index) {
+  return `<button class="navigation-row wiki-result public-spell-card" type="button" data-public-spell="${index}"
+    aria-haspopup="dialog"${spellTheme(spell)}>${spellIcon(spell)}
+    <span class="wiki-result-content"><strong>${escape(spellName(spell))}</strong>
+      <span class="entry-tags">${spellTagMarkup(spell)}</span>
+    </span><span aria-hidden="true">›</span></button>`;
+}
+
+function openPublicSpell(index) {
+  const spell = projection.spells[index];
+  if (!spell) return;
+  const ready = withSpellAbility(spell, deriveCharacter(draft, projection, catalog));
+  publicSpellDialog.innerHTML = `<section${spellTheme(ready)}>
+    <header class="public-spell-heading">
+      ${spellIcon(ready)}
+      <div class="public-spell-title-group">
+        <h2 id="public-spell-title">${escape(spellName(ready))}</h2>
+        <div class="entry-tags">${spellTagMarkup(ready)}</div>
+      </div>
+      <form method="dialog"><button class="public-feature-link" autofocus>Fechar</button></form>
+    </header>
+    ${ready.grantedBy ? `<p class="muted">Concedida por ${escape(ready.grantedBy)}</p>` : ''}
+    ${spellDescription(ready)}
+    <div class="public-spell-links"><a class="public-feature-link" href="${compendiumHref('magias', ready.id)}">Ver no compêndio <span aria-hidden="true">›</span></a></div>
+  </section>`;
+  publicSpellDialog.showModal();
+}
+
 function sheet() {
   const calculated = deriveCharacter(draft, projection, catalog);
   const playable = draft.saved && !publicSheet;
   const resources = playable && playResources(draft, calculated);
   const scores = abilities
     .map(
-      ([id, , name]) => `<div><dt class="icon-label">${gameIcon(abilityEmblems[id])}${name}</dt><dd>${projection.scores[id]}
+      ([id, , name]) => `<div data-ability="${id}"><dt class="icon-label">${gameIcon(abilityEmblems[id])}${name}</dt><dd>${projection.scores[id]}
     <small>${playable
       ? `<button class="text-button" type="button" data-play="ability" data-check="${id}" aria-label="Rolar teste de ${name}">${plus(calculated.modifiers[id])}</button>`
       : plus(calculated.modifiers[id])}</small></dd></div>`
@@ -1402,7 +1924,36 @@ function sheet() {
   const panel = (id, content) => playable
     ? `<section class="session-pane" data-sheet-pane="${id}" aria-label="${sheetTabs.find(([key]) => key === id)[1]}" ${sheetTab !== id ? 'hidden' : ''}>${content}</section>`
     : content;
-  return `${publicSheet ? `<p class="muted">${escape(classLevels(projection.classes))}</p>` : ''}
+  const vitals = `<dl class="facts sheet-vitals">${[
+    ['PV máximos', calculated.maximumHP, 'ability-heart'],
+    ['Classe de Armadura', calculated.armorClass, 'shield', calculated.armorSource],
+    ['Iniciativa', plus(calculated.initiative), 'ability-boot'],
+    ['Deslocamento', `${calculated.speed} pés`, 'ability-boot'],
+    ['Percepção passiva', calculated.passivePerception, 'divination'],
+    ['Proficiência', plus(calculated.proficiency), 'feat-skilled'],
+    ['Dados de Vida', calculated.hitDice.join(' + '), 'ability-heart'],
+  ].map(([label, value, icon, note]) => `<div><dt class="icon-label">${publicSheet ? gameIcon(icon) : ''}${label}</dt>
+    <dd>${escape(value)}${note ? `<small>${escape(note)}</small>` : ''}</dd></div>`).join('')}</dl>`;
+  const defenses = [
+    ['Resistências a dano', calculated.resistances],
+    ['Imunidades a dano', calculated.damageImmunities],
+  ].filter(([, types]) => types.length);
+  const damageDefenses = defenses.length ? `<dl class="facts sheet-defenses">${defenses.map(([label, types]) =>
+    `<div><dt>${label}</dt><dd class="public-tags">${types.map((type) => damageTag(type, damageTypeLabel(type))).join('')}</dd></div>`
+  ).join('')}</dl>` : '';
+  const saves = `<section class="sheet-saving-throws"><h3>Testes de resistência</h3><dl class="facts">${calculated.savingThrows.map(
+    ({ id, name, bonus, proficient }) => `<div data-ability="${id}"><dt>${name}</dt><dd>${playable
+      ? `<button class="text-button" type="button" data-play="save" data-check="${id}" aria-label="Rolar resistência de ${name}">${plus(bonus)}</button>`
+      : plus(bonus)}${proficient ? '<small class="tag">Proficiente</small>' : ''}</dd></div>`
+  ).join('')}</dl></section>`;
+  const overview = publicSheet
+    ? `<div class="public-overview">${vitals}${damageDefenses}
+      <div class="public-checks"><section class="public-attributes"><h3>Atributos</h3>
+        <dl class="scores sheet-scores">${scores}</dl>${saves}</section>${skillPanel(calculated.skills)}</div>
+    </div>`
+    : `<div class="session-checks"><section><dl class="scores sheet-scores">${scores}</dl>
+      ${vitals}${damageDefenses}${saves}</section>${skillPanel(calculated.skills, playable)}</div>`;
+  return `
     ${playable ? panel('combate', `
       <div class="session-combat-stats">
         <span>CA <strong>${calculated.armorClass}</strong></span>
@@ -1412,41 +1963,22 @@ function sheet() {
       </div>
       ${playPanel(calculated)}
     `) : ''}
-    ${panel('testes', `<div class="session-checks"><section><dl class="scores sheet-scores">${scores}</dl>
-    <dl class="facts">${[
-      ['Proficiência', plus(calculated.proficiency)],
-      ['Classe de Armadura', `${calculated.armorClass} · ${calculated.armorSource}`],
-      ['PV máximos', calculated.maximumHP],
-      ['Dados de Vida', calculated.hitDice.join(' + ')],
-      ['Iniciativa', plus(calculated.initiative)],
-      ['Percepção passiva', calculated.passivePerception],
-      ['Deslocamento', `${calculated.speed} pés`],
-      ['Resistências a dano', calculated.resistances.map(damageTypeLabel).join(', ') || '—'],
-      ...(calculated.damageImmunities.length
-        ? [['Imunidades a dano', calculated.damageImmunities.map(damageTypeLabel).join(', ')]]
-        : []),
-    ]
-      .map(([label, value]) => `<div><dt>${label}</dt><dd>${escape(value)}</dd></div>`)
-      .join('')}</dl>
-    <section><h3>Testes de resistência</h3><dl class="facts">${calculated.savingThrows
-      .map(
-        ({ id, name, bonus, proficient }) =>
-          `<div><dt>${name}${proficient ? ' · proficiente' : ''}</dt><dd>${playable
-            ? `<button class="text-button" type="button" data-play="save" data-check="${id}" aria-label="Rolar resistência de ${name}">${plus(bonus)}</button>`
-            : plus(bonus)}</dd></div>`
-      )
-      .join('')}</dl></section></section>
-    ${skillPanel(calculated.skills, playable)}</div>`)}
+    ${panel('testes', overview)}
     ${panel('habilidades', `<div class="session-reference"><section>${facts()}</section><div>
     ${benefits()}
-    ${projection.feats.length ? `<section class="benefits"><h3>Talentos</h3>${projection.feats.map((entry) => details(entry)).join('')}</section>` : ''}
+    ${projection.feats.length ? `<section class="benefits"><h3>Talentos</h3>${publicSheet
+      ? `<div class="public-feats">${projection.feats.map((entry) => {
+        const feat = catalog.byFeat.get(entry.id);
+        return feat ? articleLink('feats', feat) : details(entry);
+      }).join('')}</div>`
+      : projection.feats.map((entry) => details(entry)).join('')}</section>` : ''}
     ${projection.selectedFeatures.length ? `<section class="benefits"><h3>Opções aprendidas e benefícios das escolhas</h3>${projection.selectedFeatures.map((entry) => details(entry)).join('')}</section>` : ''}
     ${choices.length
       ? `<details class="entry"><summary><strong>Escolhas registradas</strong></summary><ul class="pending">
       ${choices.map((group) => `<li>${escape(group.name)} · ${escape(group.selected.map((id) => displayName(group.options.find((option) => option.id === id))).join(', '))}</li>`).join('')}
       </ul></details>`
       : ''}</div></div>`)}
-    ${panel('magias', `<div class="session-magic">${castingSummary(calculated)}
+    ${panel('magias', `<div class="session-magic">${castingSummary(calculated, resources)}
     ${
       projection.spells.length
         ? `<section class="benefits"><h3>Magias</h3>${[
@@ -1460,12 +1992,18 @@ function sheet() {
                 ({ spell }) =>
                   (spell.preparation ?? (spell.level === 0 ? 'cantrip' : 'always')) === mode
               );
-              return spells.length
-                ? `<h4>${title}</h4><div class="session-inventory">${spells.map(({ spell, index }) => {
+              if (!spells.length) return '';
+              if (publicSheet) {
+                const levels = [...new Set(spells.map(({ spell }) => spell.level))].sort((a, b) => a - b);
+                return `<h4${mode === 'cantrip' ? ' class="casting-circle-heading" data-spell-circle="0"' : ''}>${title}</h4>
+                  ${levels.map((level) => `${mode === 'cantrip' ? '' : `<h5 class="casting-circle-heading" data-spell-circle="${level}">${spellCircle(level)}</h5>`}
+                    <div class="session-inventory">${spells.filter(({ spell }) => spell.level === level)
+                      .map(({ spell, index }) => publicSpellCard(spell, index)).join('')}</div>`).join('')}`;
+              }
+              return `<h4${mode === 'cantrip' ? ' class="casting-circle-heading" data-spell-circle="0"' : ''}>${title}</h4><div class="session-inventory">${spells.map(({ spell, index }) => {
                     const ready = withSpellAbility(spell, calculated);
                     return spellCard(ready, playable ? spellPlayActions(ready, index, resources) : '');
-                  }).join('')}</div>`
-                : '';
+                  }).join('')}</div>`;
             })
             .join('')}</section>`
         : '<p class="muted">Nenhuma magia registrada.</p>'
@@ -1621,12 +2159,9 @@ function accountSettings() {
       <p role="alert"></p>
       <button class="button primary" type="submit">Salvar senha</button>
     </form>` : ''}
-    <label for="account-theme">Aparência</label>
-    <select id="account-theme">
-      <option value="" ${!chosenTheme ? 'selected' : ''}>Usar tema do sistema</option>
-      <option value="light" ${chosenTheme === 'light' ? 'selected' : ''}>Claro</option>
-      <option value="dark" ${chosenTheme === 'dark' ? 'selected' : ''}>Escuro</option>
-    </select>
+    ${chipSelect('account-theme', 'Aparência', [
+      ['', 'Usar tema do sistema'], ['light', 'Claro'], ['dark', 'Escuro'],
+    ], { value: chosenTheme })}
   </section>`;
 }
 
@@ -1796,10 +2331,14 @@ function route() {
   if (!initialized) return;
   main.classList.remove('session-screen', 'builder-screen');
   if (choiceDialog.open) choiceDialog.close();
+  if (publicSpellDialog.open) publicSpellDialog.close();
   menu();
   const [page, id, section] = location.hash.slice(1).split('/');
   if (!['personagem', 'ficha'].includes(page)) viewedCharacter = undefined;
-  if (page !== 'galeria') gallery = undefined;
+  if (page !== 'galeria') {
+    gallery = undefined;
+    clearTimeout(gallerySearchTimer);
+  }
   publicSheet = page === 'publica';
   const accountPage =
     location.pathname === '/reset-password'
@@ -1848,7 +2387,16 @@ function route() {
       draft = publicRecord.draft;
       projection = projectCharacter(draft, catalog);
       main.innerHTML = `<a class="back" href="#galeria">Voltar à galeria pública</a>
-        <article class="panel"><h1>${escape(title(draft))}</h1>${publicAuthor(publicRecord)}${sheet()}</article>`;
+        <article class="panel public-sheet">
+          <header class="public-sheet-heading">
+            ${characterEmblem(projection.classes)}
+            <div><h1>${escape(title(draft))}</h1>
+              ${publicCharacterTags(projection.classes, classPlan(draft).length, projection.species)}
+            </div>
+            ${publicAuthor(publicRecord)}
+          </header>
+          ${sheet()}
+        </article>`;
     }
     return;
   }
@@ -1905,7 +2453,7 @@ function route() {
     const category = compendiumTabs.some(([key]) => key === id) ? id : 'classes';
     if (catalogCategory !== category) {
       catalogFilter = '';
-      catalogSource = '';
+      catalogFilters = {};
       catalogSpellFilters = {};
       catalogLimit = 24;
     }
@@ -2141,10 +2689,10 @@ function renderPlay() {
   const inventoryScroll = main.querySelector(`${activePane} > section`)?.scrollTop ?? 0;
   main.innerHTML = sessionSheet();
   if (hp) document.getElementById('play-hp').value = hp;
-  if (skill) document.getElementById('combat-skill').value = skill;
+  if (skill) setChipValue(document.getElementById('combat-skill'), skill);
   const spellSelect = document.getElementById('combat-spell');
   if (spellSelect && [...spellSelect.options].some(({ value }) => value === quickSpell)) {
-    spellSelect.value = quickSpell;
+    setChipValue(spellSelect, quickSpell);
     renderCombatSpell(Number(quickSpell));
   }
   main.querySelectorAll('details').forEach((element, index) => {
@@ -2531,7 +3079,7 @@ function optionDetails(option, wiki = false, characterArticle = false) {
     : facts + description;
   return `${overview}
     ${backgroundFeats.length ? `<section class="benefits"><h4>Talentos do antecedente</h4>
-      ${backgroundFeats.map(({ feat, note }) => `<details class="entry background-feat">
+      ${backgroundFeats.map(({ feat, note }) => `<details class="entry background-feat"${catalogTheme('feats', feat)}>
         <summary><strong class="icon-label">${catalogEmblem('feats', feat)}${escape(displayName(feat))}${note ? ` · ${escape(classLabel(note))}` : ''}</strong></summary>
         ${entryDescription(feat, true, wiki)}</details>`).join('')}
     </section>` : ''}
@@ -2566,18 +3114,20 @@ function drawPicker() {
   const query = normalizeSearch(search.trim());
   const name = group.spellPicker ? spellName : displayName;
   const tags = group.readOnly ? (entry) => [entry.prereq?.text ?? 'Bruxo nível 1+'] : optionLabels;
-  const emblem = (entry) => group.spellPicker ? spellIcon(entry)
-    : entry.emblem ? gameIcon(entry.emblem, 'game-emblem') : catalogEmblem(entry.collection, entry);
+  const category = (entry) => group.spellPicker ? 'magias' : optionCategory(entry);
+  const emblem = (entry) => {
+    const kind = category(entry);
+    return entry.emblem && kind !== 'feats' && !group.spellPicker
+      ? gameIcon(entry.emblem, 'game-emblem')
+      : catalogEmblem(kind, entry);
+  };
   const tagMarkup = (entry) => group.spellPicker
     ? spellTagMarkup(entry)
     : tags(entry).map((tag) => `<span class="tag">${escape(tag)}</span>`).join('');
   const matches = group.spellPicker
     ? filterSpells(group.options.map(({ id }) => catalog.bySpell.get(id)).filter(Boolean), {
         search,
-        level: choiceDialog.querySelector('#spell-level').value,
-        school: choiceDialog.querySelector('#spell-school').value,
-        publication: choiceDialog.querySelector('#spell-publication').value,
-        damage: choiceDialog.querySelector('#spell-damage').value,
+        ...picker.spellFilters,
       }).sort((a, b) => a.level - b.level || name(a).localeCompare(name(b), 'pt-BR'))
     : group.options.filter((entry) =>
         normalizeSearch([name(entry), entry.name, ...tags(entry)].join(' ')).includes(query)
@@ -2590,18 +3140,11 @@ function drawPicker() {
     ? matches
         .map((entry) => {
           const selected = group.selected.includes(entry.id);
-          const metadata = group.spellPicker ? [] : tags(entry);
           return `<button class="picker-row" type="button"
-    data-preview-option="${escape(entry.id)}" data-selected="${selected}" aria-pressed="${entry.id === active?.id}">
+    ${catalogTheme(category(entry), entry)} data-preview-option="${escape(entry.id)}" data-selected="${selected}" aria-pressed="${entry.id === active?.id}">
     <span class="picker-row-title"><strong class="icon-label">${emblem(entry)}${escape(name(entry))}</strong>
     ${selected ? `<span class="picker-selected"><span aria-hidden="true">✓</span> ${group.spellPicker ? 'Selecionada' : 'Em uso'}</span>` : ''}</span>
-    ${
-      group.spellPicker
-        ? `<span class="picker-tags">${tagMarkup(entry)}</span>`
-        : metadata.length
-          ? `<small>${escape(metadata.join(' · '))}</small>`
-          : ''
-    }</button>`;
+    <span class="picker-tags">${tagMarkup(entry)}</span></button>`;
         })
         .join('')
     : '<p class="muted">Nenhuma opção corresponde à busca.</p>';
@@ -2614,7 +3157,7 @@ function drawPicker() {
   const selected = active && group.selected.includes(active.id);
   choiceDialog.querySelector('.picker-detail').innerHTML = active
     ? `
-    <div class="picker-detail-header"><div><h3 class="icon-label">${emblem(active)}${escape(name(active))}</h3>
+    <div class="picker-detail-header"${catalogTheme(category(active), active)}><div><h3 class="icon-label">${emblem(active)}<span>${escape(name(active))}</span></h3>
       <div class="picker-tags">${tagMarkup(active)}</div></div>
       ${
         group.readOnly
@@ -2628,7 +3171,7 @@ function drawPicker() {
 }
 
 function openPicker(key) {
-  picker = { key };
+  picker = { key, spellFilters: {} };
   const group = pickerGroup();
   if (!group) return;
   picker.active = group.selected[0];
@@ -2639,7 +3182,7 @@ function openPicker(key) {
     <button type="button" class="button secondary" data-close-picker>Concluir</button></header>
     <div class="picker-filters">
       <div><label for="picker-search">${group.readOnly ? 'Buscar invocação' : group.spellPicker ? 'Buscar magia' : 'Buscar opção'}</label><input type="search" id="picker-search" autofocus></div>
-      ${group.spellPicker ? spellFilterControls('spell', group.options.map(({ id }) => catalog.bySpell.get(id)).filter(Boolean)) : ''}
+      ${group.spellPicker ? spellFilterControls(group.options.map(({ id }) => catalog.bySpell.get(id)).filter(Boolean)) : ''}
     </div>
     <div class="picker-body"><div class="picker-list" aria-label="Opções disponíveis"></div>
       <section class="picker-detail" aria-label="Detalhes da opção"></section></div>`;
@@ -2648,10 +3191,16 @@ function openPicker(key) {
 }
 
 choiceDialog.addEventListener('input', ({ target }) => {
-  if (target.id === 'picker-search' || target.dataset.spellFilter) drawPicker();
+  if (target.id === 'picker-search') drawPicker();
 });
 
 choiceDialog.addEventListener('click', ({ target }) => {
+  const filter = target.closest('[data-spell-filter]');
+  if (filter) {
+    applySpellFilter(filter, picker.spellFilters);
+    drawPicker();
+    return;
+  }
   if (target.closest('[data-close-picker]')) {
     choiceDialog.close();
     return;
@@ -2746,7 +3295,41 @@ choiceDialog.addEventListener('close', () => {
 });
 
 main.addEventListener('click', async ({ target }) => {
-  if (publicSheet) return;
+  if (publicSheet) {
+    const spell = target.closest('[data-public-spell]');
+    if (spell) openPublicSpell(Number(spell.dataset.publicSpell));
+    return;
+  }
+  const chip = target.closest('[data-chip-value]');
+  if (chip) {
+    const select = chip.closest('.chip-select').querySelector('select');
+    if (select.value !== chip.dataset.chipValue) {
+      setChipValue(select, chip.dataset.chipValue);
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return;
+  }
+  const filter = target.closest('[data-spell-filter]');
+  if (filter) {
+    const galleryControls = filter.closest('[data-gallery-filters]');
+    if (galleryControls) {
+      applySpellFilter(filter, galleryFilters);
+      if (filter.dataset.spellFilter === 'class') {
+        const subclass = catalog.subclasses.find((entry) => entry.id === galleryFilters.subclass);
+        if (galleryFilters.class && subclass?.class !== classEntry(galleryFilters.class)?.name) {
+          galleryFilters.subclass = '';
+        }
+        galleryControls.innerHTML = galleryFilterControls();
+        galleryControls.querySelector('[data-spell-filter="class"][aria-pressed="true"]')?.focus();
+      }
+      refreshGallerySearch();
+      return;
+    }
+    applySpellFilter(filter, catalogCategory === 'magias' ? catalogSpellFilters : catalogFilters);
+    catalogLimit = 24;
+    document.querySelector('#compendium-results').innerHTML = compendiumResults();
+    return;
+  }
   const tab = target.closest('[data-sheet-tab], [data-sheet-jump]');
   if (tab) {
     sheetTab = tab.dataset.sheetTab ?? tab.dataset.sheetJump;
@@ -2789,8 +3372,21 @@ main.addEventListener('click', async ({ target }) => {
     return;
   }
   if (target.closest('[data-retry-gallery]')) {
+    const page = gallery?.page ?? 1;
     gallery = undefined;
-    route();
+    loadGallery(page);
+    main.querySelector('#gallery-results').innerHTML = galleryResults(gallery);
+    return;
+  }
+  if (target.closest('[data-clear-gallery]')) {
+    gallerySearch = '';
+    galleryFilters.class = '';
+    galleryFilters.subclass = '';
+    const search = main.querySelector('#gallery-search');
+    search.value = '';
+    main.querySelector('[data-gallery-filters]').innerHTML = galleryFilterControls();
+    refreshGallerySearch();
+    search.focus();
     return;
   }
   const removedItem = target.closest('[data-remove-item]');
@@ -2897,25 +3493,19 @@ main.addEventListener('click', async ({ target }) => {
 
 main.addEventListener('input', ({ target }) => {
   if (publicSheet) return;
+  if (target.id === 'gallery-search') {
+    gallerySearch = target.value;
+    clearTimeout(gallerySearchTimer);
+    gallerySearchTimer = setTimeout(refreshGallerySearch, 300);
+    return;
+  }
   if (target.id === 'character-search') {
     characterFilter = target.value;
     document.querySelector('#character-results').innerHTML = characterList(savedCharacters());
     return;
   }
-  if (target.dataset.spellFilter) {
-    catalogSpellFilters[target.dataset.spellFilter] = target.value;
-    catalogLimit = 24;
-    document.querySelector('#compendium-results').innerHTML = compendiumResults();
-    return;
-  }
   if (target.id === 'catalog-search') {
     catalogFilter = target.value;
-    catalogLimit = 24;
-    document.querySelector('#compendium-results').innerHTML = compendiumResults();
-    return;
-  }
-  if (target.id === 'catalog-source') {
-    catalogSource = target.value;
     catalogLimit = 24;
     document.querySelector('#compendium-results').innerHTML = compendiumResults();
     return;
@@ -2944,7 +3534,8 @@ main.addEventListener('change', ({ target }) => {
     return;
   update(target);
   renderBuilder();
-  document.getElementById(target.id)?.focus({ preventScroll: true });
+  const control = document.getElementById(target.id);
+  (control?.closest('.chip-select')?.querySelector('[aria-pressed="true"]') ?? control)?.focus({ preventScroll: true });
 });
 
 document.querySelector('#quick-search').addEventListener('submit', (event) => {

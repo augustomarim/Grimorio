@@ -13,6 +13,12 @@ interface DocumentRow {
   revision: number;
   is_public: boolean;
 }
+interface GalleryQuery {
+  page?: number;
+  search?: string;
+  classId?: string;
+  subclassId?: string;
+}
 const params = {
   type: 'object',
   required: ['id'],
@@ -45,30 +51,70 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
     if (!row) throw missing();
     return output(row);
   });
-  app.get<{ Querystring: { page?: number } }>(
+  app.get<{ Querystring: GalleryQuery }>(
     '/builder/public',
     {
       schema: {
         querystring: {
           type: 'object',
           additionalProperties: false,
-          properties: { page: { type: 'integer', minimum: 1, maximum: 100000 } },
+          properties: {
+            page: { type: 'integer', minimum: 1, maximum: 100000 },
+            search: { type: 'string', maxLength: 120 },
+            classId: { type: 'string', maxLength: 150 },
+            subclassId: { type: 'string', maxLength: 150 },
+          },
         },
       },
     },
     async (req, reply) => {
       const page = req.query.page ?? 1;
       const pageSize = 24;
-      const rows = await db
-        .prepare(
+      const { classId = '', subclassId = '', search = '' } = req.query;
+      const filtered = Boolean(classId || subclassId || search.trim());
+      const listing = db.prepare(
           `SELECT b.id, b.data->>'name' AS name, b.data->'classPlan' AS "classPlan",
                   b.data->>'class' AS class, b.data->'level' AS level,
-                  u.username AS "authorName", u.avatar AS "authorAvatar"
+                  (
+                    SELECT COALESCE(jsonb_object_agg(choice.key, choice.value), '{}'::jsonb)
+                    FROM jsonb_each(
+                      CASE WHEN jsonb_typeof(b.data->'selected') = 'object'
+                        THEN b.data->'selected' ELSE '{}'::jsonb END
+                    ) AS choice
+                    WHERE choice.key ~ '^class/[^/]+/subclass$'
+                  ) AS selected,
+                  u.username AS "authorName", u.avatar AS "authorAvatar"${filtered ? ', b.data' : ''}
            FROM builder_document b JOIN app_user u ON u.id=b.owner_id
            WHERE b.is_public=TRUE AND u.is_active=1
            ORDER BY b.updated_at DESC, b.id DESC LIMIT ? OFFSET ?`
-        )
-        .all(pageSize + 1, (page - 1) * pageSize);
+      );
+      const offset = (page - 1) * pageSize;
+      let rows;
+      if (!filtered) rows = await listing.all(pageSize + 1, offset);
+      else {
+        type SearchRow = { data: DocumentRow['data']; authorName: string };
+        const { publicGalleryMatcher } = (await import(publicationModule)) as {
+          publicGalleryMatcher(filters: { search: string; classId: string; subclassId: string }): (row: SearchRow) => boolean;
+        };
+        const matches = publicGalleryMatcher({ search: search.trim(), classId, subclassId });
+        const batchSize = 64;
+        let skipped = 0;
+        rows = [];
+        for (let start = 0; rows.length <= pageSize; start += batchSize) {
+          const batch = (await listing.all(batchSize, start)) as SearchRow[];
+          for (const row of batch) {
+            if (!matches(row)) continue;
+            if (skipped < offset) {
+              skipped++;
+              continue;
+            }
+            const { data: _data, ...summary } = row;
+            rows.push(summary);
+            if (rows.length > pageSize) break;
+          }
+          if (batch.length < batchSize) break;
+        }
+      }
       reply.header('Cache-Control', 'no-store');
       return { documents: rows.slice(0, pageSize), hasMore: rows.length > pageSize };
     }

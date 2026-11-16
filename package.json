@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace backend --",
-    "dev:site": "node --import tsx scripts/dev-site.mjs",
+    "dev:site": "node --watch --import tsx scripts/dev-site.mjs",
     "frontend:dev": "npm run dev --workspace frontend --",
     "frontend:test": "npm run test --workspace frontend --",
     "build": "npm run build --workspace backend --",

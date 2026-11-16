@@ -1,4 +1,18 @@
 :root {
+  --spell-damage-fire: light-dark(#91351d, #FF9A72);
+  --spell-damage-cold: light-dark(#245780, #90D5FF);
+  --spell-damage-lightning: light-dark(#674b02, #FAD35D);
+  --spell-damage-thunder: light-dark(#414e78, #e9edf9);
+  --spell-damage-acid: light-dark(#4c601a, #eef3d7);
+  --spell-damage-poison: light-dark(#2b5b42, #e2f0e4);
+  --spell-damage-radiant: light-dark(#715214, #f9efd5);
+  --spell-damage-necrotic: light-dark(#513666, #eee5f4);
+  --spell-damage-force: light-dark(#3e4580, #eaeafb);
+  --spell-damage-psychic: light-dark(#803956, #f7e6ee);
+  --spell-damage-bludgeoning: light-dark(#694824, #f0e4d6);
+  --spell-damage-piercing: light-dark(#375567, #deedf2);
+  --spell-damage-slashing: light-dark(#812c46, #f4dfe6);
+  --spell-damage-weapon: light-dark(#47535c, #e5ecf1);
   color-scheme: light;
   --ink: #253145;
   --muted: #586377;
@@ -169,7 +183,7 @@ body:has(.session-screen) {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
 }
 @media (min-width: 900px) {
-  .session-magic {
+  .session-magic:has(> .casting-summary + *) {
     grid-template-columns: minmax(12rem, 1fr) minmax(0, 3fr);
   }
 }
@@ -452,6 +466,484 @@ textarea {
   color: var(--muted);
   font-size: 0.85rem;
 }
+.public-gallery {
+  display: grid;
+  gap: 1rem;
+}
+.public-gallery h1 {
+  margin: 0;
+}
+.gallery-search {
+  max-width: 40rem;
+}
+.gallery-search input {
+  margin-block-end: 0.2rem;
+}
+.gallery-search small {
+  display: block;
+}
+[data-gallery-filters] .spell-filter-group:has([data-spell-filter='subclass']) .spell-filter-options {
+  max-height: 8.5rem;
+  overflow: auto;
+}
+#gallery-results .public-gallery-list {
+  margin-block: 0;
+}
+.gallery-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  padding: 1.6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--soft-surface);
+  text-align: center;
+}
+.gallery-empty :is(h2, p) {
+  margin: 0;
+}
+.gallery-empty h2 {
+  font-size: 1.2rem;
+}
+.gallery-empty .button {
+  margin-block-start: 0.2rem;
+}
+.character-list.public-gallery-list a,
+.public-sheet-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+.character-list.public-gallery-list a {
+  padding: 0.8rem 0.55rem;
+}
+.public-gallery-name {
+  display: grid;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+}
+.public-gallery-arrow {
+  grid-column: 4;
+  color: var(--accent);
+}
+.public-gallery-list .public-author,
+.public-sheet-heading .public-author {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.public-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.32rem;
+}
+.public-tags .tag {
+  white-space: normal;
+}
+.tag.public-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--article-ink, var(--muted));
+  background: color-mix(in srgb, var(--article-color, var(--muted)) 15%, var(--surface));
+}
+.public-species,
+.public-reference-tag {
+  text-decoration: none;
+}
+.public-species > .game-icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+.public-species:hover,
+.public-reference-tag:hover {
+  text-decoration: underline;
+}
+.public-sheet {
+  display: grid;
+  gap: 1rem;
+}
+.public-sheet-heading {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding-block-end: 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+.public-sheet-heading h1 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.65rem, 4vw, 2.8rem);
+  overflow-wrap: anywhere;
+}
+.public-sheet-heading .character-emblem {
+  font-size: 1.4rem;
+}
+.public-overview,
+.public-checks {
+  display: grid;
+  gap: 0.75rem;
+}
+.public-checks {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  align-items: start;
+}
+.public-attributes {
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft-surface);
+}
+.public-sheet .sheet-vitals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.25rem), 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+.public-sheet .sheet-vitals > div,
+.public-sheet .sheet-saving-throws .facts > div {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft-surface);
+}
+.public-sheet .sheet-vitals .game-icon {
+  color: var(--accent);
+}
+.public-sheet .sheet-vitals small {
+  display: block;
+}
+.public-sheet .sheet-scores,
+.public-sheet .sheet-saving-throws .facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.45rem;
+  margin: 0;
+}
+.public-sheet .sheet-scores {
+  margin: 0.45rem 0 0.75rem;
+}
+.public-sheet :is(.sheet-scores, .sheet-saving-throws .facts) > div {
+  min-width: 0;
+  padding: 0.45rem;
+  overflow-wrap: anywhere;
+  border-color: color-mix(in srgb, var(--article-color) 30%, var(--line));
+  background: color-mix(in srgb, var(--article-color) 7%, var(--surface));
+}
+.public-sheet :is(.sheet-scores, .sheet-saving-throws) [data-ability] :is(dt, .game-icon) {
+  color: var(--article-ink);
+}
+.public-sheet .sheet-saving-throws h3 {
+  margin-block-end: 0.4rem;
+}
+.public-sheet .sheet-saving-throws dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.public-sheet .sheet-saving-throws .tag {
+  background: color-mix(in srgb, var(--article-color) 15%, var(--surface));
+  color: var(--article-ink);
+}
+.public-sheet > :is(.session-reference, .session-magic, section) {
+  padding-block-start: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.public-sheet .session-reference {
+  grid-template-columns: minmax(0, 1fr);
+}
+.public-sheet .session-reference > section .facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+.public-sheet .session-reference > section .facts > div {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft-surface);
+  overflow-wrap: anywhere;
+}
+.public-sheet .session-magic:has(> .casting-summary + *) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.casting-summary {
+  display: grid;
+  min-width: 0;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft-surface);
+}
+.casting-summary :is(h3, h4, ul) {
+  margin: 0;
+}
+.casting-casters {
+  display: grid;
+  gap: 0.45rem;
+}
+.casting-caster,
+.casting-slots ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.casting-caster .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  padding: 0.25rem 0.55rem;
+}
+.casting-slots h4 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.casting-slots h4 small {
+  font-weight: 400;
+}
+.casting-slots ul {
+  list-style: none;
+  padding: 0;
+  margin-block-start: 0.35rem;
+}
+.casting-slots li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--article-color) 35%, var(--line));
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--article-color) 9%, var(--surface));
+}
+.casting-slot-label,
+.casting-circle-heading {
+  color: var(--article-ink);
+  font-weight: 700;
+}
+.casting-slot-pips {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.casting-slot-pips > span {
+  width: 0.58rem;
+  height: 0.58rem;
+  border: 1px solid var(--article-ink);
+  border-radius: 50%;
+}
+.casting-slot-pips > .available {
+  background: var(--article-ink);
+}
+.public-sheet .session-magic :is(h4, h5):not(.casting-slots h4) {
+  margin-block: 0.8rem 0.35rem;
+}
+.public-sheet :is(.session-inventory, .public-feats) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.55rem;
+}
+.public-sheet :is(.session-inventory, .public-feats) > * {
+  min-width: 0;
+  margin: 0;
+}
+.public-feats > .wiki-result,
+.public-sheet .public-spell-card {
+  border: 1px solid color-mix(in srgb, var(--article-color, var(--accent)) 30%, var(--line));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--article-color, var(--accent)) 7%, var(--surface));
+  padding: 0.65rem 0.75rem;
+  text-align: start;
+}
+.public-sheet .public-feats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+.public-feats > .wiki-result {
+  min-height: 4.7rem;
+  grid-template-columns: 2rem minmax(0, 1fr) 0.7rem;
+  grid-template-rows: auto 1fr;
+  gap: 0.55rem 0.6rem;
+}
+.public-feats .wiki-result-content {
+  display: contents;
+}
+.public-feats > .wiki-result > .game-emblem,
+.public-feats .wiki-result-content > strong {
+  grid-row: 1;
+  align-self: center;
+}
+.public-feats > .wiki-result > .game-emblem {
+  grid-column: 1;
+}
+.public-feats .wiki-result-content > strong {
+  grid-column: 2;
+}
+.public-feats > .wiki-result > :last-child {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+.public-feats .entry-tags {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  display: flex;
+  gap: 0.35rem;
+  align-self: start;
+}
+.public-feats > .wiki-result strong,
+.public-spell-card strong,
+.public-spell-heading h2 {
+  color: var(--article-ink);
+}
+.public-sheet .public-spell-card {
+  cursor: pointer;
+}
+.public-sheet :is(.public-feats > .wiki-result, .public-spell-card):is(:hover, :focus-visible) {
+  border-color: var(--article-ink, var(--accent));
+  background: color-mix(in srgb, var(--article-color, var(--accent)) 15%, var(--surface));
+}
+.public-sheet .benefits + .benefits {
+  margin-block-start: 0.85rem;
+}
+.public-feature {
+  position: relative;
+}
+.public-feature > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 1.65rem;
+  list-style: none;
+}
+.public-feature > summary::-webkit-details-marker {
+  display: none;
+}
+.public-feature > summary::before {
+  content: '›';
+}
+.public-feature[open] > summary::before {
+  rotate: 90deg;
+}
+.public-feature[open]:has(> .public-feature-link) > summary {
+  padding-inline-end: 7rem;
+  margin-block-end: 0.65rem;
+}
+.public-feature > .public-feature-link {
+  position: absolute;
+  inset-block-start: 0.45rem;
+  inset-inline-end: 0.6rem;
+}
+.public-feature-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--soft-surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.public-feature-link:is(:hover, :focus-visible) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.public-feature .entry-tags .tag {
+  margin: 0;
+}
+.public-feature .public-tag > .game-emblem:not(.spell-art) {
+  width: 1em;
+  height: 1em;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#public-spell-dialog {
+  width: min(45rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: clamp(0.8rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--surface);
+}
+#public-spell-dialog::backdrop {
+  background: #0008;
+}
+.public-spell-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.55rem;
+  padding-block-end: 0.65rem;
+  border-bottom: 1px solid var(--line);
+  margin-block-end: 0.6rem;
+}
+.public-spell-heading > .game-emblem {
+  box-sizing: border-box;
+  width: 2.6rem;
+  height: 2.6rem;
+}
+.public-spell-title-group h2 {
+  margin: 0;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.public-spell-title-group .entry-tags {
+  display: flex;
+  margin-block-start: 0.35rem;
+}
+.public-spell-links {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: 0.75rem;
+}
+@media (max-width: 900px) {
+  .public-sheet :is(.session-inventory, .public-feats) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 580px) {
+  .public-feature[open]:has(> .public-feature-link) > summary {
+    padding-inline-end: 0;
+  }
+  .public-feature > .public-feature-link {
+    display: flex;
+    width: fit-content;
+    position: static;
+    margin: 0.35rem 0 0.45rem auto;
+  }
+  .public-sheet :is(.session-inventory, .public-feats) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .character-list.public-gallery-list a,
+  .public-sheet-heading {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 0.55rem;
+    row-gap: 0.35rem;
+  }
+  .public-gallery-arrow {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .public-gallery-list .public-author,
+  .public-sheet-heading .public-author {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
 .account-avatar-upload {
   display: flex;
   flex-wrap: wrap;
@@ -700,8 +1192,25 @@ footer {
   margin: clamp(0.75rem, 7vh, 5rem) auto;
 }
 .account-intro {
+  position: relative;
   padding: clamp(1rem, 4vw, 2.5rem);
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
+}
+.account-logo {
+  display: block;
+  width: 8rem;
+  height: auto;
+  margin-block-end: 1rem;
+}
+@media (min-width: 1280px) {
+  .account-logo {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: calc(100% + 1.5rem);
+    translate: 0 -50%;
+    width: min(14rem, calc((100vw - 990px) / 2 - 3rem));
+    margin: 0;
+  }
 }
 .account-intro h2 {
   margin: 0.65rem 0;
@@ -827,7 +1336,8 @@ button.account-action {
   align-items: start;
   gap: 0.8rem;
 }
-.hub-character > .game-emblem {
+.hub-character > .game-emblem,
+.hub-character > .character-emblem > .game-emblem {
   width: clamp(1.8rem, 4vw, 3.4rem);
   height: auto;
   aspect-ratio: 1;
@@ -878,12 +1388,9 @@ button.account-action {
 .hub-scores > div {
   background: var(--soft-surface);
 }
-.hub-scores [data-ability='dex'] dt .game-icon,
-.hub-scores [data-ability='int'] dt .game-icon {
-  color: #3c7ab4;
-}
-.hub-scores [data-ability='cha'] dt .game-icon {
-  color: #955db2;
+.hub-scores [data-ability] .game-icon,
+.hub-skills [data-ability] dt {
+  color: var(--article-color);
 }
 .hub-skills dl {
   display: grid;
@@ -901,6 +1408,10 @@ button.account-action {
 .hub-proficient {
   margin-inline-end: 0.3em;
   color: var(--selected-edge);
+}
+.character-emblem {
+  display: inline-flex;
+  flex: none;
 }
 .hub-recent .character-list a {
   display: grid;
@@ -1036,7 +1547,15 @@ button.account-action {
     grid-template-columns: minmax(0, 1fr);
   }
   .account-intro {
+    border: 0;
+    padding: 0.25rem 0 0.25rem 1rem;
+  }
+  .account-intro-copy {
     display: none;
+  }
+  .account-logo {
+    max-width: 5rem;
+    margin: 0;
   }
   .hub-sidebar > .hub-nav {
     display: flex;
@@ -1611,6 +2130,26 @@ textarea {
 .entry .tag {
   margin-left: 0.35rem;
 }
+.background-feat > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  list-style: none;
+}
+.background-feat > summary::-webkit-details-marker {
+  display: none;
+}
+.background-feat > summary::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 0.28em solid transparent;
+  border-inline-start: 0.38em solid currentColor;
+}
+.background-feat[open] > summary::before {
+  rotate: 90deg;
+}
 .entry p {
   margin-top: 0.5rem;
 }
@@ -1646,6 +2185,206 @@ textarea {
 .wiki-reference > .wiki-article-header h2 {
   margin: 0;
   font: 700 clamp(1.7rem, 4vw, 2.6rem) Georgia, serif;
+}
+.wiki-article { --article-ink: var(--accent); }
+
+[data-ability='str'] { --article-color: light-dark(#B93433, #FF877E); }
+[data-ability='dex'] { --article-color: light-dark(#1A658D, #79CEFF); }
+[data-ability='con'] { --article-color: light-dark(#9D530C, #FFBA72); }
+[data-ability='int'] { --article-color: light-dark(#5147A4, #B8ACFF); }
+[data-ability='wis'] { --article-color: light-dark(#27734A, #82DBA5); }
+[data-ability='cha'] { --article-color: light-dark(#992B77, #F997DD); }
+
+[data-spell-school='Abjuration'] { --article-color: light-dark(#1F57A4, #93BAFF); }
+[data-spell-school='Conjuration'] { --article-color: light-dark(#1F745E, #82E1C2); }
+[data-spell-school='Divination'] { --article-color: light-dark(#287381, #80DAEC); }
+[data-spell-school='Enchantment'] { --article-color: light-dark(#9E2676, #F9A0E4); }
+[data-spell-school='Evocation'] { --article-color: light-dark(#A73B20, #FF9F79); }
+[data-spell-school='Illusion'] { --article-color: light-dark(#6442AC, #C3A7FF); }
+[data-spell-school='Necromancy'] { --article-color: light-dark(#653658, #E0A9CF); }
+[data-spell-school='Transmutation'] { --article-color: light-dark(#85600B, #F3CE76); }
+
+[data-feat-theme='Origin'] { --article-color: light-dark(#236B54, #82D8BA); }
+[data-feat-theme='General'] { --article-color: light-dark(#82500F, #ECC182); }
+[data-feat-theme='Fighting Style'] { --article-color: light-dark(#A13631, #FF998B); }
+[data-feat-theme='Epic Boon'] { --article-color: light-dark(#6553A9, #C6B6FF); }
+[data-feat-theme='Dark Gift'] { --article-color: light-dark(#782A67, #E99BD8); }
+[data-feat-theme='Dragonmark'] { --article-color: light-dark(#235C9A, #8DBEFF); }
+[data-feat-theme='Planar Pact'] { --article-color: light-dark(#1D6E79, #8BDBE7); }
+
+[data-tool-theme='artisan'] { --article-color: light-dark(#7B5339, #EAC2A3); }
+[data-tool-theme='gaming'] { --article-color: light-dark(#64409B, #CFB3FF); }
+[data-tool-theme='instrument'] { --article-color: light-dark(#963377, #F4A1DA); }
+[data-tool-theme='other'] { --article-color: light-dark(#256B71, #8BD6DD); }
+
+[data-language-theme='common'] { --article-color: light-dark(#236C65, #81D3C7); }
+[data-language-theme='rare'] { --article-color: light-dark(#66439D, #CCB0F7); }
+
+[data-rule-theme='Action'] { --article-color: light-dark(#235D9E, #93BDF6); }
+[data-rule-theme='Condition'] { --article-color: light-dark(#83376E, #EBA9D7); }
+[data-rule-theme='Hazard'] { --article-color: light-dark(#963A37, #F5A49B); }
+[data-rule-theme='Area of Effect'] { --article-color: light-dark(#8A570E, #F2C07A); }
+[data-rule-theme='Attitude'] { --article-color: light-dark(#20705B, #8EDCC7); }
+
+[data-class-theme='artificer'] { --article-color: light-dark(#32A9B8, #73E7ED); }
+[data-class-theme='barbarian'] { --article-color: light-dark(#B31D34, #FF6678); }
+[data-class-theme='bard'] { --article-color: light-dark(#AA237E, #FF82D5); }
+[data-class-theme='cleric'] { --article-color: light-dark(#956000, #FFC244); }
+[data-class-theme='druid'] { --article-color: light-dark(#7D9E20, #C7E86E); }
+[data-class-theme='fighter'] { --article-color: light-dark(#42546A, #B9CDE2); }
+[data-class-theme='monk'] { --article-color: light-dark(#28A56F, #76EDAD); }
+[data-class-theme='paladin'] { --article-color: light-dark(#6FBFED, #B1E5FF); }
+[data-class-theme='ranger'] { --article-color: light-dark(#087343, #4EC786); }
+[data-class-theme='rogue'] { --article-color: light-dark(#49263D, #C594B6); }
+[data-class-theme='sorcerer'] { --article-color: light-dark(#B74B0C, #FF9959); }
+[data-class-theme='warlock'] { --article-color: light-dark(#53168E, #B978F5); }
+[data-class-theme='wizard'] { --article-color: light-dark(#142E80, #6483F2); }
+
+[data-species-theme='aasimar'] { --article-color: light-dark(#D3A52C, #FCE598); }
+[data-species-theme='boggart'] { --article-color: light-dark(#888E35, #CFD88A); }
+[data-species-theme='centaur'] { --article-color: light-dark(#BA7948, #EDB98C); }
+[data-species-theme='changeling'] { --article-color: light-dark(#7880BD, #C0C7FA); }
+[data-species-theme='dhampir'] { --article-color: light-dark(#7B1228, #D64E76); }
+[data-species-theme='dragonborn'] { --article-color: light-dark(#C13E27, #FF8068); }
+[data-species-theme='dwarf'] { --article-color: light-dark(#6F361A, #BE784D); }
+[data-species-theme='elf'] { --article-color: light-dark(#27A687, #8DEBD4); }
+[data-species-theme='faerie'] { --article-color: light-dark(#DC69B0, #FFC2E7); }
+[data-species-theme='flamekin'] { --article-color: light-dark(#B34700, #FFA04C); }
+[data-species-theme='gnome'] { --article-color: light-dark(#168887, #6EDBD6); }
+[data-species-theme='goliath'] { --article-color: light-dark(#313E60, #9FAECB); }
+[data-species-theme='halfling'] { --article-color: light-dark(#ABB83A, #E2EC91); }
+[data-species-theme='hexblood'] { --article-color: light-dark(#832C80, #E49ADD); }
+[data-species-theme='human'] { --article-color: light-dark(#365FC1, #84ACFC); }
+[data-species-theme='kalashtar'] { --article-color: light-dark(#453C9C, #B4A6F5); }
+[data-species-theme='khoravar'] { --article-color: light-dark(#075B50, #56B4A1); }
+[data-species-theme='lorwyn-changeling'] { --article-color: light-dark(#5C891F, #AFD76A); }
+[data-species-theme='lupin'] { --article-color: light-dark(#6B4F45, #CDB3A2); }
+[data-species-theme='orc'] { --article-color: light-dark(#214C20, #79B96F); }
+[data-species-theme='reborn'] { --article-color: light-dark(#A78BBF, #DDC5F2); }
+[data-species-theme='rimekin'] { --article-color: light-dark(#68BBDD, #B5EAFF); }
+[data-species-theme='shifter'] { --article-color: light-dark(#AB6F87, #E9ACC6); }
+[data-species-theme='tiefling'] { --article-color: light-dark(#76204C, #CF6F9F); }
+[data-species-theme='warforged'] { --article-color: light-dark(#535C62, #A4B3BA); }
+:is([data-class-theme], [data-species-theme], [data-ability], [data-feat-theme],
+    [data-tool-theme], [data-language-theme], [data-rule-theme], [data-spell-school], [data-spell-circle]) {
+  --article-ink: light-dark(color-mix(in srgb, var(--article-color, var(--accent)) 75%, black),
+    var(--article-color, var(--accent)));
+}
+.wiki-article:is([data-class-theme], [data-species-theme]) > .wiki-article-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-inline-start: 3px solid var(--article-color);
+  background: color-mix(in srgb, var(--article-color) 12%, var(--surface));
+}
+.wiki-article:is([data-class-theme], [data-species-theme]) > .wiki-article-header h2,
+.wiki-article:is([data-class-theme], [data-species-theme]) > section > h3 {
+  color: var(--article-ink);
+}
+.wiki-article:is([data-class-theme], [data-species-theme]) .wiki-character-facts {
+  border-color: color-mix(in srgb, var(--article-color) 24%, var(--line));
+  background: color-mix(in srgb, var(--article-color) 6%, var(--surface));
+}
+.wiki-article:is([data-class-theme], [data-species-theme]) .wiki-character-facts .spell-facts > div {
+  background: color-mix(in srgb, var(--article-color) 7%, var(--surface));
+}
+.wiki-article:is([data-class-theme], [data-species-theme]) .wiki-character-facts dd {
+  color: var(--article-ink);
+}
+.wiki-banner-emblem {
+  position: absolute;
+  z-index: -1;
+  inset-block: 50% auto;
+  inset-inline-end: 1.25rem;
+  translate: 0 -50%;
+  color: var(--article-color);
+  opacity: 0.12;
+  width: clamp(5rem, 17vw, 11rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.wiki-banner-emblem .game-icon {
+  width: 100%;
+  height: 100%;
+}
+.wiki-spell-article > .wiki-article-header {
+  padding-block-end: 0.75rem;
+  border-bottom: 2px solid var(--article-ink);
+  border-image: var(--spell-spectrum, linear-gradient(var(--article-ink), var(--article-ink))) 1;
+}
+.wiki-spell-school {
+  color: var(--article-ink);
+  font-family: Georgia, serif;
+  font-style: italic;
+  margin-block-end: 0.35rem;
+}
+.wiki-spell-article > .wiki-article-header h2 {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+}
+.wiki-spell-article h2,
+[data-spell-school] .spell-source dd,
+[data-spell-school] > summary > strong,
+[data-spell-school] .spell-school-tag {
+  color: var(--article-ink);
+}
+[data-spell-school] .spell-school-tag {
+  background: color-mix(in srgb, var(--article-color, var(--accent)) 16%, var(--surface));
+}
+.wiki-spell-prose {
+  color: color-mix(in srgb, var(--ink) 78%, var(--article-ink));
+}
+@supports (background-clip: text) {
+  .wiki-spell-article h2 > span {
+    background-image: var(--spell-spectrum, linear-gradient(var(--article-ink), var(--article-ink)));
+    background-clip: text;
+    color: transparent;
+  }
+}
+.wiki-spell-article .spell-description > .spell-facts {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+.wiki-spell-article .spell-description > .spell-facts > div {
+  background: transparent;
+  padding-inline: 0;
+}
+.wiki-spell-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  padding-block: 0.9rem;
+  border-block: 1px solid var(--line);
+}
+.wiki-spell-effects dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.wiki-spell-effects dd {
+  font-weight: 650;
+}
+.wiki-spell-effects [data-effect='Cura'] dd {
+  color: var(--accent);
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+}
+[data-effect='Dano'] dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+:is(.wiki-character-intro, .wiki-spell-prose) > .rules-prose:first-child > p:first-child {
+  display: flow-root;
+  max-width: 72ch;
+  font-family: Georgia, serif;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+:is(.wiki-character-intro, .wiki-spell-prose) > .rules-prose:first-child > p:first-child::first-letter {
+  float: inline-start;
+  margin: 0.07em 0.12em 0 0;
+  color: var(--article-ink);
+  font-size: 3.5em;
+  font-weight: 700;
+  line-height: 0.84;
 }
 .wiki-character-overview {
   display: grid;
@@ -1849,6 +2588,10 @@ textarea {
   flex-wrap: wrap;
   gap: 0.35rem;
 }
+.spell-tags .tag,
+[data-effect='Dano'] dd .tag {
+  margin: 0;
+}
 .spell-original {
   color: var(--muted);
   font-size: 0.88rem;
@@ -1888,6 +2631,94 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
   gap: 0.6rem;
 }
+.spell-filter-groups {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+.spell-filter-group {
+  margin: 0;
+  padding: 0.4rem 0.55rem 0.55rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+}
+.spell-filter-group legend {
+  padding-inline: 0.25rem;
+  font-size: 0.81rem;
+  font-weight: 700;
+}
+.spell-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.spell-filter-option {
+  --filter-ink: light-dark(color-mix(in srgb, var(--article-color, var(--muted)) 72%, black),
+    var(--article-color, var(--muted)));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  min-height: 1.85rem;
+  text-align: left;
+  white-space: normal;
+  border: 1px solid transparent;
+  color: var(--filter-ink);
+  background: color-mix(in srgb, var(--article-color, var(--muted)) 14%, var(--surface));
+  font-weight: 650;
+  cursor: pointer;
+}
+.spell-filter-option:hover,
+.spell-filter-option[aria-pressed='true'] {
+  border-color: currentColor;
+}
+.spell-filter-option[aria-pressed='true'] {
+  box-shadow: inset 0 -2px currentColor;
+}
+.spell-filter-option:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.chip-select select[hidden] {
+  display: none;
+}
+.play-actions > .chip-select {
+  align-self: stretch;
+  flex: 1 1 12rem;
+}
+.combat-casting .chip-select .spell-filter-options,
+.chip-select:has(#combat-skill) .spell-filter-options {
+  max-height: 8rem;
+  overflow: auto;
+}
+.spell-filter-option[aria-pressed='true']:not(.damage-tag) {
+  background: color-mix(in srgb, var(--article-color, var(--muted)) 30%, var(--surface));
+}
+.spell-filter-option.damage-tag[aria-pressed='true'] {
+  background: color-mix(in srgb,
+    light-dark(var(--damage-ink, #444d5d), var(--damage-bg, #eef0f3)) 25%, var(--surface));
+}
+.picker-filters:has(.spell-filter-groups) {
+  max-height: 43dvh;
+  overflow: auto;
+}
+[data-spell-circle='0'] { --article-color: light-dark(#6E5586, #C8AFE2); }
+[data-spell-circle='1'] { --article-color: light-dark(#265F9B, #A1CCFA); }
+[data-spell-circle='2'] { --article-color: light-dark(#206D73, #8CDDE3); }
+[data-spell-circle='3'] { --article-color: light-dark(#317340, #9DDA9D); }
+[data-spell-circle='4'] { --article-color: light-dark(#616E12, #D8E480); }
+[data-spell-circle='5'] { --article-color: light-dark(#845A09, #EBCB71); }
+[data-spell-circle='6'] { --article-color: light-dark(#9D501E, #F9B583); }
+[data-spell-circle='7'] { --article-color: light-dark(#A03A3F, #FF9DA0); }
+[data-spell-circle='8'] { --article-color: light-dark(#923569, #FF9FCD); }
+[data-spell-circle='9'] { --article-color: light-dark(#522782, #BC91EF); }
+[data-source-color='0'] { --article-color: light-dark(#3F638E, #A8C9EF); }
+[data-source-color='1'] { --article-color: light-dark(#397347, #9DDAAE); }
+[data-source-color='2'] { --article-color: light-dark(#885C2D, #E7C097); }
+[data-source-color='3'] { --article-color: light-dark(#785294, #D3AFE9); }
+[data-source-color='4'] { --article-color: light-dark(#317777, #A0DDDA); }
+[data-source-color='5'] { --article-color: light-dark(#963F5D, #F4ACC3); }
 .picker-body {
   display: grid;
   grid-template-columns: minmax(180px, 0.75fr) minmax(0, 1.5fr);
@@ -1962,6 +2793,11 @@ textarea {
 .entry-tags {
   flex-wrap: wrap;
 }
+.tag.spell-school-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
 .game-emblem {
   box-sizing: content-box;
   width: 1.12em;
@@ -1984,6 +2820,16 @@ textarea {
   color: var(--accent);
   background: var(--accent-soft);
 }
+:is([data-class-theme], [data-species-theme], [data-ability], [data-feat-theme],
+    [data-tool-theme], [data-language-theme], [data-rule-theme], [data-spell-school]) .game-emblem:not(.spell-art) {
+  color: var(--article-ink);
+  border-color: color-mix(in srgb, var(--article-color, var(--accent)) 45%, var(--line));
+  background: color-mix(in srgb, var(--article-color, var(--accent)) 18%, var(--surface));
+}
+:is(.wiki-result, .picker-row, .picker-detail-header):is([data-class-theme], [data-species-theme]) :is(strong, h3),
+.level[data-class-theme] .level-heading {
+  color: var(--article-ink);
+}
 .picker-detail-header .spell-art,
 .wiki-article > header .spell-art {
   width: clamp(3.6rem, 8vw, 5rem);
@@ -1993,17 +2839,14 @@ textarea {
   width: 1.85rem;
   height: 1.85rem;
 }
-.damage-snowflake {
-  font-size: 1.22em;
-  line-height: 1;
-}
 .wiki-article > header .game-emblem,
 .session-header h1 .game-emblem {
   font-size: 0.8em;
 }
 .tag.damage-tag {
-  color: var(--damage-ink, #444d5d);
-  background: var(--damage-bg, #eef0f3);
+  color: light-dark(var(--damage-ink, #444d5d), var(--damage-bg, #eef0f3));
+  background: light-dark(var(--damage-bg, #eef0f3),
+    color-mix(in srgb, var(--damage-ink, #444d5d) 45%, var(--surface)));
 }
 .damage-tag[data-damage='fire'] { --damage-ink: #91351d; --damage-bg: #fae7d9; }
 .damage-tag[data-damage='cold'] { --damage-ink: #245780; --damage-bg: #e2f0fa; }
@@ -2015,6 +2858,10 @@ textarea {
 .damage-tag[data-damage='necrotic'] { --damage-ink: #513666; --damage-bg: #eee5f4; }
 .damage-tag[data-damage='force'] { --damage-ink: #3e4580; --damage-bg: #eaeafb; }
 .damage-tag[data-damage='psychic'] { --damage-ink: #803956; --damage-bg: #f7e6ee; }
+.damage-tag[data-damage='bludgeoning'] { --damage-ink: #694824; --damage-bg: #f0e4d6; }
+.damage-tag[data-damage='piercing'] { --damage-ink: #375567; --damage-bg: #deedf2; }
+.damage-tag[data-damage='slashing'] { --damage-ink: #812c46; --damage-bg: #f4dfe6; }
+.damage-tag[data-damage='weapon'] { --damage-ink: #47535c; --damage-bg: #e5ecf1; }
 .picker-detail-header h3 {
   margin-top: 0.3rem;
 }

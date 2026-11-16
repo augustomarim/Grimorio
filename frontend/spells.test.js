@@ -111,7 +111,7 @@ test('damage filters and tags agree for spells with a choice of damage types', (
   assert.deepEqual(filterSpells(options, { damage: 'cold' }), [orb]);
   assert.ok(spellTags(orb).includes('Frio'));
   assert.ok(spellTags(orb).includes('Fogo'));
-  assert.match(spellCard(orb), /data-damage="cold"[^>]*>.*❄.*Frio<\/span>/);
+  assert.match(spellCard(orb), /data-damage="cold"[^>]*>.*#snowflake.*Frio<\/span>/);
   assert.ok(!spellTags(options[2]).includes('Frio'));
 });
 

@@ -97,7 +97,7 @@ export function equippedWeaponRolls(projection, calculated) {
 
 const modifier = (score) => Math.floor((score - 10) / 2);
 const abilityId = (name) => abilities.find(([id, english]) => name === id || name === english)?.[0];
-const skillAbilities = {
+export const skillAbilities = {
   Acrobatics: 'dex',
   'Animal Handling': 'wis',
   Arcana: 'int',

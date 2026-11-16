@@ -562,7 +562,13 @@ export function plannedClasses(draft, catalog) {
     if (!classes.has(id)) classes.set(id, { entry, levels: [] });
     classes.get(id).levels.push(index + 1);
   }
-  return [...classes.values()];
+  return [...classes.values()].map(({ entry, levels }) => {
+    const id = draft.selected?.[`class/${entry.id}/subclass`]?.[0];
+    const subclass = id && levels.length >= entry.subclassLevel
+      ? catalog.subclasses.find((item) => item.id === id && item.class === entry.name)
+      : undefined;
+    return { entry, levels, subclass };
+  });
 }
 
 export function availableSpellChoices(group, spells) {
@@ -681,14 +687,7 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
   const species = catalog.byContent.get(draft.species);
   const background = catalog.byContent.get(draft.background);
   const totalLevel = classPlan(draft).length;
-  const classes = plannedClasses(draft, catalog).map(({ entry, levels }) => {
-    const id = draft.selected[`class/${entry.id}/subclass`]?.[0];
-    const subclass =
-      levels.length >= entry.subclassLevel
-        ? catalog.subclasses.find((item) => item.id === id && item.class === entry.name)
-        : undefined;
-    return { entry, levels, subclass };
-  });
+  const classes = plannedClasses(draft, catalog);
   const sections = [
     ...[species, background].filter(Boolean).map((entry) => ({ entry })),
     ...classes.flatMap((track) => [

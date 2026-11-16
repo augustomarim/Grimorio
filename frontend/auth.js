@@ -115,8 +115,11 @@ export function accountView(view) {
   };
   const [heading, description, fields, action, links] = forms[view];
   return `<div class="account-layout"><section class="account-intro">
-      <p class="eyebrow">Grimório · D&amp;D 2024</p><h2>Suas próximas aventuras começam aqui.</h2>
-      <p>Monte personagens, planeje a progressão e consulte o compêndio.</p>
+      <img class="account-logo" src="/grimorio-dado.svg" width="160" height="160" alt="">
+      <div class="account-intro-copy">
+        <p class="eyebrow">Grimório · D&amp;D 2024</p><h2>Suas próximas aventuras começam aqui.</h2>
+        <p>Monte personagens, planeje a progressão e consulte o compêndio.</p>
+      </div>
     </section>
     <section class="panel account-panel"><header><h1>${heading}</h1><p class="muted">${description}</p></header>
       <form class="account-form" id="account-form" data-view="${view}">
