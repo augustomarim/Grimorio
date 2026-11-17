@@ -1,4 +1,4 @@
-import { damageTypeLabel, spellName } from './spells.js';
+import { damageTypeLabel, spellDamageTypes, spellName } from './spells.js';
 
 export const abilities = [
   ['str', 'Strength', 'Força'],
@@ -204,6 +204,31 @@ const cantripRequirements = {
   'Eldritch Spear': 'Um truque de Bruxo que cause dano e tenha alcance de pelo menos 10 pés',
   'Repelling Blast': 'Um truque de Bruxo que cause dano com uma jogada de ataque',
 };
+const chainForms = {
+  imp: 'Diabrete', pseudodragon: 'Pseudodragão', quasit: 'Quasit', skeleton: 'Esqueleto',
+  'slaad-tadpole': 'Girino Slaad', 'sphinx-of-wonder': 'Esfinge das Maravilhas', sprite: 'Fada',
+  'venomous-snake': 'Cobra Venenosa',
+};
+const slaadTadpole = {
+  id: 'slaad-tadpole', name: 'Girino Slaad', type: 'aberration', cr: '1/8',
+  translation: { body: [
+    'Aberração Miúda, caótica e neutra.',
+    '**CA 12 · PV 7 (3d4) · Iniciativa +2.** Deslocamento 30 pés e escavação 10 pés.',
+    '| Atributo | Valor | Modificador | Resistência |\n| --- | --- | --- | --- |\n| FOR | 7 | −2 | −2 |\n| DES | 15 | +2 | +2 |\n| CON | 10 | +0 | +0 |\n| INT | 3 | −4 | −4 |\n| SAB | 5 | −3 | −3 |\n| CAR | 3 | −4 | −4 |',
+    '**Furtividade +4.** Visão no escuro 60 pés e Percepção passiva 7. Entende Slaad, mas não fala. Resiste a ácido, frio, fogo, eletricidade e trovão.',
+    '**Desafio.** 1/8 (25 XP) · Bônus de proficiência +2.',
+    '**Resistência à magia.** Tem vantagem em testes de resistência contra magias e outros efeitos mágicos.',
+    '**Mordida.** Ataque corpo a corpo +4, alcance 5 pés. Acerto: 5 (1d6 + 2) de dano perfurante.',
+  ].join('\n\n') },
+};
+
+function invocationAcceptsCantrip(invocation, spell) {
+  if (invocationCantrips[invocation].includes(spell.id)) return true;
+  if (!spellDamageTypes(spell).length) return false;
+  if (invocation === 'Eldritch Spear') return Number(/^(\d+)\s*(?:feet|foot)/i.exec(spell.range)?.[1]) >= 10;
+  if (invocation === 'Repelling Blast') return /\b(?:spell attack|attack roll)\b/i.test(spell.text);
+  return true;
+}
 const spellChoiceNames = {
   'Blessed Warrior': 'Guerreiro Abençoado',
   'Druidic Warrior': 'Guerreiro Druídico',
@@ -1579,11 +1604,11 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
           (!requires || (requires !== retired && known.has(requires)))
       );
       if (at >= 2) {
-        for (const [name, cantrips] of Object.entries(invocationCantrips)) {
+        for (const name of Object.keys(invocationCantrips)) {
           const reference = catalog.warlockInvocationList.find(({ id }) => id === name);
           for (const id of warlockCantripsByLevel.get(at) ?? []) {
-            if (!cantrips.includes(id)) continue;
             const spell = catalog.bySpell.get(id);
+            if (!spell || !invocationAcceptsCantrip(name, spell)) continue;
             const label = `${name} · ${spell.name}`;
             if (!known.has(label)) {
               options.push({
@@ -1591,9 +1616,11 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
                 id: label,
                 name: label,
                 cantripId: id,
+                invocationName: displayName(reference),
+                cantripName: spellName(spell),
                 translation: {
                   ...reference.translation,
-                  name: `${displayName(reference)} · ${displayName(catalog.bySpell.get(spell.id) ?? spell)}`,
+                  name: `${displayName(reference)} · ${spellName(spell)}`,
                 },
               });
             }
@@ -1691,6 +1718,22 @@ function projectCharacterPass(draft, catalog, priorGrants, priorFeats) {
           ...(!['Pact of the Chain', 'Gift of the Depths'].includes(option.id) ? { atWill: true } : {}),
         });
       if (option.feat) applyFeat(option.feat, childKey, child);
+      if (option.id === 'Pact of the Chain') {
+        const ordinary = catalog.creatures.filter(({ type, cr }) => type === 'beast' && String(cr) === '0');
+        const special = Object.entries(chainForms).map(([id, name]) =>
+          catalog.creatures.find((creature) => creature.id === id) ??
+          (id === slaadTadpole.id ? slaadTadpole : opt(id, name))
+        );
+        group(childKey + '/familiar', 'Forma do familiar', 1, [...special, ...ordinary].map((form) => ({
+          ...form, collection: 'creatures', familiarForm: true,
+        })), {
+          ...child, optional: true, familiarChoice: true,
+          prompt: 'Registre a forma atual do familiar. Ao conjurar Encontrar Familiar, você pode manter essa forma ou escolher outra.',
+        }, (form) => {
+          addFacts(source, [['Familiar registrado', displayName(form)]]);
+          result.selectedFeatures.push({ ...form, source });
+        });
+      }
       if (option.id === 'Pact of the Tome')
         spellChoices(
           [

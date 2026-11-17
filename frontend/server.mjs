@@ -46,6 +46,7 @@ export const files = new Map([
   ['/styles.css', ['styles.css', 'text/css']],
   ['/game-icons.svg', ['game-icons.svg', 'image/svg+xml']],
   ['/grimorio-dado.svg', ['grimorio-dado.svg', 'image/svg+xml']],
+  ['/capa.png', ['capa.png', 'image/png']],
   ['/game-icons-credits.txt', ['game-icons-credits.txt', 'text/plain']],
   ['/hub-castle.webp', ['hub-castle.webp', 'image/webp']],
   ['/hub-dragon.webp', ['hub-dragon.webp', 'image/webp']],

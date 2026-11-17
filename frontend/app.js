@@ -98,7 +98,7 @@ const diceBoard = document.querySelector('#dice-board');
 const dicePopup = document.querySelector('#dice-popup');
 const diceResults = document.querySelector('#dice-results');
 dicePopup.querySelector('button').addEventListener('click', () => dicePopup.close());
-let diceTimer;
+let diceAnimation;
 const guestKey = 'grimorio.guest';
 const accounts =
   typeof BroadcastChannel === 'function' ? new BroadcastChannel('grimorio-account') : null;
@@ -143,6 +143,7 @@ let characterFilter = '';
 let publicSheet = false;
 let publicRecord;
 let lastCast;
+let publicationFeedback;
 let gallery;
 let gallerySearch = '';
 let gallerySearchTimer;
@@ -935,8 +936,10 @@ function filterControls(groups, filters) {
           publication: `data-source-color="${(index - 1) % 6}"`,
           class: `data-class-theme="${escape(id)}"`,
           subclass: entry ? catalogTheme('subclasses', entry) : '',
+          ability: `data-ability="${escape(id)}"`,
+          skill: skillAbilities[id] ? `data-ability="${skillAbilities[id]}"` : '',
         }[key];
-        const emblem = { school: schoolEmblem, damage: damageEmblem, class: classEmblemId }[key];
+        const emblem = { school: schoolEmblem, damage: damageEmblem, class: classEmblemId, ability: (id) => abilityEmblems[id] }[key];
         const icon = entry ? gameIcon(classEmblemId(classEntry(entry.class)?.id, id))
           : id && emblem ? gameIcon(emblem(id)) : '';
         const title = id && key === 'level' ? spellCircle(Number(id)) : name;
@@ -1203,6 +1206,13 @@ function setChipValue(select, value) {
   });
 }
 
+function chooseChip(chip) {
+  const select = chip.closest('.chip-select').querySelector('select');
+  if (select.value === chip.dataset.chipValue) return;
+  setChipValue(select, chip.dataset.chipValue);
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function select(field, label, values, selected) {
   return chipSelect(field, label, [
     ['', 'Selecione…'],
@@ -1224,7 +1234,32 @@ function ruleReference(id, label) {
   }
 }
 
+function familiarDescription(entry, glossary, referenceLink) {
+  const original = entry.body ?? '';
+  const localized = entry.translation?.body;
+  const stats = rulesDescriptionParts(original || localized).find(({ columns }) => columns?.length === 4);
+  const labels = { STR: 'FOR', DEX: 'DES', CON: 'CON', INT: 'INT', WIS: 'SAB', CHA: 'CAR' };
+  const table = stats ? rulesTable(['Atributo', 'Valor', 'Modificador', 'Teste de resistência'],
+    stats.rows.map(([id, ...values]) => [labels[id] ?? id, ...values]), glossary) : '';
+  const prose = (parts) => parts.filter(({ text }) => text).map(({ text }) =>
+    text.replace(/^\*\*(Características|Ações|Ações bônus|Reações|Conjuração)\*\*\s*$/gm, '### $1')
+  ).join('\n\n');
+  const parts = rulesDescriptionParts(localized || original);
+  const tableIndex = parts.findIndex(({ columns }) => columns?.length === 4);
+  const intro = prose(parts.slice(0, Math.max(0, tableIndex)));
+  const translatedText = prose(parts.slice(Math.max(0, tableIndex + 1)));
+  const originalSections = original.match(/^\*\*/gm)?.length ?? 0;
+  const translatedSections = localized?.match(/^\*\*/gm)?.length ?? 0;
+  const language = localized ? 'pt-BR' : 'en';
+  return `<div class="familiar-stat-block">${formatRulesDescription(intro, glossary, language, referenceLink)}
+    ${table}${formatRulesDescription(translatedText, glossary, language, referenceLink)}
+    ${localized && original && translatedSections < originalSections
+      ? `<section><h4>Ficha original completa</h4>${formatRulesDescription(original, glossary, 'en', referenceLink)}</section>`
+      : localized && original ? originalDescription(entry.name, original, glossary, referenceLink) : ''}</div>`;
+}
+
 function entryDescription(entry, full = false, glossary = false, referenceLink) {
+  if (entry.familiarForm) return familiarDescription(entry, glossary, referenceLink);
   const fields = full ? ['body', 'text', 'summary'] : ['body', 'summary', 'text'];
   const field = fields.find((key) => entry[key] || entry.translation?.[key]);
   if (!field) return '';
@@ -1294,13 +1329,16 @@ function publicFeatureSource(entry) {
 }
 
 function details(entry, glossary = false, full = false) {
-  const origin = publicSheet ? publicFeatureSource(entry) : undefined;
-  return `<details class="entry${origin ? ' public-feature' : ''}"><summary><strong>${escape(displayName(entry))}</strong>
+  const inSheet = publicSheet || main.classList.contains('session-screen');
+  const origin = inSheet ? publicFeatureSource(entry) : undefined;
+  const feat = inSheet && entry.category && catalog.byFeat.get(entry.id);
+  const reference = feat ? compendiumHref('feats', feat.id) : origin?.href;
+  return `<details class="entry${origin || reference ? ' public-feature' : ''}"><summary><strong>${escape(displayName(entry))}</strong>
     <span class="entry-tags">${origin?.badge ?? ''}
     ${entry.level ? `<span class="tag">Nível ${entry.level}</span>` : ''}
     ${(entry.translation?.tags ?? []).map((tag) => `<span class="tag">${escape(tag)}</span>`).join('')}</span></summary>
-    ${origin?.href ? `<a class="public-feature-link" href="${origin.href}"
-      aria-label="Ver ${escape(entry.source)} no compêndio">Compêndio <span aria-hidden="true">›</span></a>`
+    ${reference ? `<a class="public-feature-link" href="${reference}"
+      aria-label="Ver ${escape(feat ? displayName(feat) : entry.source)} no compêndio">Compêndio <span aria-hidden="true">›</span></a>`
       : entry.source && !origin ? `<p class="muted">${escape(entry.source)}</p>` : ''}
     ${entryDescription(entry, full, glossary)}
     ${entry.options?.length ? `<div class="feature-references">${entry.options.map((option) => details(option, glossary)).join('')}</div>` : ''}
@@ -1355,7 +1393,7 @@ function pickerControl(group) {
         const spell = group.spellPicker && catalog.bySpell.get(entry.id);
         const category = optionCategory(entry);
         return spell
-          ? `<li class="icon-label">${spellIcon(spell)}${escape(spellName(spell))}</li>`
+          ? `<li class="icon-label"${spellTheme(spell)}>${spellIcon(spell)}${escape(spellName(spell))}</li>`
           : `<li class="icon-label"${catalogTheme(category, entry)}>${category ? catalogEmblem(category, entry) : ''}${escape(displayName(entry))}</li>`;
       }).join('')}</ul>`
         : ''
@@ -1363,13 +1401,92 @@ function pickerControl(group) {
   </div>`;
 }
 
+const originBoostEdits = new Map();
+
+function originBoostEditor(group) {
+  const stored = group.options.find(({ id }) => id === group.selected[0])?.increases;
+  const keys = [...new Set(group.options.flatMap(({ increases }) => Object.keys(increases ?? {})))];
+  const state = originBoostEdits.get(draft.id + '/' + group.key) ?? {
+    mode: stored ? (Object.values(stored).includes(2) ? 'split' : 'all') : '',
+    plusTwo: keys.find((id) => stored?.[id] === 2),
+    plusOne: keys.find((id) => stored?.[id] === 1),
+  };
+  const inputs = (name, values) => `<div class="builder-inline-options">${values.map(([value, label, disabled]) => {
+    const id = `boost:${group.key}:${name}:${value}`;
+    return `<label class="builder-inline-choice" for="${escape(id)}"><input type="radio"
+      id="${escape(id)}" name="${escape(group.key + '/' + name)}" data-origin-boost="${escape(group.key)}"
+      data-boost-part="${name}" value="${escape(value)}" ${state[name] === value ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      <span>${escape(label)}</span></label>`;
+  }).join('')}</div>`;
+  return `${inputs('mode', [
+    ['split', '+2 e +1', !group.options.some(({ increases }) => Object.values(increases).includes(2))],
+    ['all', '+1 em todos', !group.options.some(({ increases }) => Object.values(increases).every((n) => n === 1))],
+  ])}
+  ${state.mode === 'split' ? `<div class="builder-boost-pair">${[['plusTwo', 2], ['plusOne', 1]].map(([name, points]) =>
+    `<fieldset class="spell-filter-group"><legend>+${points}</legend>${inputs(name, keys.map((id) =>
+      [id, abilityLabel(id), !group.options.some(({ increases }) => increases[id] === points)]))}</fieldset>`
+  ).join('')}</div>` : ''}`;
+}
+
+function updateOriginBoost(target) {
+  const group = pickerGroup(target.dataset.originBoost);
+  if (!group) return;
+  const key = draft.id + '/' + group.key;
+  const stored = group.options.find(({ id }) => id === group.selected[0])?.increases ?? {};
+  const wasSplit = Object.values(stored).includes(2);
+  const state = originBoostEdits.get(key) ?? {
+    mode: 'split',
+    plusTwo: wasSplit ? Object.keys(stored).find((id) => stored[id] === 2) : undefined,
+    plusOne: wasSplit ? Object.keys(stored).find((id) => stored[id] === 1) : undefined,
+  };
+  const part = target.dataset.boostPart;
+  state[part] = target.value;
+  if (part !== 'mode' && state.plusTwo && state.plusOne &&
+      !group.options.some(({ increases }) => increases[state.plusTwo] === 2 && increases[state.plusOne] === 1)) {
+    state[part === 'plusTwo' ? 'plusOne' : 'plusTwo'] = undefined;
+  }
+  originBoostEdits.set(key, state);
+  const choice = group.options.find(({ increases }) => state.mode === 'all'
+    ? Object.values(increases).every((value) => value === 1)
+    : increases[state.plusTwo] === 2 && increases[state.plusOne] === 1);
+  draft.selected[group.key] = choice ? [choice.id] : [];
+  if (choice) originBoostEdits.delete(key);
+  persistChange();
+  renderBuilder();
+  document.getElementById(target.id)?.focus({ preventScroll: true });
+}
+
 function choiceBlock(group) {
-  return `<fieldset class="choice ${group.depth ? 'nested' : ''}">
-    <legend>${escape(group.source)}${group.section === 'progressao' ? ` · Nível de classe ${group.level}` : ''}</legend>
-    <p class="choice-count">${group.optional ? `${group.selected.length} escolhidas · opcional` : `${group.selected.length}/${group.count} escolhidas`}</p>
-    ${group.prompt ? `<p class="muted">${escape(group.prompt)}</p>` : ''}
-    ${pickerControl(group)}
-  </fieldset>`;
+  const complete = group.selected.length >= group.count;
+  const casting = group.key.endsWith('/casting-ability');
+  const languages = group.options.length && group.options.every(({ id }) => catalog.byLanguage.has(id));
+  const boosts = group.key.startsWith('background/') && group.key.endsWith('/boost');
+  const simple = casting || languages || (group.count <= 3 && group.name === 'Tamanho');
+  const lore = {
+    int: 'Estudo, fórmulas e compreensão da magia.',
+    wis: 'Intuição e percepção das forças ao redor.',
+    cha: 'Vontade e presença para dar forma à magia.',
+    con: 'Vigor e poder canalizados pelo próprio corpo.',
+  };
+  return `<section class="choice builder-choice-card ${group.depth ? 'nested' : ''}" data-builder-key="${escape(group.key)}">
+    <h3>${escape(group.name)}</h3>
+    <div class="builder-choice-meta"><small>${escape(group.source)}${group.section === 'progressao' ? ` · Nível de classe ${group.level}` : ''}</small>
+      <span class="tag" data-choice-complete="${complete}">${group.familiarChoice
+        ? group.selected.length ? 'Forma registrada' : 'Sem forma registrada'
+        : group.optional ? `${group.selected.length} · opcional` : `${group.selected.length} de ${group.count}`}</span></div>
+    ${casting ? '<p class="muted">A escolha define como você canaliza estas magias e qual atributo entra na CD e nas jogadas de ataque delas.</p>'
+      : boosts ? '<p class="muted">Escolha +2 e +1 em atributos diferentes ou +1 nos três.</p>'
+      : group.prompt ? `<p class="muted">${escape(group.prompt)}</p>` : ''}
+    ${boosts && group.options.length ? originBoostEditor(group) : simple && group.options.length ? `<div class="builder-inline-options${languages ? ' builder-language-options' : ''}">${group.options.map((entry) => {
+      const selected = group.selected.includes(entry.id);
+      const id = `inline:${group.key}:${entry.id}`;
+      return `<label class="builder-inline-choice" for="${escape(id)}"${casting ? ` data-ability="${escape(entry.id)}"` : ''}>
+        <input type="${group.count === 1 && !group.optional ? 'radio' : 'checkbox'}" name="${escape('inline:' + group.key)}" id="${escape(id)}" value="${escape(entry.id)}"
+          data-inline-choice="${escape(group.key)}" ${selected ? 'checked' : ''} ${group.count > 1 && complete && !selected ? 'disabled' : ''}>
+        <span>${casting ? gameIcon(abilityEmblems[entry.id]) : ''}${escape(displayName(entry))}
+        ${casting && lore[entry.id] ? `<small>${lore[entry.id]}</small>` : ''}</span></label>`;
+    }).join('')}</div>` : pickerControl(group)}
+  </section>`;
 }
 
 function benefits(section) {
@@ -1380,7 +1497,7 @@ function benefits(section) {
     : '';
 }
 
-function facts() {
+function facts(showTags = publicSheet) {
   const skillTags = (ids) => [...ids].map((id) =>
     `<span class="tag public-tag" data-ability="${escape(skillAbilities[id])}">${escape(skillName(id))}</span>`).join('');
   const referenceTags = (ids, entries, category) => [...ids].map((id) => {
@@ -1419,7 +1536,7 @@ function facts() {
   };
   return `<dl class="facts">${entries
     .map(({ name, value }) => {
-      const tags = publicSheet && colored(name, value);
+      const tags = showTags && colored(name, value);
       return `<div><dt>${escape(name)}</dt><dd${tags ? ' class="public-tags"' : ''}>${tags || escape(value)}</dd></div>`;
     })
     .join('')}</dl>`;
@@ -1436,11 +1553,18 @@ function origin() {
       )
     ),
   ].sort();
-  return `<h2>Origem</h2><p class="muted">Espécie, antecedente, idiomas e os benefícios de cada escolha.</p>
-    <label for="name">Nome</label><input id="name" name="name" maxlength="100" value="${escape(draft.name)}">
-    <div class="fields two">
-      ${pickerControl(pickerGroup('species'))}
-      ${pickerControl(pickerGroup('background'))}
+  const originChoices = [
+    ['species', 'species', 'Espécie', projection.species],
+    ['background', 'backgrounds', 'Antecedente', projection.background],
+  ];
+  return `<h2>Origem</h2>
+    <div class="builder-name"><label for="name">Nome do personagem</label><input id="name" name="name" maxlength="100" value="${escape(draft.name)}"></div>
+    <div class="builder-origin-grid">
+      ${originChoices.map(([field, category, label, entry]) => `<button type="button" class="navigation-row builder-origin-choice"
+        id="picker:${field}" data-picker="${field}" aria-haspopup="dialog"${entry ? catalogTheme(category, entry) : ''}>
+        ${entry ? catalogEmblem(category, entry) : gameIcon(categoryEmblems[category], 'game-emblem')}
+        <span><small>${label}</small><strong>${entry ? escape(displayName(entry)) : `Escolher ${label.toLowerCase()}`}</strong></span>
+        <span aria-hidden="true">›</span></button>`).join('')}
     </div>
     ${
       projection.background
@@ -1460,7 +1584,7 @@ function origin() {
       .filter(({ section }) => section === 'origem')
       .map(choiceBlock)
       .join('')}</div>
-    <details class="entry"><summary>Características da origem</summary>${benefits('origem')}</details>`;
+    ${projection.features.some(({ section }) => section === 'origem') ? `<details class="entry"><summary>Características da origem</summary>${benefits('origem')}</details>` : ''}`;
 }
 
 
@@ -1496,7 +1620,7 @@ function scoreControl(id, label) {
       .map(([, index]) => index);
     return chipSelect(`roll-${id}`, `Resultado para ${label}`, [
       ['', 'Sem resultado'],
-      ...batch.rolls.map(({ score }, index) => [String(index), `#${index + 1} · ${score}`, taken.includes(index)]),
+      ...batch.rolls.map(({ score }, index) => [String(index), String(score), taken.includes(index)]),
     ], { name: `roll-${id}`, value: String(batch.assignments[id] ?? '') });
   }
   return `<div class="score-manual">
@@ -1530,7 +1654,7 @@ function rollControls() {
       batch
         ? `<ol class="score-pool" aria-label="Resultados das rolagens">${batch.rolls
             .map(
-              (roll, index) => `<li><strong>#${index + 1} · ${escape(roll.score)}</strong>
+              (roll) => `<li><strong>${escape(roll.score)}</strong>
             <small>${escape(rollSummary(roll))}</small></li>`
             )
             .join('')}</ol>`
@@ -1543,33 +1667,37 @@ function attributes() {
   const issue = attributeIssue(draft);
   const scores = Object.values(draft.scores);
   const methods = [
-    ['array', 'Conjunto padrão'],
-    ['points', 'Compra por pontos'],
-    ['manual', 'Valores rolados'],
+    ['array', 'Conjunto padrão', 'Distribua seis valores prontos.', 'ability-book'],
+    ['points', 'Compra por pontos', 'Monte a distribuição com 27 pontos.', 'origin-merchant'],
+    ['manual', 'Valores rolados', 'Role os dados ou informe seus resultados.', 'feat-lucky'],
   ];
-  return `<h2>Atributos</h2><p class="muted">Distribua os valores base. Os aumentos escolhidos são somados na coluna de valor final.</p>
+  return `<h2>Atributos</h2><p class="muted">Ajuste os valores base. O valor final já inclui os aumentos da ficha.</p>
     <fieldset class="choice score-method"><legend>Método</legend><div class="score-options">
       ${methods
         .map(
-          ([id, label]) => `<label><input type="radio" name="method" id="method-${id}" value="${id}"
-        ${draft.method === id ? 'checked' : ''}><span>${label}</span></label>`
+          ([id, label, help, icon]) => `<label><input type="radio" name="method" id="method-${id}" value="${id}"
+        ${draft.method === id ? 'checked' : ''}><span><strong class="icon-label">${gameIcon(icon)}${label}</strong><small>${help}</small></span></label>`
         )
         .join('')}
     </div></fieldset>
-    ${draft.method === 'array' ? '<p class="muted">Escolha um valor em cada atributo. Use 15, 14, 13, 12, 10 e 8 uma vez cada.</p>' : ''}
+    ${draft.method === 'array' ? '<p class="muted">Escolher um valor já usado troca os dois atributos automaticamente.</p>' : ''}
     ${draft.method === 'points' ? `<p class="muted">Pontos usados <strong>${points}/${pointBudget}</strong> · Restantes <strong>${pointBudget - points}</strong></p>` : ''}
     ${issue ? `<p class="score-error" role="alert">${issue}</p>` : ''}
     ${issue && draft.method === 'array' ? '<button type="button" class="button secondary" id="reset-array" data-score-action>Restaurar conjunto padrão</button>' : ''}
+    ${draft.method !== 'manual' || draft.abilityBatch ? '<button type="button" class="button secondary icon-label" id="suggest-scores" data-score-action>Distribuir por prioridade</button>' : ''}
     ${draft.method === 'manual' ? rollControls() : ''}
     <div class="scores attribute-scores">${abilities
       .map(([id, , label]) => {
         const repeated =
           draft.method === 'array' &&
           scores.filter((value) => value === draft.scores[id]).length > 1;
-        return `<div class="${repeated ? 'score-repeated' : ''}">
-      <span class="score-label icon-label" id="score-label-${id}">${gameIcon(abilityEmblems[id])}${label}</span>
-      ${scoreControl(id, label)}
-      <small>Final <strong>${projection.scores[id]}</strong> · ${plus(modifier(projection.scores[id]))}</small></div>`;
+        return `<div data-ability="${id}" data-builder-key="score:${id}" class="${repeated ? 'score-repeated' : ''}">
+      <div class="builder-score-heading"><span class="score-label icon-label" id="score-label-${id}">${gameIcon(abilityEmblems[id])}${label}</span>
+        <span class="tag public-tag" title="Modificador final">${plus(modifier(projection.scores[id]))}</span></div>
+      <div class="builder-score-controls">
+        ${scoreControl(id, label)}
+      </div>
+      <div class="builder-score-final"><small>Valor final</small><strong class="builder-score-value">${projection.scores[id]}</strong></div></div>`;
       })
       .join('')}</div>`;
 }
@@ -1581,54 +1709,84 @@ function progression() {
   const plan = classPlan(draft);
   const requirements = progressionRequirements(draft, projection);
   const active = Math.min(progressionLevel ?? plan.length, plan.length);
-  return `<h2>Classe e níveis</h2><p class="muted">A cada nível, avance em uma classe que já tem ou escolha uma nova.</p>
-    <p><strong>Nível total ${plan.length}</strong>${projection.classes.length ? ` · ${escape(classLevels(projection.classes))}` : ''}</p>
+  const index = active - 1;
+  const current = plan[index];
+  const track = projection.classes.find(({ entry }) => entry.id === current);
+  const lastClass = classEntry(plan.at(-1));
+  const choices = groups.filter(({ characterLevel }) => characterLevel === active);
+  const spells = choices.filter(({ spellPicker }) => spellPicker);
+  const requiredSpells = spells.filter(({ optional }) => !optional);
+  const spellCount = requiredSpells.reduce((sum, { count }) => sum + count, 0);
+  const selectedSpells = requiredSpells.reduce((sum, { selected }) => sum + selected.length, 0);
+  const startingSpellGroup = requiredSpells.find(({ selected, count }) => selected.length < count) ?? spells[0];
+  const required = choices.filter(({ optional, spellPicker }) => !optional && !spellPicker);
+  const optional = choices.filter(({ optional, spellPicker, options }) => optional && !spellPicker && options.length);
+  return `<div class="progression-header">
+      <div><h2>Classe e níveis</h2><div class="entry-tags"><span class="tag">Nível total ${plan.length}</span>
+        ${projection.classes.map(({ entry, levels }) => `<span class="tag public-tag"${catalogTheme('classes', entry)}>${escape(displayName(entry))} ${levels.length}</span>`).join('')}
+      </div></div>
+      ${lastClass && plan.length < 20 && plan.every(Boolean) ? `<div class="score-actions">
+        <button type="button" class="button primary icon-label" data-advance-level>${gameIcon(classEmblemId(lastClass.id))} Subir nível em ${escape(displayName(lastClass))}</button>
+        <button type="button" class="button secondary" id="picker:class-level/${plan.length}" data-picker="class-level/${plan.length}" aria-haspopup="dialog">Avançar em outra classe</button></div>` : ''}
+    </div>
     ${requirements.length ? `<p class="score-error" role="alert">${escape(requirements.join('. '))}.</p>` : ''}
-    ${plan
-      .map((id, index) => {
-        const level = index + 1;
-        const track = projection.classes.find(({ entry }) => entry.id === id);
-        const label =
-          track && `${displayName(track.entry)} nível ${track.levels.indexOf(level) + 1}`;
-        const expanded = level === active;
-        return `<section class="level"${track ? catalogTheme('classes', track.entry) : ''}><h3><button class="button secondary level-heading icon-label" type="button" data-open-level="${level}" aria-expanded="${expanded}">${track ? catalogEmblem('classes', track.entry) : ''}Nível total ${level}${label ? ` · ${escape(label)}` : ''}</button></h3>
-      ${expanded ? `<div class="score-actions level-actions">
-      <button type="button" class="button secondary" id="picker:class-level/${index}" data-picker="class-level/${index}"
-        aria-haspopup="dialog">${id ? 'Trocar' : 'Escolher'} classe do nível ${level}</button>
-      ${plan.length < 20 && plan.every(Boolean) ? `<button type="button" class="button primary" id="picker:class-level/${plan.length}" data-picker="class-level/${plan.length}" aria-haspopup="dialog">Subir para o nível ${plan.length + 1}</button>` : ''}
-      ${level === plan.length && level > 1 ? '<button type="button" class="button secondary" data-remove-level>Remover último nível</button>' : ''}
+    <nav class="progression-levels" aria-label="Níveis do personagem">${plan.map((id, position) => {
+      const level = position + 1;
+      const cls = classEntry(id);
+      const pending = groups.filter((group) => group.characterLevel === level && projection.pending.includes(group.key)).length;
+      return `<button type="button" class="button secondary level-heading" data-open-level="${level}" aria-pressed="${level === active}"${cls ? catalogTheme('classes', cls) : ''}>
+        <strong>Nível ${level}</strong><small>${cls ? escape(displayName(cls)) : 'Escolher classe'}</small>
+        ${pending ? `<span class="tag" aria-label="${pending} pendências">${pending}</span>` : ''}
+      </button>`;
+    }).join('')}</nav>
+    <section class="level progression-level" data-builder-key="level:${active}"${track ? catalogTheme('classes', track.entry) : ''}>
+      <div class="progression-level-header"><h3 class="icon-label">${track ? catalogEmblem('classes', track.entry) : ''} Nível ${active}${track ? ` · ${escape(displayName(track.entry))} ${track.levels.indexOf(active) + 1}` : ''}</h3>
+        <div class="score-actions"><button type="button" class="button ${current ? 'secondary' : 'primary'}"
+          id="picker:class-level/${index}" data-picker="class-level/${index}" aria-haspopup="dialog">${current ? 'Trocar classe' : 'Escolher classe'}</button>
+        ${active === plan.length && active > 1 ? '<button type="button" class="button secondary" data-remove-level>Remover último nível</button>' : ''}</div>
       </div>
-      <div class="builder-choices">${groups
-        .filter((group) => group.characterLevel === level)
-        .map(choiceBlock)
-        .join('')}</div>` : ''}</section>`;
-      })
-      .join('')}
-    <details class="entry"><summary>Características de classe</summary>${benefits('progressao')}</details>`;
+      ${current === 'warlock' && choices.some(({ key }) => key.includes('/invocation/'))
+        ? '<p class="muted">A partir do 2º nível de Bruxo, escolha um truque elegível para invocações como Rajada Agonizante.</p>' : ''}
+      <div class="builder-choices">
+        ${startingSpellGroup ? `<section class="choice builder-choice-card builder-spell-choice"><h3>Magias do nível</h3>
+          <div class="builder-choice-meta"><small>${spells.length} ${spells.length === 1 ? 'lista' : 'listas'}</small>
+            ${spellCount ? `<span class="tag" data-choice-complete="${selectedSpells === spellCount}">${selectedSpells} de ${spellCount}</span>` : ''}</div>
+          <button class="button secondary icon-label" type="button" id="picker:${escape(startingSpellGroup.key)}"
+            data-picker="${escape(startingSpellGroup.key)}" data-spell-group-level="${active}" aria-haspopup="dialog">${gameIcon('class-wand')} Escolher ou revisar magias</button>
+        </section>` : ''}
+        ${required.map(choiceBlock).join('')}</div>
+      ${optional.length ? `<details class="entry"><summary>Escolhas opcionais deste nível</summary>
+        <div class="builder-choices progression-optional">${optional.map(choiceBlock).join('')}</div></details>` : ''}
+    </section>
+    ${projection.features.some(({ section }) => section === 'progressao') ? `<details class="entry"><summary>Características de classe</summary>${benefits('progressao')}</details>` : ''}`;
 }
 
 function missingChoices() {
   return characterIssues(draft, projection, catalog);
 }
 
+function sheetRollTarget(action, id, label, bonus) {
+  return `<button class="sheet-roll-target" type="button" data-play="${action}" data-check="${escape(id)}"
+    aria-label="Rolar ${escape(label)} (${plus(bonus)})"></button>`;
+}
+
 function skillPanel(skills, playable = false) {
   return `<section class="hub-skills"><h3>Perícias</h3><dl>${skills.map(({ id, name, ability, bonus, proficient, expertise, disadvantage }) =>
-    `<div data-ability="${escape(ability)}"><dt>${proficient || expertise ? `<span class="hub-proficient" title="${expertise ? 'Especialização' : 'Proficiente'}">●</span>` : ''}${escape(name)}${disadvantage ? ' <small>· Desvantagem</small>' : ''}</dt>
-    <dd>${playable ? `<button class="text-button" type="button" data-play="skill" data-check="${escape(id)}" aria-label="Rolar ${escape(name)}">${plus(bonus)}</button>` : plus(bonus)}</dd></div>`
+    `<div ${playable ? 'class="sheet-roll-card"' : ''} data-ability="${escape(ability)}"><dt>${proficient || expertise ? `<span class="hub-proficient" title="${expertise ? 'Especialização' : 'Proficiente'}">●</span>` : ''}${escape(name)}${disadvantage ? ' <small>· Desvantagem</small>' : ''}</dt>
+    <dd>${plus(bonus)}${playable ? sheetRollTarget('skill', id, name, bonus) : ''}</dd></div>`
   ).join('')}</dl></section>`;
 }
 
-function review() {
-  const pending = missingChoices();
+function review(pending = missingChoices()) {
   return `<h2>Revisão</h2>
     ${
       pending.length
         ? `<p>Há ${pending.length} escolhas pendentes.</p><ul class="pending">
-      ${pending.map(([section, label]) => `<li><a href="${link(section)}">${escape(label)}</a></li>`).join('')}</ul>`
+      ${pending.map(([section, label]) => `<li><a class="navigation-row" href="${link(section)}">${gameIcon('feat-alert', 'game-emblem')}<span>${escape(label)}</span><span aria-hidden="true">›</span></a></li>`).join('')}</ul>`
         : '<p>As escolhas disponíveis no construtor estão preenchidas.</p>'
     }
     <p class="muted">Confira também as escolhas e condições descritas no texto das habilidades.</p>
-    ${facts()}${skillPanel(deriveCharacter(draft, projection, catalog).skills)}`;
+    <div class="builder-review-grid">${facts(true)}${skillPanel(deriveCharacter(draft, projection, catalog).skills)}</div>`;
 }
 
 function rollCheck(bonus, disadvantage) {
@@ -1651,7 +1809,7 @@ function withSpellAbility(spell, calculated) {
 }
 
 function showDice(rolls) {
-  clearTimeout(diceTimer);
+  cancelAnimationFrame(diceAnimation);
   if (dicePopup.open) dicePopup.close();
   const orientations = [[0, 0], [0, -90], [-90, 0], [90, 0], [0, 90], [0, 180]];
   const renderDie = (value, sides) => {
@@ -1663,9 +1821,12 @@ function showDice(rolls) {
       </span></span>`;
   };
   diceResults.innerHTML = rolls.map(({ label, dice, bonus = 0, total, discarded }) =>
-    `<div class="dice-result">
-      <span><strong>${escape(label)}</strong> · ${dice.join(' + ')}${bonus ? ' ' + plus(bonus) : ''}${discarded ? ` · descarta ${discarded}` : ''} = <strong>${total}</strong></span>
-    </div>`
+    `<article class="dice-result">
+      <div class="dice-result-heading"><h3>${escape(label)}</h3><strong class="dice-total" aria-label="Total: ${total}">${total}</strong></div>
+      <details class="dice-calculation"><summary>Ver cálculo</summary>
+        <p>${dice.join(' + ')}${bonus ? ' ' + plus(bonus) : ''}${discarded ? ` · descarta ${discarded}` : ''} = <strong>${total}</strong></p>
+      </details>
+    </article>`
   ).join('');
   const reveal = () => {
     diceBoard.hidden = true;
@@ -1681,20 +1842,91 @@ function showDice(rolls) {
       ? [...dice.map((value) => ({ value, sides })), { value: discarded, sides, dropped: true }]
       : dice.map((value, index) => ({ value, sides, dropped: index === dice.indexOf(discarded) }))
   ).slice(0, 30);
-  const columns = Math.min(pieces.length, innerWidth < 550 ? 4 : 6);
-  const rows = Math.ceil(pieces.length / columns);
-  diceBoard.innerHTML = pieces.map(({ value, sides, dropped }, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    const x = 15 + 70 * (column + 0.5) / columns;
-    const y = 22 + 56 * (row + 0.5) / rows;
-    const fromLeft = index % 2 === 0;
-    return `<span class="board-die${dropped ? ' discarded-die' : ''}"
-      style="--x:${x}vw;--y:${y}dvh;--entry-x:${fromLeft ? -9 : 108}vw;--entry-y:${fromLeft ? 82 : 16}dvh;--drift:${fromLeft ? 5 : -5}vw;--delay:${index * 22}ms">
-      ${renderDie(value, sides)}</span>`;
-  }).join('');
+  if (!pieces.length) return reveal();
+  diceBoard.innerHTML = pieces.map(({ value, sides, dropped }) =>
+    `<span class="board-die${dropped ? ' discarded-die' : ''}">${renderDie(value, sides)}</span>`
+  ).join('');
   diceBoard.hidden = false;
-  diceTimer = setTimeout(reveal, 1130 + (pieces.length - 1) * 22);
+  const dice = [...diceBoard.children].map((element, index) => {
+    const radius = element.offsetWidth / 2;
+    const direction = index % 2 ? -1 : 1;
+    const width = diceBoard.clientWidth;
+    const height = diceBoard.clientHeight;
+    const lane = Math.floor(index / 2);
+    const lanes = Math.max(1, Math.ceil(pieces.length / 2));
+    return {
+      element, radius, angle: 0,
+      spin: direction * (480 + Math.random() * 300),
+      x: direction > 0 ? radius + 18 : width - radius - 18,
+      y: height * (0.12 + 0.76 * (lane + 0.5) / lanes),
+      vx: direction * width * (2.25 + Math.random() * 0.45),
+      vy: (height / 2 - height * (0.12 + 0.76 * (lane + 0.5) / lanes)) * 1.35 + (Math.random() - 0.5) * 220,
+    };
+  });
+  const start = performance.now();
+  let previous = start;
+  const advance = (dt, width, height) => {
+    const friction = Math.exp(-2.15 * dt);
+    for (const die of dice) {
+      die.x += die.vx * dt;
+      die.y += die.vy * dt;
+      die.vx *= friction;
+      die.vy *= friction;
+      die.angle += die.spin * dt;
+      die.spin *= friction;
+    }
+    for (const [index, a] of dice.entries()) {
+      for (let j = index + 1; j < dice.length; j++) {
+        const b = dice[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distance = Math.hypot(dx, dy);
+        const overlap = a.radius + b.radius - distance;
+        if (overlap <= 0) continue;
+        const nx = distance ? dx / distance : 1;
+        const ny = distance ? dy / distance : 0;
+        a.x -= nx * overlap / 2;
+        a.y -= ny * overlap / 2;
+        b.x += nx * overlap / 2;
+        b.y += ny * overlap / 2;
+        const speed = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+        if (speed >= 0) continue;
+        const impulse = -0.78 * speed;
+        a.vx -= impulse * nx;
+        a.vy -= impulse * ny;
+        b.vx += impulse * nx;
+        b.vy += impulse * ny;
+        a.spin += impulse * ny * 0.5;
+        b.spin -= impulse * ny * 0.5;
+      }
+    }
+    for (const die of dice) {
+      for (const [position, velocity, size] of [['x', 'vx', width], ['y', 'vy', height]]) {
+        const edge = die.radius + 14;
+        if (die[position] < edge) {
+          die[position] = edge;
+          die[velocity] = Math.abs(die[velocity]) * 0.72;
+        } else if (die[position] > size - edge) {
+          die[position] = size - edge;
+          die[velocity] = -Math.abs(die[velocity]) * 0.72;
+        }
+      }
+    }
+  };
+  const frame = (now) => {
+    const dt = Math.min(0.022, (now - previous) / 1000);
+    previous = now;
+    const width = diceBoard.clientWidth;
+    const height = diceBoard.clientHeight;
+    advance(dt / 2, width, height);
+    advance(dt / 2, width, height);
+    for (const die of dice) {
+      die.element.style.transform = `translate3d(${die.x - die.radius}px, ${die.y - die.radius}px, 0) rotate(${die.angle}deg)`;
+    }
+    if (now - start < 1850) diceAnimation = requestAnimationFrame(frame);
+    else reveal();
+  };
+  diceAnimation = requestAnimationFrame(frame);
 }
 
 function playPanel(calculated) {
@@ -1776,8 +2008,8 @@ function spellPlayActions(spell, index, resources) {
     : spell.level;
   const rolls = spellRolls(spell, classPlan(draft).length, level);
   return `<div class="play-actions spell-actions" data-spell-index="${index}">
-    ${options.length ? `${chipSelect('', 'Conjurar com', options.map(({ key, label }) => [key, label]), { play: true })}
-    <button type="button" class="button primary" data-play="cast">Conjurar</button>` : `<span class="muted">${resources.armorUntrained ? 'A armadura sem treinamento impede a conjuração.' : 'Sem conjuração disponível.'}</span>`}
+    ${options.length ? `<div class="spell-cast-row">${chipSelect('', 'Conjurar com', options.map(({ key, label }) => [key, label]), { play: true })}
+    <button type="button" class="button primary" data-play="cast">Conjurar</button></div>` : `<span class="muted">${resources.armorUntrained ? 'A armadura sem treinamento impede a conjuração.' : 'Sem conjuração disponível.'}</span>`}
     ${rolls.map(({ label, type }, i) => `<button type="button" class="button secondary" data-play="spell-roll" data-roll-index="${i}">
       Rolar ${escape(label.toLowerCase())}${type ? ` · ${escape(type)}` : ''}</button>`).join('')}
   </div>`;
@@ -1839,12 +2071,17 @@ function inventoryView(editable, playable = false) {
     ? rows
         .map(
           (row) =>
-            `<article class="inventory-item">
+            `<article class="inventory-item${playable ? ' sheet-inventory-item' : ''}">
     ${(editable || playable) && equipmentSlot(row) ? `<button class="button secondary inventory-equip" type="button"
       data-equip-item="${escape(row.id)}" aria-label="${row.equipped ? 'Desequipar' : 'Equipar'} ${escape(row.name)}">${row.equipped ? 'Desequipar' : 'Equipar'}</button>` : ''}
-    <details class="entry"><summary>${escape(row.quantity)}× ${escape(row.name)}
-    ${row.base ? ' · ' + escape(displayName(row.base)) : ''}
-    ${row.equipped ? ' · equipado' : ''}${row.attuned ? ' · sintonizado' : ''}</summary>
+    <details class="entry"><summary>${playable ? `<strong class="icon-label">${catalogEmblem('items', row.item ?? { id: '' })}${escape(row.name)}</strong>
+      <span class="entry-tags"><span class="tag">${escape(row.quantity)}×</span>
+      ${row.base ? `<span class="tag">${escape(displayName(row.base))}</span>` : ''}
+      ${row.equipped ? '<span class="tag inventory-status">Equipado</span>' : ''}
+      ${row.attuned ? '<span class="tag inventory-status">Sintonizado</span>' : ''}</span>`
+      : `${escape(row.quantity)}× ${escape(row.name)}
+        ${row.base ? ' · ' + escape(displayName(row.base)) : ''}
+        ${row.equipped ? ' · equipado' : ''}${row.attuned ? ' · sintonizado' : ''}`}</summary>
     ${row.item ? optionDetails(row.item) : ''}
     ${
       editable
@@ -1880,18 +2117,19 @@ function equipment() {
     <div class="session-inventory">${inventoryView(true)}</div>`;
 }
 
-function publicSpellCard(spell, index) {
-  return `<button class="navigation-row wiki-result public-spell-card" type="button" data-public-spell="${index}"
+function sheetSpellCard(spell, index) {
+  return `<button class="navigation-row wiki-result public-spell-card" type="button" data-sheet-spell="${index}"
     aria-haspopup="dialog"${spellTheme(spell)}>${spellIcon(spell)}
     <span class="wiki-result-content"><strong>${escape(spellName(spell))}</strong>
       <span class="entry-tags">${spellTagMarkup(spell)}</span>
     </span><span aria-hidden="true">›</span></button>`;
 }
 
-function openPublicSpell(index) {
+function openSheetSpell(index) {
   const spell = projection.spells[index];
   if (!spell) return;
-  const ready = withSpellAbility(spell, deriveCharacter(draft, projection, catalog));
+  const calculated = deriveCharacter(draft, projection, catalog);
+  const ready = withSpellAbility(spell, calculated);
   publicSpellDialog.innerHTML = `<section${spellTheme(ready)}>
     <header class="public-spell-heading">
       ${spellIcon(ready)}
@@ -1902,8 +2140,9 @@ function openPublicSpell(index) {
       <form method="dialog"><button class="public-feature-link" autofocus>Fechar</button></form>
     </header>
     ${ready.grantedBy ? `<p class="muted">Concedida por ${escape(ready.grantedBy)}</p>` : ''}
+    ${publicSheet ? '' : `<div class="sheet-spell-controls">${spellPlayActions(ready, index, playResources(draft, calculated))}</div>`}
     ${spellDescription(ready)}
-    <div class="public-spell-links"><a class="public-feature-link" href="${compendiumHref('magias', ready.id)}">Ver no compêndio <span aria-hidden="true">›</span></a></div>
+    ${publicSheet ? `<div class="public-spell-links"><a class="public-feature-link" href="${compendiumHref('magias', ready.id)}">Ver no compêndio <span aria-hidden="true">›</span></a></div>` : ''}
   </section>`;
   publicSpellDialog.showModal();
 }
@@ -1914,10 +2153,8 @@ function sheet() {
   const resources = playable && playResources(draft, calculated);
   const scores = abilities
     .map(
-      ([id, , name]) => `<div data-ability="${id}"><dt class="icon-label">${gameIcon(abilityEmblems[id])}${name}</dt><dd>${projection.scores[id]}
-    <small>${playable
-      ? `<button class="text-button" type="button" data-play="ability" data-check="${id}" aria-label="Rolar teste de ${name}">${plus(calculated.modifiers[id])}</button>`
-      : plus(calculated.modifiers[id])}</small></dd></div>`
+      ([id, , name]) => `<div ${playable ? 'class="sheet-roll-card"' : ''} data-ability="${id}"><dt class="icon-label">${gameIcon(abilityEmblems[id])}${name}</dt><dd>${projection.scores[id]}
+    <small>${plus(calculated.modifiers[id])}</small>${playable ? sheetRollTarget('ability', id, `teste de ${name}`, calculated.modifiers[id]) : ''}</dd></div>`
     )
     .join('');
   const choices = projection.groups.filter(({ selected }) => selected.length);
@@ -1932,7 +2169,7 @@ function sheet() {
     ['Percepção passiva', calculated.passivePerception, 'divination'],
     ['Proficiência', plus(calculated.proficiency), 'feat-skilled'],
     ['Dados de Vida', calculated.hitDice.join(' + '), 'ability-heart'],
-  ].map(([label, value, icon, note]) => `<div><dt class="icon-label">${publicSheet ? gameIcon(icon) : ''}${label}</dt>
+  ].map(([label, value, icon, note]) => `<div><dt class="icon-label">${gameIcon(icon)}${label}</dt>
     <dd>${escape(value)}${note ? `<small>${escape(note)}</small>` : ''}</dd></div>`).join('')}</dl>`;
   const defenses = [
     ['Resistências a dano', calculated.resistances],
@@ -1942,29 +2179,25 @@ function sheet() {
     `<div><dt>${label}</dt><dd class="public-tags">${types.map((type) => damageTag(type, damageTypeLabel(type))).join('')}</dd></div>`
   ).join('')}</dl>` : '';
   const saves = `<section class="sheet-saving-throws"><h3>Testes de resistência</h3><dl class="facts">${calculated.savingThrows.map(
-    ({ id, name, bonus, proficient }) => `<div data-ability="${id}"><dt>${name}</dt><dd>${playable
-      ? `<button class="text-button" type="button" data-play="save" data-check="${id}" aria-label="Rolar resistência de ${name}">${plus(bonus)}</button>`
-      : plus(bonus)}${proficient ? '<small class="tag">Proficiente</small>' : ''}</dd></div>`
+    ({ id, name, bonus, proficient }) => `<div ${playable ? 'class="sheet-roll-card"' : ''} data-ability="${id}"><dt>${name}</dt><dd>
+      ${plus(bonus)}${proficient ? '<small class="tag">Proficiente</small>' : ''}${playable ? sheetRollTarget('save', id, `resistência de ${name}`, bonus) : ''}</dd></div>`
   ).join('')}</dl></section>`;
-  const overview = publicSheet
-    ? `<div class="public-overview">${vitals}${damageDefenses}
+  const overview = `<div class="public-overview">${vitals}${damageDefenses}
       <div class="public-checks"><section class="public-attributes"><h3>Atributos</h3>
-        <dl class="scores sheet-scores">${scores}</dl>${saves}</section>${skillPanel(calculated.skills)}</div>
-    </div>`
-    : `<div class="session-checks"><section><dl class="scores sheet-scores">${scores}</dl>
-      ${vitals}${damageDefenses}${saves}</section>${skillPanel(calculated.skills, playable)}</div>`;
+        <dl class="scores sheet-scores">${scores}</dl>${saves}</section>${skillPanel(calculated.skills, playable)}</div>
+    </div>`;
   return `
     ${playable ? panel('combate', `
       <div class="session-combat-stats">
-        <span>CA <strong>${calculated.armorClass}</strong></span>
-        <span>Iniciativa <strong>${plus(calculated.initiative)}</strong></span>
-        <span>Deslocamento <strong>${calculated.speed} pés</strong></span>
-        <span>Percepção passiva <strong>${calculated.passivePerception}</strong></span>
+        <span class="icon-label">${gameIcon('shield')} CA <strong>${calculated.armorClass}</strong></span>
+        <span class="icon-label">${gameIcon('feat-alert')} Iniciativa <strong>${plus(calculated.initiative)}</strong></span>
+        <span class="icon-label">${gameIcon('ability-boot')} Deslocamento <strong>${calculated.speed} pés</strong></span>
+        <span class="icon-label">${gameIcon('divination')} Percepção passiva <strong>${calculated.passivePerception}</strong></span>
       </div>
       ${playPanel(calculated)}
     `) : ''}
     ${panel('testes', overview)}
-    ${panel('habilidades', `<div class="session-reference"><section>${facts()}</section><div>
+    ${panel('habilidades', `<div class="session-reference"><section>${facts(true)}</section><div>
     ${benefits()}
     ${projection.feats.length ? `<section class="benefits"><h3>Talentos</h3>${publicSheet
       ? `<div class="public-feats">${projection.feats.map((entry) => {
@@ -1993,17 +2226,11 @@ function sheet() {
                   (spell.preparation ?? (spell.level === 0 ? 'cantrip' : 'always')) === mode
               );
               if (!spells.length) return '';
-              if (publicSheet) {
-                const levels = [...new Set(spells.map(({ spell }) => spell.level))].sort((a, b) => a - b);
-                return `<h4${mode === 'cantrip' ? ' class="casting-circle-heading" data-spell-circle="0"' : ''}>${title}</h4>
+              const levels = [...new Set(spells.map(({ spell }) => spell.level))].sort((a, b) => a - b);
+              return `<h4${mode === 'cantrip' ? ' class="casting-circle-heading" data-spell-circle="0"' : ''}>${title}</h4>
                   ${levels.map((level) => `${mode === 'cantrip' ? '' : `<h5 class="casting-circle-heading" data-spell-circle="${level}">${spellCircle(level)}</h5>`}
                     <div class="session-inventory">${spells.filter(({ spell }) => spell.level === level)
-                      .map(({ spell, index }) => publicSpellCard(spell, index)).join('')}</div>`).join('')}`;
-              }
-              return `<h4${mode === 'cantrip' ? ' class="casting-circle-heading" data-spell-circle="0"' : ''}>${title}</h4><div class="session-inventory">${spells.map(({ spell, index }) => {
-                    const ready = withSpellAbility(spell, calculated);
-                    return spellCard(ready, playable ? spellPlayActions(ready, index, resources) : '');
-                  }).join('')}</div>`;
+                      .map(({ spell, index }) => sheetSpellCard(spell, index)).join('')}</div>`).join('')}`;
             })
             .join('')}</section>`
         : '<p class="muted">Nenhuma magia registrada.</p>'
@@ -2022,19 +2249,26 @@ function sheet() {
       !publicSheet && user
         ? `<section><h3>Compartilhamento</h3>
       <p>${draft.cloudPublic ? `<a href="#publica/${draft.id}" target="_blank" rel="noopener">Abrir link público</a>` : 'Acesso restrito à sua conta'}</p>
-      <button type="button" class="button secondary" data-publish>${draft.cloudPublic ? 'Tornar privada' : 'Publicar ficha'}</button>
     </section>`
-        : ''
+        : !publicSheet ? '<section><h3>Compartilhamento</h3><p>Entre na sua conta para publicar fichas salvas nela.</p></section>' : ''
     }
     ${!publicSheet && characterSync?.conflicts.has(draft.id) ? '<p>Esta edição conflita com outra versão da conta.</p><button type="button" class="button secondary" data-copy-conflict>Salvar esta edição como nova ficha</button><button type="button" class="button secondary" data-reload-character>Usar versão da conta</button>' : ''}</div></div>`) }`;
 }
 
 function sessionSheet() {
   projection = projectCharacter(draft, catalog);
+  const feedback = publicationFeedback?.id === draft.id ? publicationFeedback : undefined;
   return `<header class="session-header">
-    <div><h1 class="icon-label">${characterEmblem(projection.classes)}${escape(title(draft))}</h1><p class="muted">${escape(classLevels(projection.classes))}</p></div>
+    <div><h1 class="icon-label">${characterEmblem(projection.classes)}${escape(title(draft))}</h1>
+      ${publicCharacterTags(projection.classes, classPlan(draft).length, projection.species)}
+    </div>
     <div class="hub-actions"><a class="button secondary" href="#personagens">Meus personagens</a>
-      <a class="button secondary" href="${link('origem')}">Editar ficha</a></div>
+      <a class="button secondary" href="${link('origem')}">Editar ficha</a>
+      ${user ? `<button type="button" class="button ${draft.cloudPublic ? 'secondary' : 'primary'}" data-publish>${draft.cloudPublic ? 'Tornar privada' : 'Publicar ficha'}</button>` : ''}
+      ${draft.cloudPublic && user ? `<a class="button secondary" href="#publica/${escape(draft.id)}">Ver ficha pública</a>` : ''}</div>
+    ${feedback ? `<div class="publication-feedback" role="${feedback.error ? 'alert' : 'status'}">
+      ${escape(feedback.message)} ${feedback.review ? `<a href="${link('revisao')}">Abrir revisão</a>` : ''}
+    </div>` : ''}
   </header>
   <nav class="session-tabs" aria-label="Seções da ficha">
     ${sheetTabs.map(([id, label]) => `<button class="button secondary" type="button"
@@ -2045,64 +2279,106 @@ function sessionSheet() {
 
 function builder() {
   projection = projectCharacter(draft, catalog);
+  const pending = missingChoices();
   const contents = {
     origem: origin,
     atributos: attributes,
     progressao: progression,
     equipamento: equipment,
     historia: narrative,
-    revisao: review,
+    revisao: () => review(pending),
   };
   const stepIndex = steps.findIndex(([id]) => id === step);
   const previous = steps[stepIndex - 1]?.[0];
   const next = steps[stepIndex + 1]?.[0];
-  const summary = [
-    ['Espécie', projection.species && displayName(projection.species)],
-    ['Antecedente', projection.background && displayName(projection.background)],
-    ['Classes', classLevels(projection.classes)],
-    [
-      'Subclasses',
-      projection.classes
-        .flatMap(({ subclass }) => (subclass ? [displayName(subclass)] : []))
-        .join(' · '),
-    ],
-  ];
-  return `<a class="back" href="#inicio">← Meus personagens</a>
-    <header class="builder-header"><p class="eyebrow">Construtor de personagem</p><h1>${escape(title(draft))}</h1>
-      <p class="muted">Nível total ${classPlan(draft).length} · ${draft.saved ? 'Ficha salva' : 'Rascunho'}</p>
-      ${draft.saved ? `<a class="button secondary" href="${sheetLink(draft.id)}" target="_blank" rel="noopener">Abrir ficha de jogo</a>` : ''}</header>
+  const stepIcons = ['origin-traveler', 'ability-heart', 'paladin', 'shield', 'origin-scribe', 'ability-book'];
+  return `<header class="builder-header">
+      <a class="back" href="#personagens">← Meus personagens</a>
+      <div class="builder-identity">${characterEmblem(projection.classes)}
+        <div><h1>${escape(title(draft))}</h1><div class="entry-tags">
+          <span class="tag">Nível total ${classPlan(draft).length}</span>
+          <span class="tag">${draft.saved ? 'Ficha salva' : 'Rascunho'}</span>
+        </div></div>
+        ${draft.saved ? `<a class="button secondary icon-label" href="${sheetLink(draft.id)}" target="_blank" rel="noopener">${gameIcon('ability-book')} Abrir ficha de jogo</a>` : ''}
+      </div>
+    </header>
+    <nav class="panel steps" aria-label="Etapas do personagem">${steps.map(([id, label], index) => {
+      const count = pending.filter(([section]) => section === id).length;
+      return `<a href="${link(id)}" ${id === step ? 'aria-current="step"' : ''}>
+        ${gameIcon(stepIcons[index], 'game-emblem')}<strong>${label}</strong>
+        ${count ? `<small class="tag" aria-label="${count} pendências">${count}</small>` : ''}
+      </a>`;
+    }).join('')}</nav>
     <div class="layout">
-      <nav class="panel steps" aria-label="Etapas do personagem">${steps
-        .map(
-          ([id, label], index) =>
-            `<a href="${link(id)}" ${id === step ? 'aria-current="step"' : ''}><span>${index + 1}</span> ${label}</a>`
-        )
-        .join('')}</nav>
       <form class="panel workspace" id="builder-form">
         <div class="builder-controls">
-          ${previous ? `<a class="button secondary" href="${link(previous)}">Voltar</a>` : ''}
+          ${previous ? `<a class="button secondary" href="${link(previous)}">← ${steps[stepIndex - 1][1]}</a>` : ''}
           ${next
-          ? `<a class="button primary continue" href="${link(next)}">Continuar</a>`
-          : `<button type="submit" class="button primary" ${missingChoices().length ? 'disabled' : ''}>Salvar ficha</button>`}</div>
-        <div class="builder-fields" tabindex="0" aria-label="Escolhas da etapa">${contents[step]()}</div>
+          ? `<a class="button primary continue" href="${link(next)}">${steps[stepIndex + 1][1]} →</a>`
+          : `<button type="submit" class="button primary" ${pending.length ? 'disabled' : ''}>Salvar ficha</button>`}</div>
+        <div class="builder-fields" data-builder-step="${step}" tabindex="0" aria-label="Escolhas da etapa">${contents[step]()}</div>
       </form>
       <aside class="panel summary"><h2>Resumo</h2>
-        <dl class="facts">${summary.map(([name, value]) => `<div><dt>${name}</dt><dd>${value ? escape(value) : '—'}</dd></div>`).join('')}</dl>
-        <p class="muted">${missingChoices().length} escolhas pendentes</p>
+        <dl class="facts builder-summary-facts">
+          ${[
+            ['Espécie', 'species', projection.species],
+            ['Antecedente', 'backgrounds', projection.background],
+          ].map(([label, category, entry]) => `<div><dt>${label}</dt><dd>${entry
+            ? `<span class="tag public-tag"${catalogTheme(category, entry)}>${catalogEmblem(category, entry)}${escape(displayName(entry))}</span>`
+            : 'A escolher'}</dd></div>`).join('')}
+          <div><dt>Classes</dt><dd>${projection.classes.length ? publicCharacterTags(projection.classes, classPlan(draft).length) : 'A escolher'}</dd></div>
+        </dl>
+        <a class="navigation-row builder-review-link" href="${link('revisao')}">
+          ${gameIcon(pending.length ? 'feat-alert' : 'ability-book', 'game-emblem')}
+          <span>${pending.length ? `${pending.length} ${pending.length === 1 ? 'escolha pendente' : 'escolhas pendentes'}` : 'Revisar ficha'}</span>
+          <span aria-hidden="true">›</span>
+        </a>
       </aside>
     </div>`;
 }
 
+function builderNodeKey(node) {
+  return node.nodeType === Node.ELEMENT_NODE ? node.id || node.getAttribute('data-builder-key') : null;
+}
+
+function patchBuilderChildren(parent, nextParent) {
+  let current = parent.firstChild;
+  for (const next of nextParent.childNodes) {
+    const key = builderNodeKey(next);
+    const matches = (node) => node?.nodeName === next.nodeName && builderNodeKey(node) === key;
+    let matching = current;
+    while (matching && !matches(matching)) matching = matching.nextSibling;
+    if (!matching) {
+      parent.insertBefore(next.cloneNode(true), current);
+      continue;
+    }
+    if (matching !== current) parent.insertBefore(matching, current);
+    if (matching.nodeType === Node.ELEMENT_NODE) {
+      for (const { name } of [...matching.attributes]) {
+        if (name === 'open' && matching.localName === 'details') continue;
+        if (!next.hasAttribute(name)) matching.removeAttribute(name);
+      }
+      for (const { name, value } of next.attributes) {
+        if (matching.getAttribute(name) !== value) matching.setAttribute(name, value);
+      }
+      patchBuilderChildren(matching, next);
+      if (matching instanceof HTMLInputElement && matching.checked !== next.checked) matching.checked = next.checked;
+      if ((matching instanceof HTMLInputElement || matching instanceof HTMLSelectElement ||
+          matching instanceof HTMLTextAreaElement) && matching.value !== next.value) matching.value = next.value;
+    } else if (matching.nodeValue !== next.nodeValue) matching.nodeValue = next.nodeValue;
+    current = matching.nextSibling;
+  }
+  while (current) {
+    const child = current;
+    current = child.nextSibling;
+    child.remove();
+  }
+}
+
 function renderBuilder() {
-  const fields = main.querySelector('.builder-fields');
-  const scroll = fields?.scrollTop ?? 0;
-  const open = [...(fields?.querySelectorAll('details') ?? [])].map((element) => element.open);
-  main.innerHTML = builder();
-  const next = main.querySelector('.builder-fields');
-  next.querySelectorAll('details').forEach((element, index) => {
-    element.open = open[index] ?? false;
-  });
-  next.scrollTop = scroll;
+  const next = document.createElement('template');
+  next.innerHTML = builder();
+  patchBuilderChildren(main, next.content);
 }
 
 function setUser(nextUser) {
@@ -2236,6 +2512,10 @@ main.addEventListener('drop', (event) => {
   void previewAvatar(input);
 });
 main.addEventListener('change', ({ target }) => {
+  if (target.dataset.originBoost && !publicSheet) {
+    updateOriginBoost(target);
+    return;
+  }
   if (target.id === 'profile-avatar') void previewAvatar(target);
   if (target.matches('.account-avatar-remove input')) {
     const input = target.form.elements.avatar;
@@ -2613,7 +2893,13 @@ function update(field) {
     draft.featureNotes ??= {};
     draft.featureNotes[field.dataset.feature] = field.value;
   } else if (name.startsWith('score-')) {
-    draft.scores[name.slice(6)] = Number(field.value);
+    const id = name.slice(6);
+    const value = Number(field.value);
+    if (draft.method === 'array') {
+      const occupied = abilities.find(([other]) => other !== id && draft.scores[other] === value)?.[0];
+      if (occupied) draft.scores[occupied] = draft.scores[id];
+    }
+    draft.scores[id] = value;
   } else if (name.startsWith('roll-')) {
     const { rolls, assignments } = draft.abilityBatch;
     const id = name.slice(5);
@@ -2648,6 +2934,20 @@ function changeScores(button) {
     draft.scores[adjustScore] += delta;
     if (!canAdjustScore(draft.scores, adjustScore, delta))
       focusId = `score-${adjustScore}-${-delta}`;
+  } else if (button.id === 'suggest-scores') {
+    const primary = projection.classes[0]?.entry.primaryAbility ?? [];
+    const order = [...new Set([
+      ...primary.map((name) => abilities.find(([, english]) => english === name)?.[0]).filter(Boolean),
+      ...(primary.length ? ['con'] : []),
+      ...abilities.map(([id]) => id),
+    ])];
+    if (draft.abilityBatch) {
+      const ordered = draft.abilityBatch.rolls.map(({ score }, index) => ({ score, index }))
+        .sort((a, b) => b.score - a.score);
+      draft.abilityBatch.assignments = Object.fromEntries(order.map((id, index) => [id, ordered[index].index]));
+    } else {
+      draft.scores = Object.fromEntries(order.map((id, index) => [id, Object.values(standardScores)[index]]));
+    }
   } else if (button.id === 'reset-array') {
     draft.scores = { ...standardScores };
     focusId = 'score-str-15';
@@ -2785,6 +3085,7 @@ function playAction(button) {
     const key = controls.querySelector('select')?.value;
     const option = spellCastingOptions(spell, resources, play).find((item) => item.key === key);
     if (!option) return;
+    if (publicSpellDialog.contains(button)) publicSpellDialog.close();
     level = option.level;
     lastCast = { character: draft.id, index, spellId: spell.id, level };
     const slot = resources.slots.some((item) => item.key === key);
@@ -2798,6 +3099,7 @@ function playAction(button) {
   const rolls = spellRolls(spell, classPlan(draft).length, level);
   const roll = rolls[action === 'cast' ? 0 : Number(button.dataset.rollIndex)];
   if (roll) {
+    if (publicSpellDialog.contains(button) && publicSpellDialog.open) publicSpellDialog.close();
     const label = `${spellName(spell)} · ${roll.label}${roll.type ? ' · ' + roll.type : ''}`;
     showDice(Array.from({ length: roll.repeat ?? 1 }, (_, i) => ({
       ...rollDice(roll.count, roll.sides, roll.bonus),
@@ -2805,6 +3107,14 @@ function playAction(button) {
     })));
   } else if (action === 'cast') showNotice(`${spellName(spell)} conjurada.`);
 }
+
+publicSpellDialog.addEventListener('click', ({ target }) => {
+  if (publicSheet) return;
+  const chip = target.closest('[data-chip-value]');
+  if (chip) chooseChip(chip);
+  const action = target.closest('button[data-play]');
+  if (action) playAction(action);
+});
 
 function pickerGroup(key = picker?.key) {
   if (key === 'inventory-add')
@@ -3037,6 +3347,9 @@ function optionDetails(option, wiki = false, characterArticle = false) {
               : name;
           })
           .join(', ') ||
+          entry.featChoices?.map(({ pick, category }) =>
+            `Escolha ${pick} ${pick === 1 ? 'talento' : 'talentos'}${category && featCategories[category] ? ` · ${featCategories[category]}` : ''}`
+          ).join(' / ') ||
           entry.feat),
     ],
     ['Origem', entry.origin],
@@ -3110,6 +3423,13 @@ function drawPicker() {
     choiceDialog.close();
     return;
   }
+  const tabs = choiceDialog.querySelector('[data-picker-spell-groups]');
+  if (tabs) {
+    tabs.innerHTML = projection.groups.filter((entry) =>
+      entry.spellPicker && entry.characterLevel === picker.spellGroupLevel
+    ).map((entry) => `<button class="tag spell-filter-option" type="button" data-picker-spell-tab="${escape(entry.key)}"
+      aria-pressed="${entry.key === picker.key}">${escape(entry.name)} · ${entry.selected.length}/${entry.count}</button>`).join('');
+  }
   const search = choiceDialog.querySelector('#picker-search').value;
   const query = normalizeSearch(search.trim());
   const name = group.spellPicker ? spellName : displayName;
@@ -3129,65 +3449,101 @@ function drawPicker() {
         search,
         ...picker.spellFilters,
       }).sort((a, b) => a.level - b.level || name(a).localeCompare(name(b), 'pt-BR'))
-    : group.options.filter((entry) =>
-        normalizeSearch([name(entry), entry.name, ...tags(entry)].join(' ')).includes(query)
-      );
+    : group.options.filter((entry) => {
+        const attributes = group.field === 'background' ? entry.abilityScores ?? [] : [];
+        const skills = group.field === 'background' ? entry.skillsFixed ?? [] : [];
+        const { ability, skill, publication } = picker.originFilters;
+        return (!publication || entry.source === publication) &&
+          (!ability || attributes.some((attribute) => abilities.find(([id]) => id === ability)?.[1] === attribute)) &&
+          (!skill || skills.includes(skill)) &&
+          normalizeSearch([name(entry), entry.name, ...tags(entry), ...attributes.map(abilityLabel), ...skills.map(skillName)].join(' ')).includes(query);
+      });
   const active = matches.find(({ id }) => id === picker.active) ?? matches[0];
   picker.active = active?.id;
+  const variants = active?.invocationName
+    ? matches.filter((entry) => entry.invocationName === active.invocationName)
+    : [];
+  const invocationRows = new Map();
+  for (const entry of matches) {
+    const key = entry.invocationName ?? entry.id;
+    if (!invocationRows.has(key) || entry.id === active?.id ||
+        (group.selected.includes(entry.id) && invocationRows.get(key).id !== active?.id)) {
+      invocationRows.set(key, entry);
+    }
+  }
   const list = choiceDialog.querySelector('.picker-list');
   const scroll = list.scrollTop;
   list.innerHTML = matches.length
-    ? matches
+    ? [...invocationRows.values()]
         .map((entry) => {
           const selected = group.selected.includes(entry.id);
-          return `<button class="picker-row" type="button"
+          const preview = `<button class="picker-row" type="button"
     ${catalogTheme(category(entry), entry)} data-preview-option="${escape(entry.id)}" data-selected="${selected}" aria-pressed="${entry.id === active?.id}">
-    <span class="picker-row-title"><strong class="icon-label">${emblem(entry)}${escape(name(entry))}</strong>
+    <span class="picker-row-title"><strong class="icon-label">${emblem(entry)}${escape(entry.invocationName ?? name(entry))}</strong>
     ${selected ? `<span class="picker-selected"><span aria-hidden="true">✓</span> ${group.spellPicker ? 'Selecionada' : 'Em uso'}</span>` : ''}</span>
     <span class="picker-tags">${tagMarkup(entry)}</span></button>`;
+          return group.spellPicker && !group.readOnly ? `<div class="picker-spell-row">${preview}
+            <button class="button secondary picker-quick-select" type="button" data-toggle-option="${escape(entry.id)}"
+              aria-label="${selected ? 'Remover' : 'Selecionar'} ${escape(name(entry))}"
+              ${!selected && group.count > 1 && group.selected.length >= group.count ? 'disabled' : ''}>${selected ? '−' : '+'}</button></div>` : preview;
         })
         .join('')
     : '<p class="muted">Nenhuma opção corresponde à busca.</p>';
   list.scrollTop = scroll;
   choiceDialog.querySelector('.picker-count').textContent = group.readOnly
     ? `${matches.length} de ${group.options.length} invocações`
+    : group.familiarChoice
+      ? group.selected.length ? 'Forma registrada' : 'Nenhuma forma registrada'
     : group.optional
       ? `${group.selected.length} selecionadas · opcional`
       : `${group.selected.length} de ${group.count} selecionadas`;
   const selected = active && group.selected.includes(active.id);
   choiceDialog.querySelector('.picker-detail').innerHTML = active
     ? `
-    <div class="picker-detail-header"${catalogTheme(category(active), active)}><div><h3 class="icon-label">${emblem(active)}<span>${escape(name(active))}</span></h3>
+    <div class="picker-detail-header"${catalogTheme(category(active), active)}><div><h3 class="icon-label">${emblem(active)}<span>${escape(active.invocationName ?? name(active))}</span></h3>
       <div class="picker-tags">${tagMarkup(active)}</div></div>
       ${
-        group.readOnly
+        group.readOnly || variants.length
           ? ''
           : `<button type="button" class="button ${selected ? 'secondary' : 'primary'}" data-toggle-option="${escape(active.id)}"
         ${(selected && group.index !== undefined) || (!selected && group.count > 1 && group.selected.length >= group.count) ? 'disabled' : ''}>
         ${selected ? (group.index === undefined ? 'Remover' : 'Selecionada') : group.count === 1 && group.selected.length ? 'Trocar' : 'Selecionar'}${group.spellPicker ? ' magia' : ''}</button>`
       }
-    </div>${group.spellPicker ? spellDescription(active) : optionDetails(active)}`
+    </div>${variants.length ? `<fieldset class="spell-filter-group"><legend>Truque afetado</legend>
+      <div class="spell-filter-options">${variants.map((entry) => `<button type="button" class="tag spell-filter-option"
+        data-toggle-option="${escape(entry.id)}" aria-pressed="${group.selected.includes(entry.id)}">${escape(entry.cantripName)}</button>`).join('')}</div></fieldset>` : ''}
+    ${group.spellPicker ? spellDescription(active) : optionDetails(active)}`
     : '<p class="muted">Altere a busca para ver os detalhes de uma opção.</p>';
 }
 
-function openPicker(key) {
-  picker = { key, spellFilters: {} };
+function openPicker(key, spellGroupLevel) {
+  picker = { key, spellGroupLevel, spellFilters: {}, originFilters: {} };
   const group = pickerGroup();
   if (!group) return;
   picker.active = group.selected[0];
   choiceDialog.innerHTML = `<header class="picker-header"><div>
-    ${group.source ? `<p class="eyebrow">${escape(group.source)}</p>` : ''}<h2 id="choice-picker-title">${escape(group.name)}</h2>
+    ${group.source ? `<p class="eyebrow">${escape(group.source)}</p>` : ''}<h2 id="choice-picker-title">${spellGroupLevel ? `Magias do nível ${spellGroupLevel}` : escape(group.name)}</h2>
     ${group.prompt ? `<p class="muted">${escape(group.prompt)}</p>` : ''}
     <p class="picker-count muted" aria-live="polite"></p></div>
     <button type="button" class="button secondary" data-close-picker>Concluir</button></header>
+    ${spellGroupLevel ? '<nav class="spell-filter-options picker-spell-tabs" data-picker-spell-groups aria-label="Listas de magias deste nível"></nav>' : ''}
     <div class="picker-filters">
       <div><label for="picker-search">${group.readOnly ? 'Buscar invocação' : group.spellPicker ? 'Buscar magia' : 'Buscar opção'}</label><input type="search" id="picker-search" autofocus></div>
       ${group.spellPicker ? spellFilterControls(group.options.map(({ id }) => catalog.bySpell.get(id)).filter(Boolean)) : ''}
+      ${group.field === 'background' ? filterControls([
+        ['ability', 'Atributo', 'Todos', abilities.map(([id, , label]) => [id, label])],
+        ['skill', 'Perícia', 'Todas', [...new Set(group.options.flatMap((entry) => entry.skillsFixed ?? []))]
+          .map((id) => [id, skillName(id)]).sort(([, a], [, b]) => a.localeCompare(b, 'pt-BR'))],
+      ], picker.originFilters) : ''}
+      ${group.field === 'species' ? filterControls([
+        ['publication', 'Suplemento', 'Todos', [...new Set(group.options.map(({ source }) => source).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b, 'pt-BR')).map((source) => [source, source])],
+      ], picker.originFilters) : ''}
     </div>
     <div class="picker-body"><div class="picker-list" aria-label="Opções disponíveis"></div>
       <section class="picker-detail" aria-label="Detalhes da opção"></section></div>`;
   drawPicker();
-  choiceDialog.showModal();
+  if (!choiceDialog.open) choiceDialog.showModal();
 }
 
 choiceDialog.addEventListener('input', ({ target }) => {
@@ -3195,9 +3551,17 @@ choiceDialog.addEventListener('input', ({ target }) => {
 });
 
 choiceDialog.addEventListener('click', ({ target }) => {
+  const tab = target.closest('[data-picker-spell-tab]');
+  if (tab) {
+    if (tab.dataset.pickerSpellTab !== picker.key) {
+      openPicker(tab.dataset.pickerSpellTab, picker.spellGroupLevel);
+      choiceDialog.querySelector('[data-picker-spell-tab][aria-pressed="true"]')?.focus();
+    }
+    return;
+  }
   const filter = target.closest('[data-spell-filter]');
   if (filter) {
-    applySpellFilter(filter, picker.spellFilters);
+    applySpellFilter(filter, pickerGroup()?.field ? picker.originFilters : picker.spellFilters);
     drawPicker();
     return;
   }
@@ -3254,11 +3618,13 @@ choiceDialog.addEventListener('click', ({ target }) => {
   else return;
   if (group.field) draft[group.field] = selected[0] ?? '';
   else draft.selected[group.key] = selected;
+  picker.active = id;
   persistChange();
   renderBuilder();
   drawPicker();
   (
-    choiceDialog.querySelector('[data-toggle-option]:enabled') ??
+    choiceDialog.querySelector(`[data-toggle-option="${CSS.escape(id)}"]:enabled`) ??
+    choiceDialog.querySelector('.picker-detail [data-toggle-option]:enabled') ??
     choiceDialog.querySelector('[data-close-picker]')
   ).focus();
 });
@@ -3290,23 +3656,21 @@ deleteDialog.addEventListener('close', async () => {
 
 choiceDialog.addEventListener('close', () => {
   const key = picker?.key;
+  const level = picker?.spellGroupLevel;
   picker = undefined;
-  document.getElementById(`picker:${key}`)?.focus();
+  (level ? main.querySelector(`[data-spell-group-level="${level}"]`) : document.getElementById(`picker:${key}`))?.focus();
 });
 
 main.addEventListener('click', async ({ target }) => {
-  if (publicSheet) {
-    const spell = target.closest('[data-public-spell]');
-    if (spell) openPublicSpell(Number(spell.dataset.publicSpell));
+  const spell = target.closest('[data-sheet-spell]');
+  if (spell) {
+    openSheetSpell(Number(spell.dataset.sheetSpell));
     return;
   }
+  if (publicSheet) return;
   const chip = target.closest('[data-chip-value]');
   if (chip) {
-    const select = chip.closest('.chip-select').querySelector('select');
-    if (select.value !== chip.dataset.chipValue) {
-      setChipValue(select, chip.dataset.chipValue);
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    chooseChip(chip);
     return;
   }
   const filter = target.closest('[data-spell-filter]');
@@ -3432,18 +3796,34 @@ main.addEventListener('click', async ({ target }) => {
   }
   const publication = target.closest('[data-publish]');
   if (publication) {
-    if (!draft.cloudPublic && (!draft.saved || missingChoices().length)) {
-      showNotice('Complete a revisão e salve a ficha antes de publicar.');
+    const id = draft.id;
+    const publishing = !draft.cloudPublic;
+    const issues = publishing ? missingChoices() : [];
+    if (publishing && (!draft.saved || issues.length)) {
+      publicationFeedback = { id, error: true, review: true, message: issues[0]?.[1] ?? 'Salve a ficha antes de publicar.' };
+      renderPlay();
       return;
     }
-    const id = draft.id;
     const sync = characterSync;
+    if (!sync) {
+      publicationFeedback = { id, error: true, message: 'A conexão com sua conta ainda não está disponível.' };
+      renderPlay();
+      return;
+    }
+    if (publishing && JSON.stringify(draft.selected) !== JSON.stringify(projection.validSelections)) {
+      draft.selected = projection.validSelections;
+      write();
+    }
+    publicationFeedback = undefined;
     publication.disabled = true;
     try {
-      await sync.setPublication(id, !draft.cloudPublic);
+      await sync.setPublication(id, publishing);
       publicRecord = undefined;
+      if (sync === characterSync && read(id)?.cloudPublic === publishing) {
+        publicationFeedback = { id, message: publishing ? 'Ficha publicada.' : 'Ficha agora privada.' };
+      }
     } catch (error) {
-      showNotice(error.message);
+      publicationFeedback = { id, error: true, review: error.code === 'PUBLICATION_DENIED', message: error.message };
     } finally {
       if (sync === characterSync && id === draft?.id && !publicSheet && step === 'ficha') renderPlay();
     }
@@ -3452,6 +3832,17 @@ main.addEventListener('click', async ({ target }) => {
   const levelHeading = target.closest('[data-open-level]');
   if (levelHeading) {
     progressionLevel = Number(levelHeading.dataset.openLevel);
+    renderBuilder();
+    main.querySelector(`[data-open-level="${progressionLevel}"]`)?.focus();
+    return;
+  }
+  if (target.closest('[data-advance-level]')) {
+    const plan = classPlan(draft);
+    const current = plan.at(-1);
+    if (plan.length >= 20 || !plan.every(Boolean) || !classEntry(current)) return;
+    draft.classPlan = [...plan, current];
+    progressionLevel = draft.classPlan.length;
+    persistChange();
     renderBuilder();
     main.querySelector(`[data-open-level="${progressionLevel}"]`)?.focus();
     return;
@@ -3470,7 +3861,7 @@ main.addEventListener('click', async ({ target }) => {
   }
   const pickerButton = target.closest('[data-picker]');
   if (pickerButton) {
-    openPicker(pickerButton.dataset.picker);
+    openPicker(pickerButton.dataset.picker, Number(pickerButton.dataset.spellGroupLevel) || undefined);
     return;
   }
   if (target.closest('[data-guest]')) {
@@ -3520,6 +3911,18 @@ main.addEventListener('input', ({ target }) => {
 });
 
 main.addEventListener('change', ({ target }) => {
+  if (target.dataset.inlineChoice && !publicSheet) {
+    const group = pickerGroup(target.dataset.inlineChoice);
+    if (!group?.options.some(({ id }) => id === target.value)) return;
+    const selected = group.count === 1 ? (target.checked ? [target.value] : [])
+      : target.checked ? [...group.selected, target.value] : group.selected.filter((id) => id !== target.value);
+    if (selected.length > group.count) return;
+    draft.selected[group.key] = selected;
+    persistChange();
+    renderBuilder();
+    document.getElementById(target.id)?.focus({ preventScroll: true });
+    return;
+  }
   if (target.id === 'combat-spell') {
     renderCombatSpell(Number(target.value));
     return;
@@ -3571,11 +3974,12 @@ main.addEventListener('submit', (event) => {
 
 window.addEventListener('hashchange', () => {
   if (deleteDialog.open) deleteDialog.close('cancel');
-  clearTimeout(diceTimer);
+  cancelAnimationFrame(diceAnimation);
   diceBoard.hidden = true;
   diceBoard.replaceChildren();
   if (dicePopup.open) dicePopup.close();
   route();
+  if (main.classList.contains('builder-screen')) window.scrollTo(0, 0);
   main.focus({ preventScroll: true });
 });
 installGlossary();

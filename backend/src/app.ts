@@ -126,7 +126,7 @@ export async function buildApp(options: AppOptions) {
     );
     app.setErrorHandler(async (error, req, reply) => {
       const err = (error instanceof Error ? error : new Error('Erro desconhecido')) as Error & {
-        validation?: unknown;
+        validation?: { instancePath?: string; params?: { missingProperty?: string } }[];
         statusCode?: number;
         code?: string;
       };
@@ -135,10 +135,17 @@ export async function buildApp(options: AppOptions) {
         return await reply
           .code(error.statusCode)
           .send({ error: { code: error.code, message: error.message } });
-      if (err.validation)
+      if (err.validation) {
+        const validation = req.method === 'PUT' && req.routeOptions.url.endsWith('/builder/:id')
+          ? err.validation[0] : undefined;
+        const path = [validation?.instancePath, validation?.params?.missingProperty]
+          .filter(Boolean).join('/').replace(/^\//, '');
         return await reply
           .code(400)
-          .send({ error: { code: 'INVALID_INPUT', message: 'Dados de entrada inválidos' } });
+          .send({ error: { code: 'INVALID_INPUT', message: path
+            ? `Não foi possível salvar a ficha. Revise o campo ${path}.`
+            : 'Dados de entrada inválidos' } });
+      }
       if (err.statusCode === 429)
         return await reply.code(429).send({
           error: {

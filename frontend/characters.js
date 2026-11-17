@@ -1,5 +1,15 @@
 import { restoreSession } from './auth.js';
 
+const draftFields = [
+  'id', 'name', 'scores', 'selected', 'species', 'background', 'class', 'classPlan',
+  'level', 'campaign', 'method', 'notes', 'saved', 'updatedAt', 'featureNotes',
+  'abilityBatch', 'abilityAssignments', 'hp', 'play', 'inventory', 'removedEquipment',
+  'narrative', 'alignment', 'portrait',
+];
+const inventoryFields = ['id', 'itemId', 'baseItemId', 'quantity', 'equipped', 'attuned', 'notes'];
+const pickFields = (entry, fields) =>
+  Object.fromEntries(fields.filter((key) => Object.hasOwn(entry, key)).map((key) => [key, entry[key]]));
+
 export async function characterRequest(path = '', options = {}, retry = true, expectedOwner) {
   const response = await fetch('/api/builder' + path, {
     credentials: 'same-origin',
@@ -41,8 +51,11 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
   };
   const store = (character) => cache(character);
   const payload = (character) => {
-    const { cloudVersion, cloudDirty, cloudPublic, ...draft } = character;
-    return { draft, revision: cloudVersion ?? 0, isPublic: !!cloudPublic && !!draft.saved };
+    const draft = pickFields(character, draftFields);
+    if (Array.isArray(draft.inventory)) {
+      draft.inventory = draft.inventory.map((item) => pickFields(item, inventoryFields));
+    }
+    return { draft, revision: character.cloudVersion ?? 0, isPublic: !!character.cloudPublic && !!draft.saved };
   };
   const save = async (character, isPublic) => {
     const { id } = character;
