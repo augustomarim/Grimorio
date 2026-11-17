@@ -1145,11 +1145,9 @@ function compendiumArticle(id) {
     <nav class="flex flex-wrap gap-2" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
     <header class="wiki-article-header${isBackground ? ' wiki-background-header' : ''}">
       ${motif ? `<span class="wiki-banner-emblem" aria-hidden="true">${gameIcon(motif)}</span>` : ''}
-      <h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
-      ${isSpell ? `<div class="wiki-spell-school">
-        <span class="tag" data-spell-circle="${entry.level}">${escape(spellCircle(entry.level))}</span>
-        <span class="tag spell-school-tag icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSchools[entry.school] ?? entry.school)}</span>
-      </div>` : ''}
+      ${isSpell ? `<p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSubtitle(entry))}</p>` : ''}
+      ${isSpell ? `<div class="wiki-spell-emblem">${catalogEmblem(catalogCategory, entry)}</div>` : ''}
+      <h2 class="icon-label">${isSpell ? '' : catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
       ${isSpell ? '' : `<p class="muted">${[catalogCategory === 'feats' && featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
     </header>
     ${isSpell ? spellDescription(entry, { glossary: true, editorial: true }) : isReference
