@@ -136,7 +136,7 @@ export async function buildApp(options: AppOptions) {
           .code(error.statusCode)
           .send({ error: { code: error.code, message: error.message } });
       if (err.validation) {
-        const validation = req.method === 'PUT' && req.routeOptions.url.endsWith('/builder/:id')
+        const validation = req.method === 'PUT' && req.routeOptions.url?.endsWith('/builder/:id')
           ? err.validation[0] : undefined;
         const path = [validation?.instancePath, validation?.params?.missingProperty]
           .filter(Boolean).join('/').replace(/^\//, '');
