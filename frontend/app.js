@@ -2293,7 +2293,7 @@ function builder() {
   const next = steps[stepIndex + 1]?.[0];
   const stepIcons = ['origin-traveler', 'ability-heart', 'paladin', 'shield', 'origin-scribe', 'ability-book'];
   return `<header class="builder-header">
-      <a class="back" href="#personagens">← Meus personagens</a>
+      <a class="button secondary builder-back" href="#personagens"><span aria-hidden="true">←</span> Meus personagens</a>
       <div class="builder-identity">${characterEmblem(projection.classes)}
         <div><h1>${escape(title(draft))}</h1><div class="entry-tags">
           <span class="tag">Nível total ${classPlan(draft).length}</span>

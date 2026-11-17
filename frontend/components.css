@@ -1907,8 +1907,12 @@ small {
 .builder-header {
   margin-bottom: 0.7rem;
 }
-.builder-header .back {
-  color: var(--accent);
+.builder-header .builder-back {
+  min-height: 32px;
+  padding: 0.2rem 0.6rem;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.84rem;
 }
 .builder-identity {
   @apply grid;
@@ -3573,4 +3577,46 @@ textarea {
   .two {
     grid-template-columns: 1fr;
   }
+}
+
+.site-footer {
+  @apply flex flex-wrap items-center justify-between gap-4;
+  border-top: 1px solid var(--line);
+}
+.site-footer strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.site-footer nav {
+  @apply flex flex-wrap items-center gap-x-5 gap-y-2;
+}
+.site-footer a {
+  @apply inline-flex items-center gap-1;
+}
+.credits-page {
+  @apply grid gap-4;
+  max-width: 960px;
+}
+.credits-section {
+  @apply grid gap-3;
+}
+.credits-license {
+  @apply grid gap-2 rounded-lg p-4;
+  background: var(--accent-soft);
+}
+.credits-list {
+  @apply grid list-none gap-2 p-0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+.credits-list:empty {
+  display: none;
+}
+.credits-list li {
+  @apply grid min-w-0 gap-1 rounded-lg px-3 py-2;
+  border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.credits-list a {
+  font-weight: 700;
+  text-transform: capitalize;
 }

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Créditos dos ícones · Grimório</title>
+    <link rel="icon" href="/grimorio-dado.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/tailwind.generated.css" />
+    <script type="module" src="/creditos.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/#inicio"
+        ><img src="/grimorio-dado.svg" width="32" height="32" alt="" />Grimório</a
+      >
+    </header>
+    <main class="credits-page">
+      <section class="panel credits-section" aria-labelledby="credits-title">
+        <h1 id="credits-title">Créditos dos ícones</h1>
+        <p>
+          Os ícones desta coleção vêm do
+          <a href="https://game-icons.net/" target="_blank" rel="noopener noreferrer"
+            >Game-icons.net</a
+          >. O Grimório reuniu os ícones em um arquivo SVG, removeu o fundo e aplicou cores pelo
+          CSS.
+        </p>
+        <div class="credits-license">
+          <h2>Licença e autoria</h2>
+          <p>
+            Lorc, Carl Olsen, Sbed, Cathelineau, Delapouite, Skoll, DarkZaitzev, Caro Asercion e
+            Faithtoken.
+          </p>
+          <p>
+            <a
+              href="https://creativecommons.org/licenses/by/3.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Creative Commons Atribuição 3.0</a
+            >
+            ·
+            <a
+              href="https://github.com/game-icons/icons/blob/master/license.txt"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Licença da coleção</a
+            >
+          </p>
+        </div>
+      </section>
+      <section class="panel credits-section" aria-labelledby="sources-title">
+        <h2 id="sources-title">Fontes dos ícones</h2>
+        <div id="credits-filter" hidden>
+          <label for="credits-search">Buscar pelo nome ou autor</label>
+          <input id="credits-search" type="search" placeholder="Ex.: dragão ou Lorc" />
+        </div>
+        <p id="credits-status" class="muted" role="status"></p>
+        <ul id="credits-list" class="credits-list"></ul>
+        <p>
+          <a href="/game-icons-credits.txt" target="_blank" rel="noopener noreferrer"
+            >Ver a lista de atribuições em texto</a
+          >
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
