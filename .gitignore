@@ -18,3 +18,5 @@ reports/
 *.dump
 /private-backups/
 *.dump.enc
+
+/frontend/tailwind.generated.css

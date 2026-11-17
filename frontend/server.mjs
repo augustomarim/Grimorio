@@ -43,15 +43,12 @@ export const files = new Map([
   ['/compendium.js', ['compendium.js', 'text/javascript']],
   ['/glossary.js', ['glossary.js', 'text/javascript']],
   ['/pt-BR.json', ['pt-BR.json', 'application/json']],
-  ['/styles.css', ['styles.css', 'text/css']],
+  ['/tailwind.generated.css', ['tailwind.generated.css', 'text/css']],
   ['/game-icons.svg', ['game-icons.svg', 'image/svg+xml']],
   ['/grimorio-dado.svg', ['grimorio-dado.svg', 'image/svg+xml']],
   ['/capa.png', ['capa.png', 'image/png']],
   ['/game-icons-credits.txt', ['game-icons-credits.txt', 'text/plain']],
   ['/hub-castle.webp', ['hub-castle.webp', 'image/webp']],
-  ['/hub-dragon.webp', ['hub-dragon.webp', 'image/webp']],
-  ['/hub-books.jpg', ['hub-books.jpg', 'image/jpeg']],
-  ['/hub-compass.jpg', ['hub-compass.jpg', 'image/jpeg']],
 ]);
 const authRoutes = new Map([
   ['/api/auth/me', 'GET'],
@@ -113,10 +110,14 @@ function proxyAuth(request, response, path, apiOrigin) {
 }
 
 export function catalogWithSpellIcons(iconFolders) {
-  const folders = iconFolders.map((folder) => ({
-    folder,
-    files: new Set(readdirSync(new URL(folder, import.meta.url), { throwIfNoEntry: false }) ?? []),
-  }));
+  const folders = iconFolders.map((folder) => {
+    try {
+      return { folder, files: new Set(readdirSync(new URL(folder, import.meta.url))) };
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      return { folder, files: new Set() };
+    }
+  });
   const spellAssets = new Map();
   const illustratedCatalog = {
     ...catalog,

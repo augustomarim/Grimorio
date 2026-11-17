@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci",
-  "buildCommand": "node scripts/build-vercel.mjs",
+  "buildCommand": "npm run css:build --workspace frontend && node scripts/build-vercel.mjs",
   "outputDirectory": "dist/vercel",
   "rewrites": [
     { "source": "/reset-password", "destination": "/index.html" },

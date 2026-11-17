@@ -41,7 +41,7 @@ describe('Configuração PostgreSQL/Neon', () => {
     await expect(verifyHistory(database(hash(sql.replaceAll('\n', '\r\n'))))).resolves.toBe(1);
     await expect(verifyHistory(database(hash(sql + 'SELECT 1;')))).rejects.toThrow('incompatível');
   });
-  it('preserva proteção HTTPS e SMTP obrigatório em produção', () => {
+  it('exige HTTPS e permite produção com envio de e-mail desativado', () => {
     const env = {
       AUTH_KEY: 'test-only-key-with-32-or-more-characters',
       DATABASE_URL: 'postgresql://user:secret@example.neon.tech/db',
@@ -49,7 +49,7 @@ describe('Configuração PostgreSQL/Neon', () => {
       APP_ORIGIN: 'http://example.invalid',
     };
     expect(() => loadConfig(env)).toThrow('HTTPS');
-    expect(() => loadConfig({ ...env, APP_ORIGIN: 'https://example.invalid' })).toThrow('smtp');
+    expect(loadConfig({ ...env, APP_ORIGIN: 'https://example.invalid' }).mailMode).toBe('disabled');
   });
 });
 

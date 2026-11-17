@@ -1010,7 +1010,7 @@ function articleLink(category, entry, note = '') {
       .filter(Boolean).map((tag) => `<span class="tag">${escape(tag)}</span>`).join(' ');
   return `<a class="navigation-row wiki-result"${catalogTheme(category, entry)} href="${compendiumHref(category, entry.id)}">
     ${catalogEmblem(category, entry)}
-    <span class="wiki-result-content"><strong>${escape(displayName(entry))}</strong>
+    <span class="wiki-result-content grid grid-cols-1 gap-[0.22rem]"><strong>${escape(displayName(entry))}</strong>
       ${note ? `<small>${escape(note)}</small>` : ''}
       ${tags ? `<span class="entry-tags">${tags}</span>` : ''}
     </span><span aria-hidden="true">›</span>
@@ -1128,7 +1128,7 @@ function compendiumArticle(id) {
   }) : [];
   document.title = displayName(entry) + ' · Compêndio · Grimório';
   return `<article class="wiki-article ${editorial ? 'wiki-character-article' : ''} ${isReference ? 'wiki-reference' : ''} ${isSpell ? 'wiki-spell-article' : ''}"${articleTheme}>
-    <nav class="wiki-breadcrumb" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
+    <nav class="flex flex-wrap gap-2" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
     <header class="wiki-article-header">
       ${motif ? `<span class="wiki-banner-emblem" aria-hidden="true">${gameIcon(motif)}</span>` : ''}
       ${isSpell ? `<p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSubtitle(entry))}</p>` : ''}
@@ -1174,7 +1174,7 @@ function compendiumArticle(id) {
         .map(
           (level) => `
         <details class="entry"><summary>${spellCircle(level)}</summary>
-        <ul class="wiki-spell-list">${related.spells
+        <ul class="mt-2 flex list-none flex-wrap gap-2 p-0 [&>li]:min-w-0 [&>li]:flex-[1_1_19rem]">${related.spells
           .filter((spell) => spell.level === level)
           .map((spell) => `<li>${articleLink('magias', spell)}</li>`)
           .join('')}</ul></details>`
@@ -2120,7 +2120,7 @@ function equipment() {
 function sheetSpellCard(spell, index) {
   return `<button class="navigation-row wiki-result public-spell-card" type="button" data-sheet-spell="${index}"
     aria-haspopup="dialog"${spellTheme(spell)}>${spellIcon(spell)}
-    <span class="wiki-result-content"><strong>${escape(spellName(spell))}</strong>
+    <span class="wiki-result-content grid grid-cols-1 gap-[0.22rem]"><strong>${escape(spellName(spell))}</strong>
       <span class="entry-tags">${spellTagMarkup(spell)}</span>
     </span><span aria-hidden="true">›</span></button>`;
 }

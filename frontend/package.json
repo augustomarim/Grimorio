@@ -4,10 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "npm run css:build",
     "dev": "node server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "css:build": "tailwindcss -i tailwind.css -o tailwind.generated.css --minify",
+    "css:watch": "tailwindcss -i tailwind.css -o tailwind.generated.css --watch"
   },
   "dependencies": {
     "@freshmag/one-dndb": "0.5.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.5",
+    "tailwindcss": "^4.3.5"
   }
 }
