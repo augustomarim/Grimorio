@@ -1146,8 +1146,7 @@ function compendiumArticle(id) {
     <header class="wiki-article-header${isBackground ? ' wiki-background-header' : ''}">
       ${motif ? `<span class="wiki-banner-emblem" aria-hidden="true">${gameIcon(motif)}</span>` : ''}
       ${isSpell ? `<p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSubtitle(entry))}</p>` : ''}
-      ${isSpell ? `<div class="wiki-spell-emblem">${catalogEmblem(catalogCategory, entry)}</div>` : ''}
-      <h2 class="icon-label">${isSpell ? '' : catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
+      <h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
       ${isSpell ? '' : `<p class="muted">${[catalogCategory === 'feats' && featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
     </header>
     ${isSpell ? spellDescription(entry, { glossary: true, editorial: true }) : isReference
