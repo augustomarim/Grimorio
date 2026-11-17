@@ -937,9 +937,10 @@ function filterControls(groups, filters) {
           class: `data-class-theme="${escape(id)}"`,
           subclass: entry ? catalogTheme('subclasses', entry) : '',
           ability: `data-ability="${escape(id)}"`,
+          featType: `data-feat-theme="${escape(id)}"`,
           skill: skillAbilities[id] ? `data-ability="${skillAbilities[id]}"` : '',
         }[key];
-        const emblem = { school: schoolEmblem, damage: damageEmblem, class: classEmblemId, ability: (id) => abilityEmblems[id] }[key];
+        const emblem = { school: schoolEmblem, damage: damageEmblem, class: classEmblemId, ability: (id) => abilityEmblems[id], featType: (id) => featEmblems[id] }[key];
         const icon = entry ? gameIcon(classEmblemId(classEntry(entry.class)?.id, id))
           : id && emblem ? gameIcon(emblem(id)) : '';
         const title = id && key === 'level' ? spellCircle(Number(id)) : name;
@@ -959,6 +960,13 @@ function catalogFilterControls() {
   return filterControls([
     ['class', 'Classe', 'Todas', classes.map((cls) => [cls.id, displayName(cls)])],
     ['publication', 'Fonte', 'Todas', sources.map((source) => [source, source])],
+    ['ability', 'Atributo', 'Todos', catalogCategory === 'backgrounds'
+      ? abilities.map(([id, , label]) => [id, label]) : []],
+    ['featType', 'Tipo de talento', 'Todos', catalogCategory === 'feats'
+      ? [...new Set(entries.map(({ category }) => category).filter(Boolean))]
+          .map((type) => [type, featCategories[type] ?? type])
+          .sort(([, a], [, b]) => a.localeCompare(b, 'pt-BR'))
+      : []],
   ], catalogFilters);
 }
 
@@ -973,6 +981,7 @@ function applySpellFilter(button, filters) {
 
 function compendiumResults() {
   const query = normalizeSearch(catalogFilter.trim());
+  const attribute = abilities.find(([id]) => id === catalogFilters.ability)?.[1];
   const parentClass = catalogCategory === 'subclasses' && classEntry(catalogFilters.class)?.name;
   const entries =
     catalogCategory === 'magias'
@@ -981,6 +990,8 @@ function compendiumResults() {
           (entry) =>
             (!catalogFilters.publication || entry.source === catalogFilters.publication) &&
             (!parentClass || entry.class === parentClass) &&
+            (!attribute || entry.abilityScores?.includes(attribute)) &&
+            (!catalogFilters.featType || entry.category === catalogFilters.featType) &&
             normalizeSearch(
               [
                 displayName(entry),
@@ -1116,11 +1127,14 @@ function compendiumArticle(id) {
   const isCharacterArticle = ['classes', 'subclasses', 'species'].includes(catalogCategory);
   const classId = catalogCategory === 'classes' ? entry.id : parent?.id;
   const speciesId = catalogCategory === 'species' ? entry.id : undefined;
+  const isBackground = catalogCategory === 'backgrounds';
   const motif = speciesId
     ? speciesEmblems[speciesId] ?? 'species'
-    : classId && classEmblemId(classId, catalogCategory === 'subclasses' ? entry.id : undefined);
+    : isBackground
+      ? backgroundEmblems[entry.id] ?? 'origin-traveler'
+      : classId && classEmblemId(classId, catalogCategory === 'subclasses' ? entry.id : undefined);
   const articleTheme = isSpell ? spellTheme(entry, true) : catalogTheme(catalogCategory, entry);
-  const editorial = isCharacterArticle || catalogCategory === 'backgrounds';
+  const editorial = isCharacterArticle || isBackground;
   const isReference = ['rules', 'glossary'].includes(catalogCategory);
   const relatedRules = isReference ? (entry.related ?? []).flatMap((key) => {
     const rule = catalog.rules.find(({ id }) => id === key);
@@ -1129,10 +1143,13 @@ function compendiumArticle(id) {
   document.title = displayName(entry) + ' · Compêndio · Grimório';
   return `<article class="wiki-article ${editorial ? 'wiki-character-article' : ''} ${isReference ? 'wiki-reference' : ''} ${isSpell ? 'wiki-spell-article' : ''}"${articleTheme}>
     <nav class="flex flex-wrap gap-2" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
-    <header class="wiki-article-header">
+    <header class="wiki-article-header${isBackground ? ' wiki-background-header' : ''}">
       ${motif ? `<span class="wiki-banner-emblem" aria-hidden="true">${gameIcon(motif)}</span>` : ''}
-      ${isSpell ? `<p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSubtitle(entry))}</p>` : ''}
       <h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
+      ${isSpell ? `<div class="wiki-spell-school">
+        <span class="tag" data-spell-circle="${entry.level}">${escape(spellCircle(entry.level))}</span>
+        <span class="tag spell-school-tag icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSchools[entry.school] ?? entry.school)}</span>
+      </div>` : ''}
       ${isSpell ? '' : `<p class="muted">${[catalogCategory === 'feats' && featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
     </header>
     ${isSpell ? spellDescription(entry, { glossary: true, editorial: true }) : isReference
