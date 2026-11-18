@@ -68,7 +68,7 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({
       databaseEngine: 'postgresql',
-      schemaVersion: 4,
+      schemaVersion: 5,
       catalogEntries: 1905,
     });
   });
@@ -207,9 +207,10 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(shared.json().draft).not.toHaveProperty('play');
     expect(await gallery()).toMatchObject([{ id: draft.id, name: draft.name, class: 'warlock' }]);
     const blockPath = `/admin/sheets/${draft.id}/block`;
-    const moderate = (path: string, actor: string) =>
-      app.inject({ method: 'POST', url: path, headers: { origin, cookie: actor } });
-    expect((await moderate(blockPath, session)).statusCode).toBe(403);
+    const moderate = (path: string, actor: string, payload?: unknown) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie: actor }, payload });
+    const notice = { message: 'Revise o conteúdo publicado.' };
+    expect((await moderate(blockPath, session, notice)).statusCode).toBe(403);
     const adminEmail = 'pg-moderator@example.invalid';
     expect(
       (await post('/auth/register', { email: adminEmail, username: 'pg-moderator', password }))
@@ -219,7 +220,7 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     const moderator = await post('/auth/login', { email: adminEmail, password });
     expect(moderator.statusCode).toBe(200);
     const adminSession = moderator.cookies.map((item) => `${item.name}=${item.value}`).join('; ');
-    expect((await moderate(blockPath, adminSession)).statusCode).toBe(204);
+    expect((await moderate(blockPath, adminSession, notice)).statusCode).toBe(204);
     expect((await app.inject(publicUrl)).statusCode).toBe(404);
     expect(await gallery()).toEqual([]);
     const revision = published.json().revision;
@@ -227,6 +228,12 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     const privateEdit = await put(session, revision, true, false);
     expect(privateEdit.statusCode, privateEdit.body).toBe(200);
     expect(privateEdit.json().isPublic).toBe(false);
+    expect(privateEdit.json().moderation.message).toBe(notice.message);
+    const sheetAppeal = await moderate(url + '/appeal', session, {
+      message: 'Peço revisão da ficha.',
+    });
+    expect(sheetAppeal.statusCode).toBe(200);
+    expect(sheetAppeal.json().moderation.appeal).toBe('Peço revisão da ficha.');
     expect((await moderate(`/admin/sheets/${draft.id}/unblock`, adminSession)).statusCode).toBe(
       204
     );
@@ -245,12 +252,44 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     const [target] = accounts.json().items;
     expect(target).toMatchObject({ username: 'pg-moderated', isActive: 1 });
     const targetPath = `/admin/accounts/${target.id}`;
-    expect((await moderate(targetPath + '/deactivate', adminSession)).statusCode).toBe(204);
-    expect((await post('/auth/login', { email: target.email, password })).statusCode).toBe(401);
+    expect((await moderate(targetPath + '/deactivate', adminSession, notice)).statusCode).toBe(204);
+    const credentials = { email: target.email, password };
+    const deactivated = await post('/auth/login', credentials);
+    expect(deactivated.statusCode).toBe(403);
+    expect(deactivated.cookies).toHaveLength(0);
+    expect(deactivated.json().moderation.message).toBe(notice.message);
+    const requestReview = await post('/auth/login', { ...credentials, appeal: 'Peço reativação.' });
+    expect(requestReview.json().moderation.appeal).toBe('Peço reativação.');
+    const wrongPassword = await post('/auth/login', {
+      ...credentials,
+      password: 'senha incorreta',
+    });
+    expect(wrongPassword.statusCode).toBe(401);
+    expect(wrongPassword.json()).not.toHaveProperty('moderation');
     expect((await moderate(targetPath + '/reactivate', adminSession)).statusCode).toBe(204);
-    expect((await post('/auth/login', { email: target.email, password })).statusCode).toBe(200);
-    expect((await moderate(targetPath + '/delete', adminSession)).statusCode).toBe(204);
+    const owner = await post('/auth/login', credentials);
+    expect(owner.statusCode).toBe(200);
+    const ownerCookie = owner.cookies.map(({ name, value }) => `${name}=${value}`).join('; ');
+    const selfDeactivate = await moderate('/auth/account-state', ownerCookie, {
+      action: 'deactivate',
+      currentPassword: password,
+    });
+    expect(selfDeactivate.statusCode).toBe(204);
+    const selfReactivated = await post('/auth/login', credentials);
+    expect(selfReactivated.statusCode).toBe(200);
+    const newCookie = selfReactivated.cookies
+      .map(({ name, value }) => `${name}=${value}`)
+      .join('; ');
+    expect(
+      (
+        await moderate('/auth/account-state', newCookie, {
+          action: 'delete',
+          currentPassword: password,
+        })
+      ).statusCode
+    ).toBe(204);
     expect(await db.prepare('SELECT id FROM app_user WHERE id=?').get(target.id)).toBeUndefined();
+    expect((await post('/auth/login', credentials)).statusCode).toBe(401);
   });
   it('consulta ficha e cálculos sem expor personagem privado', async () => {
     expect((await app.inject(`/characters/${id}`)).statusCode).toBe(404);

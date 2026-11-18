@@ -1,7 +1,8 @@
 export class AuthError extends Error {
-  constructor(status, message) {
+  constructor(status, message, moderation) {
     super(message);
     this.status = status;
+    this.moderation = moderation;
   }
 }
 
@@ -22,7 +23,8 @@ export async function authRequest(path, body) {
   if (!response.ok || !data) {
     throw new AuthError(
       response.status,
-      data?.error?.message || 'O serviço de contas está indisponível. Tente novamente em instantes.'
+      data?.error?.message || 'O serviço de contas está indisponível. Tente novamente em instantes.',
+      data?.moderation
     );
   }
   return data;
@@ -123,7 +125,9 @@ export function accountView(view) {
     </section>
     <section class="panel account-panel"><header><h1>${heading}</h1><p class="muted">${description}</p></header>
       <form class="account-form" id="account-form" data-view="${view}">
-        ${fields}<p id="account-error" role="alert"></p><button class="button primary" type="submit">${action}</button>
+        ${fields}<p id="account-error" role="alert"></p>
+        <button class="button primary" type="submit">${action}</button>
+        ${view === 'login' ? '<div data-login-moderation hidden></div>' : ''}
       </form>
       <div class="account-links">${links}
         ${view === 'login' ? '<button class="navigation-row account-action" type="button" data-guest><span class="game-emblem account-action-icon" aria-hidden="true">↪</span><span>Usar fichas locais sem conta</span><span aria-hidden="true">›</span></button>' : ''}

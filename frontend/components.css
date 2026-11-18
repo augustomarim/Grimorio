@@ -3692,9 +3692,37 @@ textarea {
   gap: 0.5rem;
 }
 
-.admin-actions [aria-pressed='true'] {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+.admin-panel [data-admin-tab][aria-pressed='true'] {
+  background: var(--action);
+  color: white;
+  border-color: var(--action);
+  font-weight: 700;
+}
+
+.admin-panel [data-admin-tab][aria-pressed='true']::before {
+  content: '✓';
+  margin-inline-end: 0.45em;
+}
+
+.moderation-details {
+  flex: 1 0 100%;
+}
+
+.moderation-details dd,
+.moderation-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.moderation-form {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-confirm textarea {
+  display: block;
+  width: 100%;
+  margin-block: 0.35rem 0.8rem;
 }
 
 .admin-list {

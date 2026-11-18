@@ -61,6 +61,7 @@ const authRoutes = new Map([
     'profile',
     'password',
     'refresh',
+    'account-state',
     'logout',
     'password-reset/request',
     'password-reset/confirm',
@@ -154,11 +155,11 @@ export function createFrontend(origin) {
       proxyAuth(request, response, path, apiOrigin);
       return;
     }
-    if (/^\/api\/builder(?:\/public)?(?:\/[a-f\d-]{36})?$/i.test(path)) {
+    if (/^\/api\/builder(?:\/public)?(?:\/[a-f\d-]{36})?$/i.test(path) || /^\/api\/builder\/[a-f\d-]{36}\/appeal$/i.test(path)) {
       proxyAuth(request, response, path, apiOrigin);
       return;
     }
-    if (/^\/api\/admin\/(?:accounts(?:\/\d{1,10}\/(?:deactivate|reactivate|delete))?|sheets(?:\/[a-f\d-]{36}\/(?:block|unblock))?)$/i.test(path)) {
+    if (/^\/api\/admin\/(?:accounts(?:\/\d{1,10}\/(?:deactivate|reactivate))?|sheets(?:\/[a-f\d-]{36}\/(?:block|unblock))?)$/i.test(path)) {
       proxyAuth(request, response, path, apiOrigin);
       return;
     }

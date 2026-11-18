@@ -12,6 +12,9 @@ interface DocumentRow {
   data: Record<string, unknown>;
   revision: number;
   is_public: boolean;
+  publication_blocked?: boolean;
+  moderation_message?: string | null;
+  moderation_appeal?: string | null;
 }
 interface GalleryQuery {
   page?: number;
@@ -26,6 +29,10 @@ const params = {
   properties: { id: { type: 'string', format: 'uuid' } },
 };
 const missing = () => new AppError(404, 'NOT_FOUND', 'Ficha não encontrada');
+const privateFields = 'id,data,revision,is_public,publication_blocked,moderation_message,moderation_appeal';
+const moderation = (row: DocumentRow) => row.publication_blocked
+  ? { message: row.moderation_message ?? null, appeal: row.moderation_appeal ?? null }
+  : null;
 
 export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthService) {
   const output = (row: DocumentRow) => ({
@@ -33,12 +40,13 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
     draft: row.data,
     revision: row.revision,
     isPublic: row.is_public,
+    ...(row.publication_blocked !== undefined ? { moderation: moderation(row) } : {}),
   });
   app.get('/builder', async (req) => {
     const user = await auth.authenticate(req.cookies[ACCESS]);
     const rows = (await db
       .prepare(
-        'SELECT id,data,revision,is_public FROM builder_document WHERE owner_id=? ORDER BY updated_at DESC'
+        `SELECT ${privateFields} FROM builder_document WHERE owner_id=? ORDER BY updated_at DESC`
       )
       .all(user.id)) as DocumentRow[];
     return { documents: rows.map(output) };
@@ -46,7 +54,7 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
   app.get<{ Params: { id: string } }>('/builder/:id', { schema: { params } }, async (req) => {
     const user = await auth.authenticate(req.cookies[ACCESS]);
     const row = (await db
-      .prepare('SELECT id,data,revision,is_public FROM builder_document WHERE id=? AND owner_id=?')
+      .prepare(`SELECT ${privateFields} FROM builder_document WHERE id=? AND owner_id=?`)
       .get(req.params.id, user.id)) as DocumentRow | undefined;
     if (!row) throw missing();
     return output(row);
@@ -335,12 +343,12 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
           const row = existing
             ? await db
                 .prepare(
-                  'UPDATE builder_document SET data=?::jsonb,revision=revision+1,is_public=?,updated_at=clock_timestamp() WHERE id=? AND owner_id=? RETURNING id,data,revision,is_public'
+                  `UPDATE builder_document SET data=?::jsonb,revision=revision+1,is_public=?,updated_at=clock_timestamp() WHERE id=? AND owner_id=? RETURNING ${privateFields}`
                 )
                 .get(JSON.stringify(draft), publish, req.params.id, user.id)
             : await db
                 .prepare(
-                  'INSERT INTO builder_document(id,owner_id,data,is_public) VALUES(?,?,?::jsonb,?) RETURNING id,data,revision,is_public'
+                  `INSERT INTO builder_document(id,owner_id,data,is_public) VALUES(?,?,?::jsonb,?) RETURNING ${privateFields}`
                 )
                 .get(req.params.id, user.id, JSON.stringify(draft), publish);
           await db
@@ -353,6 +361,21 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
         .immediate();
     }
   );
+  app.post<{ Params: { id: string }; Body: { message: string } }>('/builder/:id/appeal', {
+    schema: { params, body: {
+      type: 'object', additionalProperties: false, required: ['message'],
+      properties: { message: { type: 'string', minLength: 1, maxLength: 2000, pattern: '\\S' } },
+    } },
+  }, async (req) => {
+    const user = await auth.authenticate(req.cookies[ACCESS]);
+    const row = await db.prepare(
+      `UPDATE builder_document SET moderation_appeal=?
+       WHERE id=? AND owner_id=? AND publication_blocked AND moderation_appeal IS NULL
+       RETURNING publication_blocked,moderation_message,moderation_appeal`
+    ).get(req.body.message.trim(), req.params.id, user.id);
+    if (!row) throw new AppError(409, 'APPEAL_UNAVAILABLE', 'O pedido já foi enviado ou a ficha não está mais bloqueada');
+    return { moderation: moderation(row as DocumentRow) };
+  });
   app.delete<{ Params: { id: string }; Querystring: { revision: number } }>(
     '/builder/:id',
     {

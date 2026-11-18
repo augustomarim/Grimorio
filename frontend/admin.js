@@ -15,16 +15,26 @@ export const adminView = `<section class="panel admin-panel" id="admin-panel">
   <div data-admin-results></div>
   <dialog class="admin-confirm" aria-labelledby="admin-confirm-title"><form method="dialog">
     <h2 id="admin-confirm-title"></h2><p data-admin-confirm-message></p>
-    <div class="admin-actions"><button class="button secondary" value="cancel" autofocus>Cancelar</button>
+    <label data-admin-notice hidden>Mensagem ao titular
+      <textarea name="notice" rows="4" maxlength="2000"></textarea>
+    </label>
+    <div class="admin-actions"><button class="button secondary" value="cancel" formnovalidate autofocus>Cancelar</button>
       <button class="button primary" value="apply">Confirmar</button></div>
   </form></dialog>
 </section>`;
 
-async function request(path, owner, method = 'GET', retry = true) {
-  const response = await fetch('/api/admin/' + path, { method, credentials: 'same-origin' });
+async function request(path, owner, method = 'GET', body, retry = true) {
+  const response = await fetch('/api/admin/' + path, {
+    method,
+    credentials: 'same-origin',
+    ...(body
+      ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : {}),
+  });
   if (response.status === 401 && retry) {
     const user = await restoreSession();
-    if (user?.id === owner && user.role === 'admin') return request(path, owner, method, false);
+    if (user?.id === owner && user.role === 'admin')
+      return request(path, owner, method, body, false);
   }
   if (response.status === 204) return;
   const data = await response.json().catch(() => null);
@@ -42,7 +52,9 @@ function itemView(item, tab) {
   const state = account
     ? item.isActive
       ? 'Ativa'
-      : 'Desativada'
+      : item.deactivatedBy === 'owner'
+        ? 'Desativada pelo titular'
+        : 'Desativada pela administração'
     : item.blocked
       ? 'Publicação bloqueada'
       : item.visible
@@ -52,8 +64,10 @@ function itemView(item, tab) {
     ? item.role === 'admin'
       ? ''
       : item.isActive
-        ? actionButton('deactivate', 'Desativar') + actionButton('delete', 'Excluir conta')
-        : actionButton('reactivate', 'Reativar') + actionButton('delete', 'Excluir conta')
+        ? actionButton('deactivate', 'Desativar')
+        : item.deactivatedBy === 'owner'
+          ? ''
+          : actionButton('reactivate', 'Reativar')
     : (item.visible
         ? `<a class="button secondary" href="#publica/${encodeURIComponent(item.id)}">Abrir ficha</a>`
         : '') +
@@ -64,14 +78,21 @@ function itemView(item, tab) {
     <div><strong>${escape(name || 'Ficha sem nome')}</strong>
       <span class="muted">${escape(account ? item.email : item.author)}</span></div>
     <div class="admin-actions"><span class="tag">${state}</span>${account && item.role === 'admin' ? '<span class="tag">Administrador</span>' : ''}${actions}</div>
+    ${
+      item.message || item.appeal
+        ? `<dl class="moderation-details">
+      ${item.message ? `<dt>Aviso ao titular</dt><dd>${escape(item.message)}</dd>` : ''}
+      ${item.appeal ? `<dt>Pedido de revisão</dt><dd>${escape(item.appeal)}</dd>` : ''}
+    </dl>`
+        : ''
+    }
   </li>`;
 }
 
 const confirmations = {
-  delete: ['Excluir conta', 'A conta e suas fichas no servidor serão excluídas permanentemente.'],
   deactivate: [
     'Desativar conta',
-    'As sessões serão encerradas e as fichas sairão da galeria enquanto a conta estiver desativada.',
+    'As sessões serão encerradas. A conta será excluída após 30 dias de desativação se a medida continuar em vigor.',
   ],
   reactivate: [
     'Reativar conta',
@@ -92,6 +113,7 @@ export function mountAdmin(panel, owner) {
   const results = panel.querySelector('[data-admin-results]');
   const status = panel.querySelector('[data-admin-status]');
   const dialog = panel.querySelector('dialog');
+  const notice = dialog.querySelector('textarea');
   let tab = 'accounts';
   let page = 1;
   let search = '';
@@ -164,8 +186,19 @@ export function mountAdmin(panel, owner) {
       dialog.querySelector('h2').textContent =
         title + ' · ' + row.querySelector('strong').textContent;
       dialog.querySelector('[data-admin-confirm-message]').textContent = message;
+      const needsNotice = action === 'deactivate' || action === 'block';
+      notice.value = '';
+      notice.disabled = !needsNotice;
+      notice.required = needsNotice;
+      notice.closest('label').hidden = !needsNotice;
       dialog.returnValue = 'cancel';
       dialog.showModal();
+    }
+  });
+  dialog.querySelector('form').addEventListener('submit', (event) => {
+    if (event.submitter?.value === 'apply' && notice.required && !notice.value.trim()) {
+      event.preventDefault();
+      notice.focus();
     }
   });
   dialog.addEventListener('close', async () => {
@@ -178,7 +211,8 @@ export function mountAdmin(panel, owner) {
       await request(
         `${operation.tab}/${encodeURIComponent(operation.id)}/${operation.action}`,
         owner,
-        'POST'
+        'POST',
+        notice.required ? { message: notice.value.trim() } : undefined
       );
       if (panel.isConnected) await load('Alteração aplicada.');
     } catch (error) {

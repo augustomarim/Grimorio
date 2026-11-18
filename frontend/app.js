@@ -2281,8 +2281,19 @@ function sessionSheet() {
     </div>
     <div class="hub-actions"><a class="button secondary" href="#personagens">Meus personagens</a>
       <a class="button secondary" href="${link('origem')}">Editar ficha</a>
-      ${user ? `<button type="button" class="button ${draft.cloudPublic ? 'secondary' : 'primary'}" data-publish>${draft.cloudPublic ? 'Tornar privada' : 'Publicar ficha'}</button>` : ''}
+      ${user && !draft.cloudModeration ? `<button type="button" class="button ${draft.cloudPublic ? 'secondary' : 'primary'}" data-publish>${draft.cloudPublic ? 'Tornar privada' : 'Publicar ficha'}</button>` : ''}
       ${draft.cloudPublic && user ? `<a class="button secondary" href="#publica/${escape(draft.id)}">Ver ficha pública</a>` : ''}</div>
+    ${user && draft.cloudModeration ? `<details class="publication-feedback">
+      <summary>Publicação bloqueada · Ver aviso</summary>
+      <p class="moderation-text">${escape(draft.cloudModeration.message ?? 'A administração bloqueou a publicação desta ficha.')}</p>
+      ${draft.cloudModeration.appeal ? `<p>Pedido enviado</p><p class="moderation-text">${escape(draft.cloudModeration.appeal)}</p>` : `
+        <form data-sheet-appeal class="moderation-form">
+          <label for="sheet-appeal">Pedido de revisão</label>
+          <textarea id="sheet-appeal" name="message" rows="3" maxlength="2000" required></textarea>
+          <button class="button secondary" type="submit">Enviar pedido</button>
+          <p role="alert"></p>
+        </form>`}
+    </details>` : ''}
     ${feedback ? `<div class="publication-feedback" role="${feedback.error ? 'alert' : 'status'}">
       ${escape(feedback.message)} ${feedback.review ? `<a href="${link('revisao')}">Abrir revisão</a>` : ''}
     </div>` : ''}
@@ -2452,6 +2463,17 @@ function accountSettings() {
       <input id="confirm-new-password" name="confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
       <p role="alert"></p>
       <button class="button primary" type="submit">Salvar senha</button>
+    </form>
+    <form class="account-settings-form" data-account-state>
+      <h2>Gerenciar desativação e exclusão</h2>
+      <p>Você pode reativar sua conta desativada entrando novamente em até 30 dias. Depois desse prazo, a conta e suas fichas no servidor são excluídas.</p>
+      <label for="account-state-password">Senha atual</label>
+      <input id="account-state-password" type="password" name="currentPassword" autocomplete="current-password" maxlength="128" required>
+      <p role="alert"></p>
+      <div class="admin-actions">
+        <button class="button secondary" type="submit" value="deactivate">Desativar minha conta</button>
+        <button class="button secondary" type="submit" value="delete">Excluir minha conta agora</button>
+      </div>
     </form>` : ''}
     ${chipSelect('account-theme', 'Aparência', [
       ['', 'Usar tema do sistema'], ['light', 'Claro'], ['dark', 'Escuro'],
@@ -2723,7 +2745,8 @@ function route() {
         '<section class="panel"><h1>Ficha não encontrada</h1><p>Ela pode estar salva em outro navegador.</p><a href="#inicio">Voltar aos personagens</a></section>';
       return;
     }
-    if (viewedCharacter !== accessKey(id)) progressionLevel = undefined;
+    const opening = viewedCharacter !== accessKey(id);
+    if (opening) progressionLevel = undefined;
     markOpened(id);
     if (draft.saved && (page === 'ficha' || section === 'ficha')) {
       if (page !== 'ficha') history.replaceState(null, '', sheetLink(id));
@@ -2732,6 +2755,7 @@ function route() {
       step = 'ficha';
       main.classList.add('session-screen');
       main.innerHTML = sessionSheet();
+      if (opening && user && draft.cloudVersion) void refreshSheetModeration(id, user.id).catch(() => {});
       document.title = title(draft) + ' · Ficha de jogo';
       return;
     }
@@ -2806,7 +2830,100 @@ async function syncSession(initial = false, rerender = true) {
   }
 }
 
-async function submitAccount(form) {
+function loginModeration(form, moderation) {
+  const panel = form.querySelector('[data-login-moderation]');
+  panel.hidden = !moderation;
+  if (!moderation) {
+    panel.replaceChildren();
+    return;
+  }
+  const expires = moderation.expires && new Date(moderation.expires).toLocaleDateString('pt-BR');
+  panel.innerHTML = `<div class="moderation-form">
+    ${moderation.message ? `<p class="moderation-text">${escape(moderation.message)}</p>` : ''}
+    ${expires ? `<p>Prazo para reativação pela administração até ${escape(expires)}.</p>` : ''}
+    ${moderation.appeal ? `<p>Pedido de revisão enviado.</p><p class="moderation-text">${escape(moderation.appeal)}</p>` : `
+      <label for="login-appeal">Pedido de revisão</label>
+      <textarea id="login-appeal" name="appeal" rows="3" maxlength="2000" placeholder="Explique por que pede a reversão"></textarea>
+      <button class="button secondary" type="submit" value="appeal">Enviar pedido</button>`}
+    <button class="button secondary" type="submit" value="delete">Excluir minha conta agora</button>
+  </div>`;
+}
+
+async function submitAccountState(form, trigger) {
+  const action = trigger?.value;
+  if (accountBusy || !['deactivate', 'delete'].includes(action)) return;
+  const deleting = action === 'delete';
+  if (!window.confirm(deleting
+    ? 'Excluir definitivamente sua conta e suas fichas do servidor?'
+    : 'Desativar sua conta? Entre novamente em até 30 dias para reativá-la.')) return;
+  const owner = user?.id;
+  const message = form.querySelector('[role="alert"]');
+  accountBusy = true;
+  trigger.disabled = true;
+  message.textContent = '';
+  try {
+    const send = () => withSessionLock(() => authRequest('account-state', {
+      action, currentPassword: form.elements.currentPassword.value,
+    }));
+    await send().catch(async (error) => {
+      if (error.status !== 401) throw error;
+      if ((await restoreSession())?.id !== owner) throw new Error('Sua sessão expirou. Entre novamente.');
+      return send();
+    });
+    ++accountSync;
+    setUser(null);
+    setGuestMode(false);
+    accounts?.postMessage('changed');
+    openHash('#login');
+    showNotice(deleting ? 'Conta excluída.' : 'Conta desativada. Entre novamente em até 30 dias para reativá-la.');
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    accountBusy = false;
+    trigger.disabled = false;
+  }
+}
+
+function applySheetModeration(id, owner, moderation, isPublic) {
+  const character = user?.id === owner && read(id);
+  if (!character) return;
+  const changed = JSON.stringify(character.cloudModeration ?? null) !== JSON.stringify(moderation ?? null)
+    || Boolean(character.cloudPublic) !== Boolean(isPublic);
+  if (!changed) return;
+  cacheCharacter({ ...character, cloudModeration: moderation, cloudPublic: isPublic });
+  if (draft?.id === id && step === 'ficha' && !publicSheet) renderPlay();
+}
+
+async function refreshSheetModeration(id, owner) {
+  const record = await characterRequest('/' + id, {}, true, owner);
+  applySheetModeration(id, owner, record.moderation, record.isPublic);
+}
+
+async function submitSheetAppeal(form) {
+  const message = form.elements.message.value.trim();
+  const feedback = form.querySelector('[role="alert"]');
+  if (!message) {
+    feedback.textContent = 'Escreva seu pedido de revisão.';
+    return;
+  }
+  const id = draft.id;
+  const owner = user.id;
+  const button = form.querySelector('button');
+  button.disabled = true;
+  try {
+    const result = await characterRequest('/' + id + '/appeal', {
+      method: 'POST', body: JSON.stringify({ message }),
+    }, true, owner);
+    applySheetModeration(id, owner, result.moderation, false);
+    showNotice('Pedido de revisão enviado.');
+  } catch (error) {
+    feedback.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function submitAccount(form, trigger) {
   if (accountBusy) return;
   const view = form.dataset.view;
   const fields = new FormData(form);
@@ -2814,9 +2931,18 @@ async function submitAccount(form) {
   const password = fields.get('password');
   const confirmation = fields.get('confirmation');
   const username = fields.get('username')?.trim();
+  const action = trigger?.value;
+  const appeal = action === 'appeal' ? fields.get('appeal')?.trim() : undefined;
+  const deleteAccount = action === 'delete';
   const message = form.querySelector('#account-error');
   const submit = form.querySelector('button[type="submit"]');
   const token = new URLSearchParams(location.hash.slice(1)).get('token');
+  if (action === 'appeal' && !appeal) {
+    message.textContent = 'Escreva seu pedido de revisão.';
+    form.elements.appeal.focus();
+    return;
+  }
+  if (deleteAccount && !window.confirm('Excluir definitivamente sua conta e suas fichas do servidor?')) return;
   if (confirmation !== null && password !== confirmation) {
     message.textContent = 'As senhas não coincidem.';
     form.elements.confirmation.focus();
@@ -2837,7 +2963,15 @@ async function submitAccount(form) {
   message.textContent = '';
   try {
     if (view === 'login') {
-      const session = await withSessionLock(() => authRequest('login', { email, password }));
+      const session = await withSessionLock(() => authRequest('login', {
+        email, password, appeal, ...(deleteAccount ? { deleteAccount: true } : {}),
+      }));
+      if (session.accountDeleted) {
+        form.reset();
+        loginModeration(form, null);
+        showNotice('Conta excluída.');
+        return;
+      }
       ++accountSync;
       setUser(session.user);
       setGuestMode(false);
@@ -2864,6 +2998,7 @@ async function submitAccount(form) {
     }
   } catch (error) {
     message.textContent = error.message;
+    if (view === 'login') loginModeration(form, error.moderation);
   } finally {
     accountBusy = false;
     submit.disabled = false;
@@ -3852,6 +3987,8 @@ main.addEventListener('click', async ({ target }) => {
       }
     } catch (error) {
       publicationFeedback = { id, error: true, review: error.code === 'PUBLICATION_DENIED', message: error.message };
+      if (error.status === 403 && error.code === 'PUBLICATION_DENIED')
+        await refreshSheetModeration(id, sync.owner).catch(() => {});
     } finally {
       if (sync === characterSync && id === draft?.id && !publicSheet && step === 'ficha') renderPlay();
     }
@@ -3979,6 +4116,12 @@ document.querySelector('#quick-search').addEventListener('submit', (event) => {
 });
 
 main.addEventListener('submit', (event) => {
+  if (event.target.matches('form[data-account-state], form[data-sheet-appeal]')) {
+    event.preventDefault();
+    if (event.target.hasAttribute('data-account-state')) void submitAccountState(event.target, event.submitter);
+    else void submitSheetAppeal(event.target);
+    return;
+  }
   if (event.target.matches('form[data-account-update]')) {
     event.preventDefault();
     void submitAccountUpdate(event.target);
@@ -3986,7 +4129,7 @@ main.addEventListener('submit', (event) => {
   }
   if (event.target.id === 'account-form') {
     event.preventDefault();
-    void submitAccount(event.target);
+    void submitAccount(event.target, event.submitter);
     return;
   }
   if (event.target.id !== 'builder-form') return;

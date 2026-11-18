@@ -9,6 +9,13 @@ interface ListQuery {
   search?: string;
 }
 
+const noticeBody = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['message'],
+  properties: { message: { type: 'string', minLength: 1, maxLength: 2000, pattern: '\\S' } },
+} as const;
+
 const querystring = {
   type: 'object',
   additionalProperties: false,
@@ -46,7 +53,8 @@ export function adminRoutes(app: FastifyInstance, db: Database, auth: AuthServic
       const term = search.trim();
       const rows = await db
         .prepare(
-          `SELECT id,username,email,role,is_active AS "isActive"
+          `SELECT id,username,email,role,is_active AS "isActive",
+                  moderation_message AS message,moderation_appeal AS appeal,deactivated_by AS "deactivatedBy"
        FROM app_user
        WHERE strpos(lower(username),lower(?))>0 OR strpos(lower(email),lower(?))>0
        ORDER BY id DESC LIMIT ? OFFSET ?`
@@ -67,7 +75,8 @@ export function adminRoutes(app: FastifyInstance, db: Database, auth: AuthServic
       const rows = await db
         .prepare(
           `SELECT b.id,b.data->>'name' AS name,u.username AS author,b.publication_blocked AS blocked,
-              b.is_public AND u.is_active=1 AS visible
+              b.is_public AND u.is_active=1 AS visible,
+              b.moderation_message AS message,b.moderation_appeal AS appeal
        FROM builder_document b JOIN app_user u ON u.id=b.owner_id
        WHERE (b.is_public OR b.publication_blocked)
          AND (strpos(lower(b.data->>'name'),lower(?))>0 OR strpos(lower(u.username),lower(?))>0)
@@ -79,11 +88,11 @@ export function adminRoutes(app: FastifyInstance, db: Database, auth: AuthServic
     }
   );
 
-  for (const action of ['deactivate', 'reactivate', 'delete'] as const) {
-    app.post<{ Params: { id: number } }>(
+  for (const action of ['deactivate', 'reactivate'] as const) {
+    app.post<{ Params: { id: number }; Body?: { message: string } }>(
       `/admin/accounts/:id/${action}`,
       {
-        schema: { params: accountParams },
+        schema: { params: accountParams, ...(action === 'deactivate' ? { body: noticeBody } : {}) },
       },
       async (req, reply) => {
         const admin = await operator(req);
@@ -91,22 +100,44 @@ export function adminRoutes(app: FastifyInstance, db: Database, auth: AuthServic
         await db
           .transaction(async () => {
             const account = await db
-              .prepare('SELECT role FROM app_user WHERE id=? FOR UPDATE')
+              .prepare(
+                'SELECT role,is_active,deactivated_at,deactivated_by FROM app_user WHERE id=? FOR UPDATE'
+              )
               .get(id);
             if (!account) throw new AppError(404, 'NOT_FOUND', 'Conta não encontrada');
             if (account.role === 'admin')
               throw new AppError(403, 'FORBIDDEN', 'Contas administrativas são protegidas');
-            if (action === 'delete') {
-              await db.prepare('DELETE FROM character WHERE owner_id=?').run(id);
-              await db.prepare('DELETE FROM app_user WHERE id=?').run(id);
-            } else {
-              await db
-                .prepare('UPDATE app_user SET is_active=?,updated_at=? WHERE id=?')
-                .run(Number(action === 'reactivate'), new Date().toISOString(), id);
-              if (action === 'deactivate') {
-                await db.prepare('DELETE FROM session WHERE user_id=?').run(id);
-                await db.prepare('DELETE FROM auth_token WHERE user_id=?').run(id);
-              }
+            const active = action === 'reactivate';
+            if (active && account.deactivated_by === 'owner')
+              throw new AppError(
+                409,
+                'OWNER_DEACTIVATED',
+                'O titular reativa esta conta ao entrar'
+              );
+            if (Boolean(account.is_active) === active)
+              throw new AppError(409, 'ACCOUNT_STATE_CHANGED', 'O estado da conta já foi alterado');
+            if (
+              active &&
+              account.deactivated_at &&
+              Date.now() - new Date(account.deactivated_at).getTime() >= 30 * 86400000
+            )
+              throw new AppError(409, 'ACCOUNT_EXPIRED', 'O prazo de reativação da conta terminou');
+            await db
+              .prepare(
+                `UPDATE app_user SET is_active=?,moderation_message=?,moderation_appeal=NULL,
+                 deactivated_at=?,deactivated_by=?,updated_at=? WHERE id=?`
+              )
+              .run(
+                Number(active),
+                active ? null : req.body!.message.trim(),
+                active ? null : new Date(),
+                active ? null : 'admin',
+                new Date().toISOString(),
+                id
+              );
+            if (!active) {
+              await db.prepare('DELETE FROM session WHERE user_id=?').run(id);
+              await db.prepare('DELETE FROM auth_token WHERE user_id=?').run(id);
             }
             await db
               .prepare(
@@ -121,10 +152,10 @@ export function adminRoutes(app: FastifyInstance, db: Database, auth: AuthServic
   }
 
   for (const action of ['block', 'unblock'] as const) {
-    app.post<{ Params: { id: string } }>(
+    app.post<{ Params: { id: string }; Body?: { message: string } }>(
       `/admin/sheets/:id/${action}`,
       {
-        schema: { params: sheetParams },
+        schema: { params: sheetParams, ...(action === 'block' ? { body: noticeBody } : {}) },
       },
       async (req, reply) => {
         const admin = await operator(req);
@@ -133,10 +164,16 @@ export function adminRoutes(app: FastifyInstance, db: Database, auth: AuthServic
           .transaction(async () => {
             const row = await db
               .prepare(
-                `UPDATE builder_document SET publication_blocked=?,is_public=FALSE
-           WHERE id=? AND (is_public OR publication_blocked) RETURNING owner_id`
+                `UPDATE builder_document SET publication_blocked=?,is_public=FALSE,
+                  moderation_message=?,moderation_appeal=NULL
+           WHERE id=? AND publication_blocked<>? AND (is_public OR publication_blocked) RETURNING owner_id`
               )
-              .get(action === 'block', id);
+              .get(
+                action === 'block',
+                action === 'block' ? req.body!.message.trim() : null,
+                id,
+                action === 'block'
+              );
             if (!row) throw new AppError(404, 'NOT_FOUND', 'Publicação não encontrada');
             await db
               .prepare(

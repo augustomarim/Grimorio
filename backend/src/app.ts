@@ -285,10 +285,21 @@ export async function buildApp(options: AppOptions) {
         catalogEntries: catalog.total,
       };
     });
+    let cleanup: Promise<void> | undefined;
+    const purgeInactive = () => {
+      cleanup ??= auth.purgeInactiveAccounts()
+        .catch((error) => app.log.error({ err: error }, 'Falha ao excluir contas desativadas vencidas'))
+        .finally(() => { cleanup = undefined; });
+    };
+    const cleanupTimer = config.environment === 'test' ? undefined : setInterval(purgeInactive, 60 * 60 * 1000);
+    cleanupTimer?.unref();
     app.addHook('onClose', async () => {
+      clearInterval(cleanupTimer);
+      await cleanup;
       await db.close();
     });
     await app.ready();
+    if (cleanupTimer) purgeInactive();
     return { app, db, auth };
   } catch (error) {
     await app.close();

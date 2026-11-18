@@ -19,6 +19,10 @@ export interface User {
   role: 'user' | 'admin';
   is_active: number;
   password_hash: string;
+  deactivated_at?: Date | null;
+  deactivated_by?: 'owner' | 'admin' | null;
+  moderation_message?: string | null;
+  moderation_appeal?: string | null;
 }
 export interface Credentials {
   access: string;
@@ -43,6 +47,7 @@ const invalid = () =>
 const later = (now: Date, ms: number) => new Date(now.getTime() + ms).toISOString();
 const minute = 60000,
   day = 24 * 60 * minute;
+const retention = 30 * day;
 export class AuthService {
   constructor(
     private db: Database,
@@ -204,8 +209,9 @@ export class AuthService {
     email: string,
     password: string,
     ip: string,
-    userAgent: string
-  ): Promise<Credentials> {
+    userAgent: string,
+    options: { appeal?: string; deleteAccount?: boolean } = {}
+  ) {
     if (await this.blocked(email, ip, this.now().toISOString())) throw invalid();
     const user = (await this.db
       .prepare('SELECT * FROM app_user WHERE email=?')
@@ -220,14 +226,13 @@ export class AuthService {
           .run(now.toISOString());
         if (await this.blocked(email, ip, now.toISOString())) return null;
         const current = user
-          ? ((await this.db.prepare('SELECT * FROM app_user WHERE id=?').get(user.id)) as
+          ? ((await this.db.prepare('SELECT * FROM app_user WHERE id=? FOR UPDATE').get(user.id)) as
               User | undefined)
           : undefined;
         if (
           !current ||
           !usable ||
           !valid ||
-          !current.is_active ||
           current.password_hash !== user!.password_hash
         ) {
           await this.failure(email, ip, now);
@@ -236,11 +241,75 @@ export class AuthService {
         await this.db
           .prepare("DELETE FROM login_throttle WHERE scope='email' AND key_hash=?")
           .run(bucketHash(this.key, 'email', normalizeEmail(email)));
+        if (!current.is_active) {
+          const expires = current.deactivated_at && later(new Date(current.deactivated_at), retention);
+          if (expires && expires <= now.toISOString()) {
+            await this.removeAccount(current.id, 'account.expired');
+            return null;
+          }
+          if (options.deleteAccount) {
+            await this.removeAccount(current.id, 'account.owner_delete');
+            return { accountDeleted: true } as const;
+          }
+          if (current.deactivated_by !== 'owner') {
+            let appeal = current.moderation_appeal;
+            if (options.appeal && !appeal) {
+              appeal = options.appeal.trim();
+              await this.db.prepare('UPDATE app_user SET moderation_appeal=? WHERE id=?').run(appeal, current.id);
+              await this.audit(current.id, 'account.appeal', 'app_user', current.id);
+            }
+            return { moderation: { message: current.moderation_message ?? null, appeal: appeal ?? null, expires } };
+          }
+          if (options.appeal) throw new AppError(409, 'ACCOUNT_STATE_CHANGED', 'Entre novamente para reativar sua conta');
+          await this.db.prepare(
+            'UPDATE app_user SET is_active=1,deactivated_at=NULL,deactivated_by=NULL,updated_at=? WHERE id=?'
+          ).run(now.toISOString(), current.id);
+          await this.audit(current.id, 'account.owner_reactivate', 'app_user', current.id);
+        } else if (options.appeal || options.deleteAccount) {
+          throw new AppError(409, 'ACCOUNT_STATE_CHANGED', 'A conta está ativa. Entre para gerenciá-la nas configurações.');
+        }
         return await this.createSession(current, ip, userAgent, now);
       })
       .immediate();
     if (!result) throw invalid();
     return result;
+  }
+
+  private async removeAccount(id: number, action: string) {
+    await this.db.prepare('DELETE FROM character WHERE owner_id=?').run(id);
+    await this.db.prepare('DELETE FROM app_user WHERE id=?').run(id);
+    await this.audit(null, action, 'app_user', id);
+  }
+
+  async purgeInactiveAccounts() {
+    await this.db.transaction(async () => {
+      const cutoff = new Date(this.now().getTime() - retention);
+      const accounts = await this.db.prepare(
+        `SELECT id FROM app_user WHERE is_active=0 AND deactivated_at<=?
+         ORDER BY deactivated_at LIMIT 50 FOR UPDATE SKIP LOCKED`
+      ).all(cutoff);
+      for (const account of accounts) await this.removeAccount(account.id, 'account.expired');
+    }).immediate();
+  }
+
+  async changeAccountState(user: User, password: string, action: 'deactivate' | 'delete') {
+    if (!await verifyPassword(user.password_hash, password))
+      throw new AppError(403, 'INVALID_PASSWORD', 'Senha atual incorreta');
+    await this.db.transaction(async () => {
+      const current = await this.db.prepare('SELECT password_hash,is_active FROM app_user WHERE id=? FOR UPDATE').get(user.id);
+      if (!current?.is_active || current.password_hash !== user.password_hash) throw invalid();
+      if (action === 'delete') {
+        await this.removeAccount(user.id, 'account.owner_delete');
+        return;
+      }
+      const now = this.now();
+      await this.db.prepare(
+        "UPDATE app_user SET is_active=0,deactivated_by='owner',deactivated_at=?,updated_at=? WHERE id=?"
+      ).run(now, now.toISOString(), user.id);
+      await this.db.prepare('DELETE FROM session WHERE user_id=?').run(user.id);
+      await this.db.prepare('DELETE FROM auth_token WHERE user_id=?').run(user.id);
+      await this.audit(user.id, 'account.owner_deactivate', 'app_user', user.id);
+    }).immediate();
   }
   async authenticate(access: string | undefined): Promise<User> {
     if (!access) throw invalid();

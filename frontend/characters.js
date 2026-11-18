@@ -79,6 +79,7 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
       ...current,
       cloudVersion: saved.revision,
       cloudPublic: saved.isPublic,
+      cloudModeration: saved.moderation,
       cloudDirty: changed,
     });
     if (changed) pending.add(id);
@@ -137,11 +138,14 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
               ...document.draft,
               cloudVersion: document.revision,
               cloudPublic: document.isPublic,
+              cloudModeration: document.moderation,
               cloudDirty: false,
             });
-          } else if ((local.cloudVersion ?? 0) !== document.revision) {
-            conflicts.add(local.id);
-          } else pending.add(local.id);
+          } else {
+            store({ ...local, cloudPublic: document.isPublic, cloudModeration: document.moderation });
+            if ((local.cloudVersion ?? 0) !== document.revision) conflicts.add(local.id);
+            else pending.add(local.id);
+          }
         }
         for (const character of list()) {
           if (deleting.has(character.id)) continue;
@@ -223,6 +227,7 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
         ...document.draft,
         cloudVersion: document.revision,
         cloudPublic: document.isPublic,
+        cloudModeration: document.moderation,
         cloudDirty: false,
       });
     },

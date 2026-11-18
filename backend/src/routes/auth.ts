@@ -7,6 +7,8 @@ export const ACCESS = 'grimorio_access',
   REFRESH = 'grimorio_refresh';
 const email = { type: 'string', format: 'email', maxLength: 254 };
 const password = { type: 'string', minLength: 12, maxLength: 128 };
+const currentPassword = { type: 'string', minLength: 1, maxLength: 128 };
+const appeal = { type: 'string', minLength: 1, maxLength: 2000, pattern: '\\S' };
 const username = { type: 'string', minLength: 3, maxLength: 32, pattern: '^\\S(?:.*\\S)?$' };
 const rawToken = { type: 'string', minLength: 40, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' };
 const object = (properties: Record<string, unknown>, required = Object.keys(properties)) => ({
@@ -68,25 +70,41 @@ export function authRoutes(app: FastifyInstance, auth: AuthService, config: Conf
     Body: {
       email: string;
       password: string;
+      appeal?: string;
+      deleteAccount?: boolean;
     };
   }>(
     '/auth/login',
     {
       schema: {
-        body: object({ email, password: { type: 'string', minLength: 1, maxLength: 128 } }),
+        body: object({ email, password: currentPassword, appeal, deleteAccount: { type: 'boolean' } }, ['email', 'password']),
       },
     },
-    async (req, reply) =>
-      set(
-        reply,
-        await auth.login(
+    async (req, reply) => {
+      const result = await auth.login(
           req.body.email,
           req.body.password,
           req.ip,
-          String(req.headers['user-agent'] ?? '')
-        )
-      )
+          String(req.headers['user-agent'] ?? ''),
+          req.body
+        );
+      if ('accountDeleted' in result) return result;
+      if ('moderation' in result)
+        return reply.code(403).send({
+          error: { code: 'ACCOUNT_DEACTIVATED', message: 'Sua conta foi desativada pela administração.' },
+          moderation: result.moderation,
+        });
+      return set(reply, result);
+    }
   );
+  app.post<{ Body: { currentPassword: string; action: 'deactivate' | 'delete' } }>('/auth/account-state', {
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    schema: { body: object({ currentPassword, action: { type: 'string', enum: ['deactivate', 'delete'] } }) },
+  }, async (req, reply) => {
+    await auth.changeAccountState(await auth.authenticate(req.cookies[ACCESS]), req.body.currentPassword, req.body.action);
+    clear(reply);
+    return reply.code(204).send();
+  });
   app.get('/auth/me', async (req) => ({
     user: publicUser(await auth.authenticate(req.cookies[ACCESS])),
   }));
