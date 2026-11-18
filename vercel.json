@@ -7,6 +7,7 @@
   "rewrites": [
     { "source": "/reset-password", "destination": "/index.html" },
     { "source": "/api/auth/:path*", "destination": "/api/render-proxy?path=auth/:path*" },
+    { "source": "/api/admin/:path*", "destination": "/api/render-proxy?path=admin/:path*" },
     { "source": "/api/builder/:path*", "destination": "/api/render-proxy?path=builder/:path*" },
     { "source": "/api/builder", "destination": "/api/render-proxy?path=builder" }
   ]

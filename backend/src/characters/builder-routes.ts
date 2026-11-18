@@ -136,7 +136,7 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
   );
   app.put<{
     Params: { id: string };
-    Body: { draft: Record<string, unknown>; revision: number; isPublic: boolean };
+    Body: { draft: Record<string, unknown>; revision: number; isPublic: boolean; changePublication?: boolean };
   }>(
     '/builder/:id',
     {
@@ -150,6 +150,7 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
           properties: {
             revision: { type: 'integer', minimum: 0, maximum: 2147483646 },
             isPublic: { type: 'boolean' },
+            changePublication: { type: 'boolean' },
             draft: {
               type: 'object',
               additionalProperties: false,
@@ -273,7 +274,7 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
     },
     async (req) => {
       const user = await auth.authenticate(req.cookies[ACCESS]);
-      const { draft, revision, isPublic } = req.body;
+      const { draft, revision, isPublic, changePublication } = req.body;
       if (draft.id !== req.params.id)
         throw new AppError(
           400,
@@ -300,28 +301,10 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
           );
         }
       }
-      if (isPublic && (!draft.saved || !String(draft.name).trim()))
-        throw new AppError(
-          409,
-          'PUBLICATION_DENIED',
-          'Salve a ficha antes de publicar'
-        );
-      if (isPublic) {
-        const { validatePublication } = (await import(publicationModule)) as {
-          validatePublication(draft: Record<string, unknown>): {
-            issues: [string, string][];
-            selected: Record<string, string[]>;
-          };
-        };
-        const { issues, selected } = validatePublication(draft);
-        if (issues.length)
-          throw new AppError(409, 'PUBLICATION_DENIED', `Revise a ficha. ${issues[0]![1]}`);
-        draft.selected = selected;
-      }
       return db
         .transaction(async () => {
           const existing = await db
-            .prepare('SELECT owner_id,revision FROM builder_document WHERE id=? FOR UPDATE')
+            .prepare('SELECT owner_id,revision,is_public,publication_blocked FROM builder_document WHERE id=? FOR UPDATE')
             .get(req.params.id);
           if (existing && existing.owner_id !== user.id) throw missing();
           if ((existing?.revision ?? 0) !== revision)
@@ -330,17 +313,36 @@ export function builderRoutes(app: FastifyInstance, db: Database, auth: AuthServ
               'REVISION_CONFLICT',
               'A ficha foi alterada em outra aba ou dispositivo'
             );
+          if (existing?.publication_blocked && isPublic && changePublication !== false)
+            throw new AppError(403, 'PUBLICATION_DENIED', 'A administração bloqueou a publicação desta ficha');
+          const publish = existing && changePublication === false
+            ? Boolean(existing.is_public && draft.saved)
+            : isPublic;
+          if (publish) {
+            if (!draft.saved || !String(draft.name).trim())
+              throw new AppError(409, 'PUBLICATION_DENIED', 'Salve a ficha antes de publicar');
+            const { validatePublication } = (await import(publicationModule)) as {
+              validatePublication(draft: Record<string, unknown>): {
+                issues: [string, string][];
+                selected: Record<string, string[]>;
+              };
+            };
+            const { issues, selected } = validatePublication(draft);
+            if (issues.length)
+              throw new AppError(409, 'PUBLICATION_DENIED', `Revise a ficha. ${issues[0]![1]}`);
+            draft.selected = selected;
+          }
           const row = existing
             ? await db
                 .prepare(
                   'UPDATE builder_document SET data=?::jsonb,revision=revision+1,is_public=?,updated_at=clock_timestamp() WHERE id=? AND owner_id=? RETURNING id,data,revision,is_public'
                 )
-                .get(JSON.stringify(draft), isPublic, req.params.id, user.id)
+                .get(JSON.stringify(draft), publish, req.params.id, user.id)
             : await db
                 .prepare(
                   'INSERT INTO builder_document(id,owner_id,data,is_public) VALUES(?,?,?::jsonb,?) RETURNING id,data,revision,is_public'
                 )
-                .get(req.params.id, user.id, JSON.stringify(draft), isPublic);
+                .get(req.params.id, user.id, JSON.stringify(draft), publish);
           await db
             .prepare(
               'INSERT INTO audit_log(actor_user_id,action,entity_type,entity_id) VALUES(?,?,?,?)'

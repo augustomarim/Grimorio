@@ -68,7 +68,7 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(r.statusCode).toBe(200);
     expect(r.json()).toMatchObject({
       databaseEngine: 'postgresql',
-      schemaVersion: 2,
+      schemaVersion: 4,
       catalogEntries: 1905,
     });
   });
@@ -112,7 +112,11 @@ suite('PostgreSQL 17 real — integração do backend', () => {
       new URL('rules.js', root).href
     );
     const catalog = indexCatalog(
-      { ...rulesData, revision: rulesData.REVISION, languagePick: rulesData.reference.languagePick },
+      {
+        ...rulesData,
+        revision: rulesData.REVISION,
+        languagePick: rulesData.reference.languagePick,
+      },
       read('pt-BR.json'),
       read('reference.json')
     );
@@ -158,12 +162,17 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(projection.spells.some(({ id }: { id: string }) => id === 'mage-armor')).toBe(false);
     const url = `/builder/${draft.id}`;
     const publicUrl = `/builder/public/${draft.id}`;
-    const put = (session: string, revision: number, isPublic: boolean) =>
+    const put = (
+      session: string,
+      revision: number,
+      isPublic: boolean,
+      changePublication?: boolean
+    ) =>
       app.inject({
         method: 'PUT',
         url,
         headers: { origin, cookie: session },
-        payload: { draft, revision, isPublic },
+        payload: { draft, revision, isPublic, changePublication },
       });
     const saved = await put(cookie, 0, false);
     expect(saved.statusCode, saved.body).toBe(200);
@@ -196,13 +205,52 @@ suite('PostgreSQL 17 real — integração do backend', () => {
     expect(shared.statusCode, shared.body).toBe(200);
     expect(shared.json().draft).toMatchObject({ notes: draft.notes, selected: draft.selected });
     expect(shared.json().draft).not.toHaveProperty('play');
-    expect(await gallery()).toEqual([
-      { id: draft.id, name: draft.name, class: 'warlock', classPlan: null, level: 2 },
-    ]);
-    const privateAgain = await put(session, published.json().revision, false);
-    expect(privateAgain.statusCode, privateAgain.body).toBe(200);
+    expect(await gallery()).toMatchObject([{ id: draft.id, name: draft.name, class: 'warlock' }]);
+    const blockPath = `/admin/sheets/${draft.id}/block`;
+    const moderate = (path: string, actor: string) =>
+      app.inject({ method: 'POST', url: path, headers: { origin, cookie: actor } });
+    expect((await moderate(blockPath, session)).statusCode).toBe(403);
+    const adminEmail = 'pg-moderator@example.invalid';
+    expect(
+      (await post('/auth/register', { email: adminEmail, username: 'pg-moderator', password }))
+        .statusCode
+    ).toBe(202);
+    await db.prepare("UPDATE app_user SET role='admin' WHERE email=?").run(adminEmail);
+    const moderator = await post('/auth/login', { email: adminEmail, password });
+    expect(moderator.statusCode).toBe(200);
+    const adminSession = moderator.cookies.map((item) => `${item.name}=${item.value}`).join('; ');
+    expect((await moderate(blockPath, adminSession)).statusCode).toBe(204);
     expect((await app.inject(publicUrl)).statusCode).toBe(404);
     expect(await gallery()).toEqual([]);
+    const revision = published.json().revision;
+    expect((await put(session, revision, true, true)).statusCode).toBe(403);
+    const privateEdit = await put(session, revision, true, false);
+    expect(privateEdit.statusCode, privateEdit.body).toBe(200);
+    expect(privateEdit.json().isPublic).toBe(false);
+    expect((await moderate(`/admin/sheets/${draft.id}/unblock`, adminSession)).statusCode).toBe(
+      204
+    );
+    expect((await app.inject(publicUrl)).statusCode).toBe(404);
+    const account = await post('/auth/register', {
+      email: 'pg-moderated@example.invalid',
+      username: 'pg-moderated',
+      password,
+    });
+    expect(account.statusCode).toBe(202);
+    const accounts = await app.inject({
+      url: '/admin/accounts?search=pg-moderated',
+      headers: { cookie: adminSession },
+    });
+    expect(accounts.statusCode).toBe(200);
+    const [target] = accounts.json().items;
+    expect(target).toMatchObject({ username: 'pg-moderated', isActive: 1 });
+    const targetPath = `/admin/accounts/${target.id}`;
+    expect((await moderate(targetPath + '/deactivate', adminSession)).statusCode).toBe(204);
+    expect((await post('/auth/login', { email: target.email, password })).statusCode).toBe(401);
+    expect((await moderate(targetPath + '/reactivate', adminSession)).statusCode).toBe(204);
+    expect((await post('/auth/login', { email: target.email, password })).statusCode).toBe(200);
+    expect((await moderate(targetPath + '/delete', adminSession)).statusCode).toBe(204);
+    expect(await db.prepare('SELECT id FROM app_user WHERE id=?').get(target.id)).toBeUndefined();
   });
   it('consulta ficha e cálculos sem expor personagem privado', async () => {
     expect((await app.inject(`/characters/${id}`)).statusCode).toBe(404);

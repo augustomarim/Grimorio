@@ -34,6 +34,7 @@ export const files = new Map([
   ['/reset-password', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/auth.js', ['auth.js', 'text/javascript']],
+  ['/admin.js', ['admin.js', 'text/javascript']],
   ['/characters.js', ['characters.js', 'text/javascript']],
   ['/reference.json', ['reference.json', 'application/json']],
   ['/rules.js', ['rules.js', 'text/javascript']],
@@ -154,6 +155,10 @@ export function createFrontend(origin) {
       return;
     }
     if (/^\/api\/builder(?:\/public)?(?:\/[a-f\d-]{36})?$/i.test(path)) {
+      proxyAuth(request, response, path, apiOrigin);
+      return;
+    }
+    if (/^\/api\/admin\/(?:accounts(?:\/\d{1,10}\/(?:deactivate|reactivate|delete))?|sheets(?:\/[a-f\d-]{36}\/(?:block|unblock))?)$/i.test(path)) {
       proxyAuth(request, response, path, apiOrigin);
       return;
     }

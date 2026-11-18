@@ -63,7 +63,11 @@ export function syncCharacters({ owner, list, read, cache, notify }) {
     const body = payload(character);
     const saved = await characterRequest(
       '/' + id,
-      { method: 'PUT', body: JSON.stringify({ ...body, isPublic: isPublic ?? body.isPublic }) },
+      { method: 'PUT', body: JSON.stringify({
+        ...body,
+        isPublic: isPublic ?? body.isPublic,
+        changePublication: isPublic !== undefined,
+      }) },
       true,
       owner
     );

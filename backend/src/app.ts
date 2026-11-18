@@ -20,6 +20,7 @@ import { openDatabase } from './db/database.js';
 import { migrate, verifyHistory, requireCurrentSchema } from './db/migrations.js';
 import { AppError } from './errors.js';
 import { authRoutes } from './routes/auth.js';
+import { adminRoutes } from './routes/admin.js';
 import { characterRoutes } from './characters/routes.js';
 import { builderRoutes } from './characters/builder-routes.js';
 import { catalogStatus } from './catalog/status.js';
@@ -233,6 +234,7 @@ export async function buildApp(options: AppOptions) {
     await app.register(
       async (api) => {
         authRoutes(api, auth, config);
+        adminRoutes(api, db, auth);
         catalogRoutes(api, db);
         characterRoutes(api, db, auth);
         builderRoutes(api, db, auth);

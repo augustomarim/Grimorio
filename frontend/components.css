@@ -3661,3 +3661,78 @@ textarea {
   font-weight: 700;
   text-transform: capitalize;
 }
+.admin-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.admin-panel h1,
+.admin-panel [data-admin-status] {
+  margin: 0;
+}
+
+.admin-panel [data-admin-status]:empty {
+  display: none;
+}
+
+.admin-search {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-search input {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-actions [aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.admin-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-block-start: 1px solid var(--line);
+}
+
+.admin-row > div:first-child {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-confirm {
+  width: min(31rem, calc(100% - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.admin-confirm::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.admin-confirm .admin-actions {
+  justify-content: end;
+}

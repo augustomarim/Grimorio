@@ -4,7 +4,9 @@ export default {
   async fetch(request) {
     const path = new URL(request.url);
     const route = path.searchParams.get('path')?.replace(/\/$/, '');
-    if (!route || !/^(?:auth\/[a-z-]+(?:\/[a-z-]+)?|builder(?:\/public)?(?:\/[a-f0-9-]{36})?)$/.test(route))
+    const accountRoute = /^(?:auth\/[a-z-]+(?:\/[a-z-]+)?|builder(?:\/public)?(?:\/[a-f0-9-]{36})?)$/;
+    const adminRoute = /^admin\/(?:accounts(?:\/\d{1,10}\/(?:deactivate|reactivate|delete))?|sheets(?:\/[a-f0-9-]{36}\/(?:block|unblock))?)$/;
+    if (!route || (!accountRoute.test(route) && !adminRoute.test(route)))
       return new Response(null, { status: 404 });
 
     const unavailable = () => Response.json(

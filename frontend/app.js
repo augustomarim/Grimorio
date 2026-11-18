@@ -24,6 +24,7 @@ import {
   characterInventory, completeRest, deriveCharacter, equippedWeaponRolls, equipmentConflicts, equipmentSlot, playResources, rollDice, skillAbilities, updatePlayHP,
 } from './mechanics.js';
 import { accountLink, accountView, authRequest, restoreSession, withSessionLock } from './auth.js';
+import { adminView, mountAdmin } from './admin.js';
 import { characterRequest, syncCharacters } from './characters.js';
 import { classArticles, classProgression, compendiumHref, sortEntries } from './compendium.js';
 import { installGlossary } from './glossary.js';
@@ -2414,6 +2415,7 @@ function menu() {
   headerMenu.querySelector('summary').setAttribute('aria-label', 'Menu da conta · ' + profileName.textContent);
   accountMenu.innerHTML = user
     ? `${accountLink('#configuracoes', 'Configurações da conta', gameIcon('artificer'))}
+      ${user.role === 'admin' ? accountLink('#administracao', 'Painel de Administração', gameIcon('shield')) : ''}
       <button type="button" class="navigation-row account-action" data-logout><span class="game-emblem account-action-icon" aria-hidden="true">↪</span><span>Sair</span><span aria-hidden="true">›</span></button>`
     : guest
       ? accountLink('#configuracoes', 'Configurações', gameIcon('artificer')) + accountLink('#login', 'Entrar', '→')
@@ -2636,6 +2638,7 @@ function route() {
     clearTimeout(gallerySearchTimer);
   }
   publicSheet = page === 'publica';
+  if (!publicSheet) publicRecord = undefined;
   const accountPage =
     location.pathname === '/reset-password'
       ? 'redefinir'
@@ -2655,6 +2658,15 @@ function route() {
   if (page === 'configuracoes') {
     draft = undefined;
     main.innerHTML = hubShell(page, accountSettings());
+    return;
+  }
+  if (page === 'administracao') {
+    draft = undefined;
+    main.innerHTML = hubShell(page, user?.role === 'admin'
+      ? adminView
+      : '<section class="panel"><h1>Acesso restrito</h1><p>Esta área exige uma conta administrativa.</p></section>');
+    const panel = main.querySelector('#admin-panel');
+    if (panel) mountAdmin(panel, user.id);
     return;
   }
   if (!catalog) {
