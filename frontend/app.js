@@ -184,7 +184,6 @@ function markOpened(id) {
 }
 const characterLink = (character) =>
   character.saved ? sheetLink(character.id) : `#personagem/${character.id}/origem`;
-const characterTarget = (character) => character.saved ? 'target="_blank" rel="noopener"' : '';
 
 function getGuestMode() {
   try {
@@ -695,7 +694,7 @@ function characterList(characters) {
         ? `<ul class="character-list">${filtered
             .map(
               (character) => `<li>
-      <a href="${characterLink(character)}" ${characterTarget(character)}>
+      <a href="${characterLink(character)}">
         <span class="icon-label">${characterEmblem(plannedClasses(character, catalog))}<span><strong>${escape(title(character))}</strong><small>
           ${escape(classLevels(plannedClasses(character, catalog)) || 'Classe a escolher')} · Nível total ${classPlan(character).length}
         </small></span></span><span class="tag">${character.saved ? 'Ficha' : 'Rascunho'}${character.cloudDirty ? ' · sincronização pendente' : ''}</span></a>
@@ -707,7 +706,7 @@ function characterList(characters) {
 }
 
 function createLink(style = 'primary') {
-  return `<a class="button ${style}" href="#novo" target="_blank" rel="noopener">Criar personagem</a>`;
+  return `<a class="button ${style}" href="#novo">Criar personagem</a>`;
 }
 
 function workspaceNav(page) {
@@ -721,7 +720,7 @@ function workspaceNav(page) {
     .map(
       ([id, label, icon]) => `<a class="icon-label" href="#${id}" ${id === page ? 'aria-current="page"' : ''}>${gameIcon(icon)}${label}</a>`
     )
-    .join('')}<a class="icon-label" href="#novo" target="_blank" rel="noopener"><span aria-hidden="true">+</span>Criar personagem</a></nav>`;
+    .join('')}<a class="icon-label" href="#novo"><span aria-hidden="true">+</span>Criar personagem</a></nav>`;
 }
 
 function hubShell(page, content) {
@@ -849,7 +848,7 @@ function home() {
           <div><h2>${escape(title(featured))}</h2>
           <p class="muted">${escape([entry.species && displayName(entry.species), classLevels(entry.classes) || 'Classe a escolher'].filter(Boolean).join(' · '))}</p></div>
           <div class="hub-character-actions">
-            ${featured.saved ? `<a class="button secondary icon-label" href="${characterLink(featured)}" ${characterTarget(featured)}>${gameIcon('ability-book')}Abrir ficha</a>` : ''}
+            ${featured.saved ? `<a class="button secondary icon-label" href="${characterLink(featured)}">${gameIcon('ability-book')}Abrir ficha</a>` : ''}
             <a class="button secondary icon-label" href="#personagem/${escape(featured.id)}/origem">${gameIcon('artificer')}Editar ficha</a>
           </div>
           <dl class="hub-vitals">
@@ -872,7 +871,7 @@ function home() {
     <section class="panel hub-recent"><header class="section-heading"><h2>Personagens</h2></header>
       ${characters.length ? `<ul class="character-list">${characters.slice(0, 4).map((character) => {
         const classes = plannedClasses(character, catalog);
-        return `<li><a href="${characterLink(character)}" ${characterTarget(character)}>
+        return `<li><a href="${characterLink(character)}">
           ${characterEmblem(classes)}<span><strong>${escape(title(character))}</strong>
           <small>${escape(classLevels(classes) || 'Classe a escolher')}</small></span><span aria-hidden="true">›</span>
         </a></li>`;
@@ -1055,7 +1054,7 @@ function globalSearch(encodedQuery) {
       const classes = plannedClasses(character, catalog);
       const label = classLevels(classes);
       if (!matches(title(character), label)) return [];
-      return [`<a class="entry wiki-link" href="${characterLink(character)}" ${characterTarget(character)}>
+      return [`<a class="entry wiki-link" href="${characterLink(character)}">
         <strong class="icon-label">${characterEmblem(classes)}${escape(title(character))}</strong>
         <small>${escape(label)}</small></a>`];
     });
@@ -1102,8 +1101,8 @@ function compendium(articleId) {
           ['https://www.dndbeyond.com/srd', 'SRD da Wizards of the Coast'],
           ['https://github.com/5etools-mirror-3/5etools-src', 'Catálogo de referência'],
           ['https://github.com/decito/dnd5e-pt-br', 'Traduções comunitárias'],
-        ].map(([href, label]) => `<li><a class="navigation-row" href="${href}" target="_blank" rel="noopener">
-          ${gameIcon('ability-book', 'game-emblem')}<span>${label}</span><span aria-hidden="true">↗</span>
+        ].map(([href, label]) => `<li><a class="navigation-row" href="${href}">
+          ${gameIcon('ability-book', 'game-emblem')}<span>${label}</span><span aria-hidden="true">›</span>
         </a></li>`).join('')}</ul>
       </details>`
     }</section>`;
@@ -2265,7 +2264,7 @@ function sheet() {
     ${
       !publicSheet && user
         ? `<section><h3>Compartilhamento</h3>
-      <p>${draft.cloudPublic ? `<a href="#publica/${draft.id}" target="_blank" rel="noopener">Abrir link público</a>` : 'Acesso restrito à sua conta'}</p>
+      <p>${draft.cloudPublic ? `<a href="#publica/${draft.id}">Abrir link público</a>` : 'Acesso restrito à sua conta'}</p>
     </section>`
         : !publicSheet ? '<section><h3>Compartilhamento</h3><p>Entre na sua conta para publicar fichas salvas nela.</p></section>' : ''
     }
@@ -2327,7 +2326,7 @@ function builder() {
           <span class="tag">Nível total ${classPlan(draft).length}</span>
           <span class="tag">${draft.saved ? 'Ficha salva' : 'Rascunho'}</span>
         </div></div>
-        ${draft.saved ? `<a class="button secondary icon-label" href="${sheetLink(draft.id)}" target="_blank" rel="noopener">${gameIcon('ability-book')} Abrir ficha de jogo</a>` : ''}
+        ${draft.saved ? `<a class="button secondary icon-label" href="${sheetLink(draft.id)}">${gameIcon('ability-book')} Abrir ficha de jogo</a>` : ''}
       </div>
     </header>
     <nav class="panel steps" aria-label="Etapas do personagem">${steps.map(([id, label], index) => {
