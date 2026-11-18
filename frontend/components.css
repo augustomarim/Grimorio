@@ -2882,18 +2882,57 @@ textarea {
   opacity: 0.23;
 }
 .wiki-spell-article > .wiki-article-header {
-  padding-block-end: 0.75rem;
-  border-bottom: 2px solid var(--article-ink);
-  border-image: var(--spell-spectrum, linear-gradient(var(--article-ink), var(--article-ink))) 1;
+  --spell-header-ink: var(--spell-heading-ink, var(--article-ink));
+  --spell-header-color: var(--spell-spectrum, linear-gradient(var(--spell-header-ink), var(--spell-header-ink)));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: ". icon ." "school title .";
+  gap: 0.5rem 0.75rem;
+  padding-block-end: 0.3rem;
+  border-bottom: 2px solid var(--spell-header-ink);
+  border-image: var(--spell-header-color) 1;
 }
 .wiki-spell-school {
-  color: var(--article-ink);
+  grid-area: school;
+  justify-self: start;
+  align-self: end;
+  color: var(--spell-header-ink);
   font-family: Georgia, serif;
   font-style: italic;
-  margin-block-end: 0.35rem;
+  margin: 0;
 }
 .wiki-spell-article > .wiki-article-header h2 {
+  grid-area: title;
+  align-self: end;
+  max-width: 34vw;
+  margin: 0;
   font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  text-align: center;
+  color: var(--spell-header-ink);
+}
+.wiki-spell-emblem {
+  grid-area: icon;
+  justify-self: center;
+  display: grid;
+  padding: 1px;
+  border-radius: 0.85rem;
+  background: var(--spell-header-color);
+}
+.wiki-spell-article .wiki-spell-emblem > .game-emblem {
+  border: 0;
+  border-radius: 0.8rem;
+  color: var(--spell-header-ink);
+}
+@media (max-width: 620px) {
+  .wiki-spell-article > .wiki-article-header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "icon" "title" "school";
+  }
+  .wiki-spell-article > .wiki-article-header h2 {
+    max-width: none;
+  }
 }
 .wiki-spell-article h2,
 [data-spell-school] .spell-source dd,
@@ -2908,11 +2947,9 @@ textarea {
   color: color-mix(in srgb, var(--ink) 78%, var(--article-ink));
 }
 @supports (background-clip: text) {
-  .wiki-spell-article h2 > span {
-    background-image: var(
-      --spell-spectrum,
-      linear-gradient(var(--article-ink), var(--article-ink))
-    );
+  .wiki-spell-name,
+  .wiki-spell-school > span {
+    background-image: var(--spell-header-color);
     background-clip: text;
     color: transparent;
   }

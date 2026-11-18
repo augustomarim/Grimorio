@@ -331,7 +331,7 @@
     },
     "thunderclap": {
       "name": "Estrondo",
-      "text": "Cada criatura em uma Emanação de 5 pés originada de você deve ter sucesso em uma teste de resistência de Constituição ou levando 1d6 danos trovejante.\n\nO dano aumenta em 1d6 quando você atinge os níveis 5 (2d6), 11 (3d6) e 17 (4d6)."
+      "text": "Cada criatura em uma Emanação de 5 pés originada de você deve ter sucesso em um teste de resistência de Constituição ou levando 1d6 danos trovejante.\n\nO dano aumenta em 1d6 quando você atinge os níveis 5 (2d6), 11 (3d6) e 17 (4d6)."
     },
     "toll-the-dead": {
       "name": "Badalar dos Mortos",
@@ -389,11 +389,11 @@
     },
     "color-spray": {
       "name": "Leque Cromático",
-      "text": "Você lança uma deslumbrante gama de luz brilhante e colorida, cada criatura em um Cone de 15 pés que se origina de você deve ter sucesso em uma teste de resistência de Constituição ou ter a condição Cego até o fim de seu próximo turno."
+      "text": "Você lança uma deslumbrante gama de luz brilhante e colorida, cada criatura em um Cone de 15 pés que se origina de você deve ter sucesso em um teste de resistência de Constituição ou ter a condição Cego até o fim de seu próximo turno."
     },
     "command": {
       "name": "Comando",
-      "text": "O alvo deve ter sucesso em uma jogada de salvação de sabedoria ou seguir o comando em seu próximo turno.\n\nO alvo se move em sua direção pela rota mais curta e direta, terminando sua vez se se mover a menos de 5 pés de você.\n\nO alvo deixa cair o que quer que esteja segurando e então termina sua vez.\n\nO alvo passa sua vez se afastando de você pelos meios mais rápidos disponíveis.\n\nO alvo tem a condição de Prone e então termina sua vez.\n\nPor sua vez, o alvo não se move e não toma nenhuma ação ou ação bônus.\n\n**Com um espaço de magia de círculo superior.** Você pode afetar uma criatura adicional para cada espaço de magia acima de 1."
+      "text": "O alvo deve ter sucesso em um teste de resistência de Sabedoria ou seguir o comando em seu próximo turno.\n\nO alvo se move em sua direção pela rota mais curta e direta, terminando sua vez se se mover a menos de 5 pés de você.\n\nO alvo deixa cair o que quer que esteja segurando e então termina sua vez.\n\nO alvo passa sua vez se afastando de você pelos meios mais rápidos disponíveis.\n\nO alvo tem a condição de Prone e então termina sua vez.\n\nPor sua vez, o alvo não se move e não toma nenhuma ação ou ação bônus.\n\n**Com um espaço de magia de círculo superior.** Você pode afetar uma criatura adicional para cada espaço de magia acima de 1."
     },
     "compelled-duel": {
       "name": "Duelo Compelido",
@@ -429,7 +429,7 @@
     },
     "dissonant-whispers": {
       "name": "Sussurros Dissonantes",
-      "text": "Uma criatura de sua escolha que você pode ver dentro do alcance ouve uma melodia discordante em sua mente. O alvo faz uma jogada de salvação da sabedoria. Se falhar no teste, ele leva danos psíquicos 3d6 e deve usar imediatamente sua reação, se disponível, para se afastar de você o mais longe possível, usando a rota mais segura. se passar no teste de resistência, o alvo leva metade dos danos.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d6 para cada espaço de magia acima de 1."
+      "text": "Uma criatura de sua escolha que você pode ver dentro do alcance ouve uma melodia discordante em sua mente. O alvo faz um teste de resistência de Sabedoria. Se falhar no teste, ele leva danos psíquicos 3d6 e deve usar imediatamente sua reação, se disponível, para se afastar de você o mais longe possível, usando a rota mais segura. se passar no teste de resistência, o alvo leva metade dos danos.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d6 para cada espaço de magia acima de 1."
     },
     "divine-favor": {
       "name": "Favor Divino",
@@ -442,7 +442,7 @@
     },
     "ensnaring-strike": {
       "name": "Golpe Enredante",
-      "text": "Quando você atinge o alvo, as videiras que se agarram aparecem nele, e isso faz um teste de resistência de força, uma criatura grande ou maior tem vantagem neste salvamento, em caso de falha, o alvo tem a condição de Restringido até que o feitiço termine, se passar no teste de resistência, as videiras se esmorecem e o feitiço termina.\n\nO alvo ou uma criatura ao seu alcance pode tomar uma ação para fazer uma verificação da Força (Atletismo) contra o seu feitiço salvar DC.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d6 para cada espaço de magia acima de 1.",
+      "text": "Quando você atinge o alvo, as videiras que se agarram aparecem nele, e isso faz um teste de resistência de força, uma criatura grande ou maior tem vantagem neste teste de resistência, em caso de falha, o alvo tem a condição de Restringido até que o feitiço termine, se passar no teste de resistência, as videiras se esmorecem e o feitiço termina.\n\nO alvo ou uma criatura ao seu alcance pode tomar uma ação para fazer uma verificação da Força (Atletismo) contra o seu feitiço salvar DC.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d6 para cada espaço de magia acima de 1.",
       "triggered": true
     },
     "entangle": {
@@ -451,7 +451,7 @@
     },
     "expeditious-retreat": {
       "name": "Recuo Acelerado",
-      "text": "Você toma a ação Dash, e até o feitiço acabar, você pode tomar essa ação novamente como uma ação bônus."
+      "text": "Você toma a ação Disparar, e até o feitiço acabar, você pode tomar essa ação novamente como uma ação bônus."
     },
     "faerie-fire": {
       "name": "Fogo das Fadas",
@@ -498,7 +498,7 @@
     },
     "hellish-rebuke": {
       "name": "Repreensão Infernal",
-      "text": "A criatura que te danificou está momentaneamente cercada por chamas verdes, faz uma jogada de salvação da Destreza, levando 2d10 de dano de fogo se falhar no teste, ou metade do dano se passar.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d10 para cada espaço de magia acima de 1.",
+      "text": "A criatura que te danificou está momentaneamente cercada por chamas verdes, faz um teste de resistência de Destreza, levando 2d10 de dano de fogo se falhar no teste, ou metade do dano se passar.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d10 para cada espaço de magia acima de 1.",
       "triggered": true
     },
     "heroism": {
@@ -583,7 +583,7 @@
     },
     "sleep": {
       "name": "Sono",
-      "text": "Cada criatura de sua escolha em uma esfera de raio de 5 pés centrada em um ponto dentro do alcance deve ter sucesso em um teste de resistência da Sabedoria ou ter a condição incapacitada até o fim de seu próximo turno, em que ponto deve repetir o salvamento. Se o alvo falhar no segundo salvamento, o alvo tem a condição inconsciente para a duração. O feitiço termina em um alvo se ele sofrer dano ou alguém dentro de 5 pés dele precisa de uma ação para tirá-lo do efeito do feitiço.\n\nCriaturas que não dormem, como elfos, ou que têm imunidade à condição de Exaustão, têm sucesso automaticamente em salvar contra este feitiço."
+      "text": "Cada criatura de sua escolha em uma esfera de raio de 5 pés centrada em um ponto dentro do alcance deve ter sucesso em um teste de resistência da Sabedoria ou ter a condição incapacitada até o fim de seu próximo turno, em que ponto deve repetir o teste de resistência. Se o alvo falhar no segundo teste de resistência, o alvo tem a condição inconsciente para a duração. O feitiço termina em um alvo se ele sofrer dano ou alguém dentro de 5 pés dele precisa de uma ação para tirá-lo do efeito do feitiço.\n\nCriaturas que não dormem, como elfos, ou que têm imunidade à condição de Exaustão, têm sucesso automaticamente em salvar contra este feitiço."
     },
     "speak-with-animals": {
       "name": "Falar com Animais",
@@ -616,7 +616,7 @@
     },
     "wardaway": {
       "name": "Repelir",
-      "text": "Você lança uma força mágica desorientada em direção a uma criatura ao alcance, o alvo faz uma Constituição salvando o lançamento, Construtos e Mortos-Vivos automaticamente têm sucesso neste salvamento.\n\nEm caso de falha, o alvo leva 2d4 de dano de energia, sua velocidade é reduzida para metade até o início de seu próximo turno, e em seu próximo turno, ele pode tomar apenas uma ação ou uma ação bônus (mas não ambos).\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 2d4 para cada espaço de magia acima de 1."
+      "text": "Você lança uma força mágica desorientada em direção a uma criatura ao alcance, o alvo faz uma Constituição salvando o lançamento, Construtos e Mortos-Vivos automaticamente têm sucesso neste teste de resistência.\n\nEm caso de falha, o alvo leva 2d4 de dano de energia, sua velocidade é reduzida para metade até o início de seu próximo turno, e em seu próximo turno, ele pode tomar apenas uma ação ou uma ação bônus (mas não ambos).\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 2d4 para cada espaço de magia acima de 1."
     },
     "witch-bolt": {
       "name": "Raio de Bruxa",
@@ -694,7 +694,7 @@
     },
     "crown-of-madness": {
       "name": "Coroa da Loucura",
-      "text": "Uma criatura que você pode ver dentro do alcance deve ter sucesso em um teste de resistência da sabedoria ou ter a condição de Encantada para a duração.\n\nUma coroa espectral aparece na cabeça do alvo encantado, e ele deve usar sua ação antes de se mover em cada uma de suas voltas para fazer um ataque contra uma criatura que você escolhe mentalmente. O alvo pode agir normalmente por sua vez se você não escolher nenhuma criatura ou se nenhuma criatura estiver ao seu alcance. O alvo repete o salvamento no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso.\n\nEm suas últimas voltas, você deve tomar a ação mágica para manter o controle do alvo, ou o feitiço termina."
+      "text": "Uma criatura que você pode ver dentro do alcance deve ter sucesso em um teste de resistência da sabedoria ou ter a condição de Encantada para a duração.\n\nUma coroa espectral aparece na cabeça do alvo encantado, e ele deve usar sua ação antes de se mover em cada uma de suas voltas para fazer um ataque contra uma criatura que você escolhe mentalmente. O alvo pode agir normalmente por sua vez se você não escolher nenhuma criatura ou se nenhuma criatura estiver ao seu alcance. O alvo repete o teste de resistência no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso.\n\nEm suas últimas voltas, você deve tomar a ação mágica para manter o controle do alvo, ou o feitiço termina."
     },
     "darkness": {
       "name": "Escuridão",
@@ -745,7 +745,7 @@
     },
     "enthrall": {
       "name": "Cativar",
-      "text": "Você tece uma série de palavras distraidoras, causando criaturas de sua escolha que você pode ver dentro do alcance para fazer um teste de resistência da sabedoria. Qualquer criatura que você ou seus companheiros estão lutando automaticamente tem sucesso neste salvamento. Em uma salvação fracassada, um alvo tem uma pena de 10 para a Sabedoria (Percepção) e Percepção Passiva até o fim do feitiço."
+      "text": "Você tece uma série de palavras distraidoras, causando criaturas de sua escolha que você pode ver dentro do alcance para fazer um teste de resistência da sabedoria. Qualquer criatura que você ou seus companheiros estão lutando automaticamente tem sucesso neste teste de resistência. Em uma salvação fracassada, um alvo tem uma pena de 10 para a Sabedoria (Percepção) e Percepção Passiva até o fim do feitiço."
     },
     "find-steed": {
       "name": "Convocar Montaria",
@@ -774,11 +774,11 @@
     },
     "heat-metal": {
       "name": "Esquentar Metal",
-      "text": "Escolha um objeto de metal fabricado, como uma arma de metal ou uma armadura de metal pesado ou médio, que você pode ver dentro do alcance. Você faz o objeto brilhar vermelho-quente. Qualquer criatura em contato físico com o objeto leva 2d8 de dano de fogo quando você lança o feitiço. Até que o feitiço termine, você pode fazer uma ação bônus em cada uma de suas voltas posteriores para lidar com esse dano novamente se o objeto estiver dentro do alcance.\n\nSe uma criatura está segurando ou usando o objeto e leva o dano dele, a criatura deve ter sucesso em uma teste de resistência de Constituição ou soltar o objeto se puder.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d8 para cada espaço de magia acima de 2."
+      "text": "Escolha um objeto de metal fabricado, como uma arma de metal ou uma armadura de metal pesado ou médio, que você pode ver dentro do alcance. Você faz o objeto brilhar vermelho-quente. Qualquer criatura em contato físico com o objeto leva 2d8 de dano de fogo quando você lança o feitiço. Até que o feitiço termine, você pode fazer uma ação bônus em cada uma de suas voltas posteriores para lidar com esse dano novamente se o objeto estiver dentro do alcance.\n\nSe uma criatura está segurando ou usando o objeto e leva o dano dele, a criatura deve ter sucesso em um teste de resistência de Constituição ou soltar o objeto se puder.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d8 para cada espaço de magia acima de 2."
     },
     "hold-person": {
       "name": "Imobilizar Pessoa",
-      "text": "Escolha um humanóide que você possa ver dentro do alcance... o alvo deve ter sucesso em um teste de resistência da Sabedoria... ou ter a condição paralisada por toda a duração... no final de cada uma de suas voltas... o alvo repete o salvamento, terminando o feitiço em si mesmo com sucesso.\n\nusando um espaço de magia de Nível Superior, você pode mirar um humanóide adicional para cada espaço de magia acima de 2."
+      "text": "Escolha um humanóide que você possa ver dentro do alcance... o alvo deve ter sucesso em um teste de resistência da Sabedoria... ou ter a condição paralisada por toda a duração... no final de cada uma de suas voltas... o alvo repete o teste de resistência, terminando o feitiço em si mesmo com sucesso.\n\nusando um espaço de magia de Nível Superior, você pode mirar um humanóide adicional para cada espaço de magia acima de 2."
     },
     "homunculus-servant": {
       "name": "Servo Homúnculo",
@@ -860,7 +860,7 @@
     },
     "ray-of-enfeeblement": {
       "name": "Raio de Enfraquecimento",
-      "text": "Um feixe de energia enervante dispara de você em direção a uma criatura dentro do alcance o alvo deve fazer uma defesa constitucional se passar no teste de resistência o alvo tem Desvantagem no próximo ataque que faz até o início de seu próximo turno\n\nEm caso de falha, o alvo tem Desvantagem em testes D20 baseados em força para a duração, durante esse tempo, ele também subtrai 1d8 de todos os seus rolagens de danos, o alvo repete o salvamento no final de cada uma de suas voltas, terminando o feitiço em um sucesso."
+      "text": "Um feixe de energia enervante dispara de você em direção a uma criatura dentro do alcance o alvo deve fazer uma defesa constitucional se passar no teste de resistência o alvo tem Desvantagem no próximo ataque que faz até o início de seu próximo turno\n\nEm caso de falha, o alvo tem Desvantagem em testes D20 baseados em força para a duração, durante esse tempo, ele também subtrai 1d8 de todos os seus rolagens de danos, o alvo repete o teste de resistência no final de cada uma de suas voltas, terminando o feitiço em um sucesso."
     },
     "rope-trick": {
       "name": "Truque da Corda",
@@ -901,7 +901,7 @@
     },
     "suggestion": {
       "name": "Sugestão",
-      "text": "Você sugere um curso de atividade - descrito em não mais de 25 palavras - para uma criatura que você pode ver dentro do alcance que pode ouvi-lo e entendê-lo. A sugestão deve parecer realizável e não envolver nada que obviamente causaria danos ao alvo ou seus aliados. Por exemplo, você poderia dizer, \"Pegue a chave do cofre do tesouro do culto, e dê a chave para mim.\" Ou você poderia dizer, \"Pare de lutar, deixe esta biblioteca pacificamente, e não volte.\"\n\nO alvo deve ter sucesso em uma jogada de salvação da Sabedoria ou ter a condição de Encantada para a duração ou até que você ou seus aliados causem danos ao alvo. O alvo encantado segue a sugestão o melhor de sua capacidade. A atividade sugerida pode continuar por toda a duração, mas se a atividade sugerida pode ser concluída em um tempo mais curto, o feitiço termina para o alvo ao completá-lo."
+      "text": "Você sugere um curso de atividade - descrito em não mais de 25 palavras - para uma criatura que você pode ver dentro do alcance que pode ouvi-lo e entendê-lo. A sugestão deve parecer realizável e não envolver nada que obviamente causaria danos ao alvo ou seus aliados. Por exemplo, você poderia dizer, \"Pegue a chave do cofre do tesouro do culto, e dê a chave para mim.\" Ou você poderia dizer, \"Pare de lutar, deixe esta biblioteca pacificamente, e não volte.\"\n\nO alvo deve ter sucesso em um teste de resistência de Sabedoria ou ter a condição de Encantada para a duração ou até que você ou seus aliados causem danos ao alvo. O alvo encantado segue a sugestão o melhor de sua capacidade. A atividade sugerida pode continuar por toda a duração, mas se a atividade sugerida pode ser concluída em um tempo mais curto, o feitiço termina para o alvo ao completá-lo."
     },
     "summon-beast": {
       "name": "Invocar Fera",
@@ -910,7 +910,7 @@
     },
     "uncertain-footing": {
       "name": "Terreno Instável",
-      "text": "Você cria obstáculos ilusórios, como pedras ou espinhos, numa tentativa de confundir até três criaturas que você pode ver dentro do alcance, afetando sua capacidade de se mover. Cada alvo faz uma campanha de inteligência. Em caso de falha, a velocidade de um alvo é reduzida para metade, e não pode tomar a ação Dash. Um alvo dificultado repete o salvamento no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso."
+      "text": "Você cria obstáculos ilusórios, como pedras ou espinhos, numa tentativa de confundir até três criaturas que você pode ver dentro do alcance, afetando sua capacidade de se mover. Cada alvo faz uma campanha de inteligência. Em caso de falha, a velocidade de um alvo é reduzida para metade, e não pode tomar a ação Disparar. Um alvo dificultado repete o teste de resistência no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso."
     },
     "warding-bond": {
       "name": "Vínculo de Proteção",
@@ -926,11 +926,11 @@
     },
     "zone-of-truth": {
       "name": "Zona da Verdade",
-      "text": "Você cria uma zona mágica que protege contra o engano em uma esfera de raios de 15 pés centrada em um ponto dentro do alcance. Até que o feitiço termine, uma criatura que entra na área do feitiço pela primeira vez em uma curva ou começa a sua vez lá faz um teste de resistência Carisma. Em caso de falha, uma criatura não pode falar uma mentira deliberada enquanto estiver no raio. Você sabe se uma criatura tem sucesso ou falha nesse salvamento.\n\nUma criatura afetada está ciente do feitiço e pode evitar responder perguntas às quais normalmente responderia com uma mentira."
+      "text": "Você cria uma zona mágica que protege contra o engano em uma esfera de raios de 15 pés centrada em um ponto dentro do alcance. Até que o feitiço termine, uma criatura que entra na área do feitiço pela primeira vez em uma curva ou começa a sua vez lá faz um teste de resistência Carisma. Em caso de falha, uma criatura não pode falar uma mentira deliberada enquanto estiver no raio. Você sabe se uma criatura tem sucesso ou falha nesse teste de resistência.\n\nUma criatura afetada está ciente do feitiço e pode evitar responder perguntas às quais normalmente responderia com uma mentira."
     },
     "animate-dead": {
       "name": "Animar o Morto",
-      "text": "Escolha uma pilha de ossos ou um cadáver de um humanoide médio ou pequeno ao alcance, o alvo se torna uma criatura morta-viva, um esqueleto se você escolher ossos ou um zumbi se você escolher um cadáver (veja apêndice B para os blocos de estatísticas).\n\nEm cada uma de suas voltas, você pode tomar uma ação bônus para comandar mentalmente qualquer criatura que você fez com este feitiço se a criatura está a menos de 60 pés de você (se você controlar várias criaturas, você pode comandar qualquer uma delas ao mesmo tempo, emitir o mesmo comando para cada uma). Você decide qual ação a criatura tomará e para onde irá se mover na próxima curva, ou você pode emitir um comando geral, como para guardar uma câmara ou corredor. Se você não emitir nenhum comando, a criatura toma a ação Dodge e se move apenas para evitar danos. Uma vez dada uma ordem, a criatura continua a segui-la até que sua tarefa esteja completa.\n\nA criatura está sob seu controle por 24 horas, após o que ela pára de obedecer a qualquer comando que você deu a ela. Para manter o controle da criatura por mais 24 horas, você deve lançar este feitiço na criatura novamente antes que o período atual de 24 horas termine. Este uso do feitiço reafirma o seu controle sobre até quatro criaturas que você tem animado com este feitiço em vez de animar uma nova criatura.\n\nVocê anima ou reafirma o controle sobre duas criaturas mortas-vivas adicionais para cada nível de espaço de magia acima de 3, cada uma das criaturas deve vir de um cadáver ou pilha de ossos diferentes."
+      "text": "Escolha uma pilha de ossos ou um cadáver de um humanoide médio ou pequeno ao alcance, o alvo se torna uma criatura morta-viva, um esqueleto se você escolher ossos ou um zumbi se você escolher um cadáver (veja apêndice B para os blocos de estatísticas).\n\nEm cada uma de suas voltas, você pode tomar uma ação bônus para comandar mentalmente qualquer criatura que você fez com este feitiço se a criatura está a menos de 60 pés de você (se você controlar várias criaturas, você pode comandar qualquer uma delas ao mesmo tempo, emitir o mesmo comando para cada uma). Você decide qual ação a criatura tomará e para onde irá se mover na próxima curva, ou você pode emitir um comando geral, como para guardar uma câmara ou corredor. Se você não emitir nenhum comando, a criatura toma a ação Esquivar e se move apenas para evitar danos. Uma vez dada uma ordem, a criatura continua a segui-la até que sua tarefa esteja completa.\n\nA criatura está sob seu controle por 24 horas, após o que ela pára de obedecer a qualquer comando que você deu a ela. Para manter o controle da criatura por mais 24 horas, você deve lançar este feitiço na criatura novamente antes que o período atual de 24 horas termine. Este uso do feitiço reafirma o seu controle sobre até quatro criaturas que você tem animado com este feitiço em vez de animar uma nova criatura.\n\nVocê anima ou reafirma o controle sobre duas criaturas mortas-vivas adicionais para cada nível de espaço de magia acima de 3, cada uma das criaturas deve vir de um cadáver ou pilha de ossos diferentes."
     },
     "aura-of-vitality": {
       "name": "Aura de Vitalidade",
@@ -954,11 +954,11 @@
     },
     "cacophonic-shield": {
       "name": "Escudo Cacofônico",
-      "text": "Reverberações trovoadas preenchem uma Emanação de 10 pés originada de você durante a duração. Sempre que a Emanação entra no espaço de uma criatura e sempre que uma criatura entra na Emanação ou termina a sua vez lá, a criatura faz uma teste de resistência de Constituição. Em caso de falha, a criatura leva 3d6 de dano trovejante e tem a condição surda até o início de seu próximo turno. se passar no teste de resistência, a criatura leva metade dos danos. Uma criatura faz isso salvar apenas uma vez por turno. Quando você lançar este feitiço, você pode designar criaturas para não serem afetadas por ele.\n\nAlém disso, você tem resistência aos danos do Trovão, e os movimentos de ataque contra você são feitos com Desvantagem.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d6 para cada espaço de magia acima de 3."
+      "text": "Reverberações trovoadas preenchem uma Emanação de 10 pés originada de você durante a duração. Sempre que a Emanação entra no espaço de uma criatura e sempre que uma criatura entra na Emanação ou termina a sua vez lá, a criatura faz um teste de resistência de Constituição. Em caso de falha, a criatura leva 3d6 de dano trovejante e tem a condição surda até o início de seu próximo turno. se passar no teste de resistência, a criatura leva metade dos danos. Uma criatura faz isso salvar apenas uma vez por turno. Quando você lançar este feitiço, você pode designar criaturas para não serem afetadas por ele.\n\nAlém disso, você tem resistência aos danos do Trovão, e os movimentos de ataque contra você são feitos com Desvantagem.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d6 para cada espaço de magia acima de 3."
     },
     "call-lightning": {
       "name": "Convocar Relâmpagos",
-      "text": "Uma nuvem de tempestade aparece em um ponto dentro do alcance que você pode ver acima de si mesmo. ela toma a forma de um cilindro que tem 10 pés de altura com um raio de 60 pés.\n\nQuando você lança o feitiço, escolha um ponto que você pode ver sob a nuvem, um raio dispara da nuvem até aquele ponto, cada criatura a menos de 5 pés desse ponto faz uma jogada de salvação da Destreza, levando 3d10 de dano de relâmpago se falhar no teste, ou metade do dano se passar.\n\nAté que o feitiço termine, você pode tomar uma ação mágica para chamar os raios dessa forma novamente, mirando o mesmo ponto ou um diferente.\n\nSe você está ao ar livre em uma tempestade quando você lança este feitiço, o feitiço lhe dá controle sobre essa tempestade em vez de criar uma nova.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d10 para cada espaço de magia acima de 3."
+      "text": "Uma nuvem de tempestade aparece em um ponto dentro do alcance que você pode ver acima de si mesmo. ela toma a forma de um cilindro que tem 10 pés de altura com um raio de 60 pés.\n\nQuando você lança o feitiço, escolha um ponto que você pode ver sob a nuvem, um raio dispara da nuvem até aquele ponto, cada criatura a menos de 5 pés desse ponto faz um teste de resistência de Destreza, levando 3d10 de dano de relâmpago se falhar no teste, ou metade do dano se passar.\n\nAté que o feitiço termine, você pode tomar uma ação mágica para chamar os raios dessa forma novamente, mirando o mesmo ponto ou um diferente.\n\nSe você está ao ar livre em uma tempestade quando você lança este feitiço, o feitiço lhe dá controle sobre essa tempestade em vez de criar uma nova.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d10 para cada espaço de magia acima de 3."
     },
     "catnap": {
       "name": "Cochilo",
@@ -1008,7 +1008,7 @@
     },
     "fear": {
       "name": "Medo",
-      "text": "Cada criatura em um Cone de 30 pés deve ter sucesso em um teste de resistência da Sabedoria ou largar o que quer que esteja segurando e ter a condição de medo para a duração.\n\nUma criatura assustada toma a ação do Dash e se afasta de você pela rota mais segura em cada uma de suas voltas, a menos que não haja lugar para se mover, se a criatura termina sua vez em um espaço onde não tem linha de visão para você, a criatura faz um lançamento salvador da Sabedoria, em caso de sucesso, o feitiço termina naquela criatura."
+      "text": "Cada criatura em um Cone de 30 pés deve ter sucesso em um teste de resistência da Sabedoria ou largar o que quer que esteja segurando e ter a condição de medo para a duração.\n\nUma criatura assustada toma a ação Disparar e se afasta de você pela rota mais segura em cada uma de suas voltas, a menos que não haja lugar para se mover, se a criatura termina sua vez em um espaço onde não tem linha de visão para você, a criatura faz um lançamento salvador da Sabedoria, em caso de sucesso, o feitiço termina naquela criatura."
     },
     "feign-death": {
       "name": "Fingir a Morte",
@@ -1033,7 +1033,7 @@
     },
     "haste": {
       "name": "Velocidade",
-      "text": "Escolha uma criatura que você possa ver dentro do alcance. Até que o feitiço termine, a velocidade do alvo é dobrada, ganha um bônus de +2 para a Classe Armadura, tem vantagem em Destreza economizando lances, e ganha uma ação adicional em cada uma de suas voltas. Essa ação pode ser usada para tomar apenas o ataque (apenas um ataque), Dash, desengatar, esconder, ou usar a ação.\n\nQuando o feitiço termina, o alvo é incapacitado e tem uma velocidade de 0 até o fim de seu próximo turno, enquanto uma onda de letargia se lava sobre ele."
+      "text": "Escolha uma criatura que você possa ver dentro do alcance. Até que o feitiço termine, a velocidade do alvo é dobrada, ganha um bônus de +2 para a Classe Armadura, tem vantagem em Destreza economizando lances, e ganha uma ação adicional em cada uma de suas voltas. Essa ação pode ser usada para tomar apenas o ataque (apenas um ataque), Disparar, desengatar, esconder, ou usar a ação.\n\nQuando o feitiço termina, o alvo é incapacitado e tem uma velocidade de 0 até o fim de seu próximo turno, enquanto uma onda de letargia se lava sobre ele."
     },
     "hunger-of-hadar": {
       "name": "Fome de Hadar",
@@ -1118,7 +1118,7 @@
     },
     "slow": {
       "name": "Lentidão",
-      "text": "Você altera o tempo em torno de até seis criaturas de sua escolha em um Cubo de 40 pés dentro do alcance.\n\nA velocidade de um alvo afetado é reduzida para metade, é preciso uma penalidade de −2 para AC e Destreza salvando lançamentos, e não pode tomar Reações. Em suas turnos, ele pode tomar uma ação ou uma ação bônus, não ambos, e pode fazer apenas um ataque se tomar a ação de ataque. Se ele lança um feitiço com um componente somático, há uma chance de 25% do feitiço falhar como resultado do alvo fazer os gestos do feitiço muito lentamente.\n\nUm alvo afetado repete o salvamento no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso."
+      "text": "Você altera o tempo em torno de até seis criaturas de sua escolha em um Cubo de 40 pés dentro do alcance.\n\nA velocidade de um alvo afetado é reduzida para metade, é preciso uma penalidade de −2 para AC e Destreza salvando lançamentos, e não pode tomar Reações. Em suas turnos, ele pode tomar uma ação ou uma ação bônus, não ambos, e pode fazer apenas um ataque se tomar a ação de ataque. Se ele lança um feitiço com um componente somático, há uma chance de 25% do feitiço falhar como resultado do alvo fazer os gestos do feitiço muito lentamente.\n\nUm alvo afetado repete o teste de resistência no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso."
     },
     "speak-with-dead": {
       "name": "Falar com os Mortos",
@@ -1200,11 +1200,11 @@
     },
     "compulsion": {
       "name": "Compulsão",
-      "text": "Cada criatura de sua escolha que você pode ver dentro do alcance deve ter sucesso em um teste de resistência da Sabedoria ou ter a condição Encantada até que o feitiço termine.\n\nCada alvo encantado deve usar o máximo de movimento possível para se mover naquela direção na próxima curva, tomando a rota mais segura, depois de se mover desta forma, um alvo repete o salvamento, terminando o feitiço em si mesmo em um sucesso."
+      "text": "Cada criatura de sua escolha que você pode ver dentro do alcance deve ter sucesso em um teste de resistência da Sabedoria ou ter a condição Encantada até que o feitiço termine.\n\nCada alvo encantado deve usar o máximo de movimento possível para se mover naquela direção na próxima curva, tomando a rota mais segura, depois de se mover desta forma, um alvo repete o teste de resistência, terminando o feitiço em si mesmo em um sucesso."
     },
     "confusion": {
       "name": "Confusão",
-      "text": "Cada criatura em uma esfera de 10 pés centrada em um ponto que você escolhe dentro do alcance deve ter sucesso em um teste de resistência da sabedoria, ou esse alvo não pode tomar ações ou reações de bônus e deve rolar 1d10 no início de cada uma de suas voltas para determinar seu comportamento para essa volta, consultando a tabela abaixo.\n\nNo final de cada uma de suas voltas, um alvo afetado repete o salvamento, terminando o feitiço em si mesmo em um sucesso.\n\n**Com um espaço de magia de círculo superior.** O raio da Esfera aumenta em 5 pés para cada espaço de magia acima de 4."
+      "text": "Cada criatura em uma esfera de 10 pés centrada em um ponto que você escolhe dentro do alcance deve ter sucesso em um teste de resistência da sabedoria, ou esse alvo não pode tomar ações ou reações de bônus e deve rolar 1d10 no início de cada uma de suas voltas para determinar seu comportamento para essa volta, consultando a tabela abaixo.\n\nNo final de cada uma de suas voltas, um alvo afetado repete o teste de resistência, terminando o feitiço em si mesmo em um sucesso.\n\n**Com um espaço de magia de círculo superior.** O raio da Esfera aumenta em 5 pés para cada espaço de magia acima de 4."
     },
     "conjure-minor-elementals": {
       "name": "Conjure Elementais Menores",
@@ -1314,7 +1314,7 @@
     },
     "phantasmal-killer": {
       "name": "Assassino Fantasma",
-      "text": "Você entra nos pesadelos de uma criatura que pode ver dentro do alcance e criar uma ilusão de seus medos mais profundos, visíveis apenas para essa criatura. O alvo faz uma jogada de salvação da sabedoria. Em caso de falha, o alvo leva danos psíquicos 4d10 e tem Desvantagem em testes de atributo e jogadas de ataque para a duração. se passar no teste de resistência, o alvo leva metade dos danos, e o feitiço termina.\n\nDurante a duração, o alvo faz uma jogada de salvação da Sabedoria no final de cada uma de suas voltas, em uma salvação falhada, ele leva o dano psíquico novamente, em uma salvação bem sucedida, o feitiço termina.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d10 para cada espaço de magia acima de 4."
+      "text": "Você entra nos pesadelos de uma criatura que pode ver dentro do alcance e criar uma ilusão de seus medos mais profundos, visíveis apenas para essa criatura. O alvo faz um teste de resistência de Sabedoria. Em caso de falha, o alvo leva danos psíquicos 4d10 e tem Desvantagem em testes de atributo e jogadas de ataque para a duração. se passar no teste de resistência, o alvo leva metade dos danos, e o feitiço termina.\n\nDurante a duração, o alvo faz um teste de resistência de Sabedoria no final de cada uma de suas voltas, em uma salvação falhada, ele leva o dano psíquico novamente, em uma salvação bem sucedida, o feitiço termina.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d10 para cada espaço de magia acima de 4."
     },
     "polymorph": {
       "name": "Metamorfose",
@@ -1367,12 +1367,12 @@
     },
     "alustriels-mooncloak": {
       "name": "Manto Lunar de Alustriel",
-      "text": "Durante o luar, você e seus aliados têm meia cobertura e resistência ao frio, relâmpago e radiação.\n\nEnquanto o feitiço dura, você pode usar uma das seguintes opções, terminando o feitiço imediatamente:\n\nQuando você falhar em um golpe de salvação para evitar ou acabar com a condição de Assustado, Arrepiado, ou Restrito, você pode ter uma reação para ter sucesso no salvamento.\n\nComo uma ação mágica, você ou um aliado dentro da área recupera Pontos de vida igual a 4d10 mais seu modificador de atributo de conjuração.",
+      "text": "Durante o luar, você e seus aliados têm meia cobertura e resistência ao frio, relâmpago e radiação.\n\nEnquanto o feitiço dura, você pode usar uma das seguintes opções, terminando o feitiço imediatamente:\n\nQuando você falhar em um golpe de salvação para evitar ou acabar com a condição de Assustado, Arrepiado, ou Restrito, você pode ter uma reação para ter sucesso no teste de resistência.\n\nComo uma ação mágica, você ou um aliado dentro da área recupera Pontos de vida igual a 4d10 mais seu modificador de atributo de conjuração.",
       "material": "custo"
     },
     "animate-objects": {
       "name": "Animar Objetos",
-      "text": "Objetos animam ao seu comando. Escolha um número de objetos não mágicos ao alcance que não estão sendo usados ou transportados, não são fixados a uma superfície, e não são Gargantuan. O número máximo de objetos é igual ao seu modificador de habilidade ortográfica, para este número, um alvo médio ou menor conta como um objeto, um alvo grande conta como dois, e um alvo enorme conta como três.\n\nCada alvo anima, brota pernas, e se torna um Construct que usa o bloco de estatísticas de objetos animados, esta criatura está sob seu controle até que o feitiço termine ou até que seja reduzido a 0 Pontos de vida. Cada criatura que você faz com este feitiço é um aliado para você e seus aliados. Em combate, ele compartilha sua contagem de Iniciativa e toma sua vez imediatamente após a sua.\n\nAté que o feitiço termine, você pode tomar uma ação bônus para comandar mentalmente qualquer criatura que você fez com esse feitiço se a criatura estiver a 500 pés de você (se você controlar várias criaturas, você pode comandar qualquer uma delas ao mesmo tempo, dando o mesmo comando para cada uma delas). Se você não emitir nenhum comando, a criatura toma a ação Dodge e se move apenas para evitar danos. Quando a criatura cai para 0 pontos de vida, ela volta para sua forma de objeto, e qualquer dano restante passa para essa forma.\n\nusando um espaço de magia de Nível Superior, o dano do Slam da criatura aumenta em 1d4 (mídio ou menor), 1d6 (grande) ou 1d12 (huge) para cada espaço de magia acima de 5."
+      "text": "Objetos animam ao seu comando. Escolha um número de objetos não mágicos ao alcance que não estão sendo usados ou transportados, não são fixados a uma superfície, e não são Gargantuan. O número máximo de objetos é igual ao seu modificador de habilidade ortográfica, para este número, um alvo médio ou menor conta como um objeto, um alvo grande conta como dois, e um alvo enorme conta como três.\n\nCada alvo anima, brota pernas, e se torna um Construct que usa o bloco de estatísticas de objetos animados, esta criatura está sob seu controle até que o feitiço termine ou até que seja reduzido a 0 Pontos de vida. Cada criatura que você faz com este feitiço é um aliado para você e seus aliados. Em combate, ele compartilha sua contagem de Iniciativa e toma sua vez imediatamente após a sua.\n\nAté que o feitiço termine, você pode tomar uma ação bônus para comandar mentalmente qualquer criatura que você fez com esse feitiço se a criatura estiver a 500 pés de você (se você controlar várias criaturas, você pode comandar qualquer uma delas ao mesmo tempo, dando o mesmo comando para cada uma delas). Se você não emitir nenhum comando, a criatura toma a ação Esquivar e se move apenas para evitar danos. Quando a criatura cai para 0 pontos de vida, ela volta para sua forma de objeto, e qualquer dano restante passa para essa forma.\n\nusando um espaço de magia de Nível Superior, o dano do Slam da criatura aumenta em 1d4 (mídio ou menor), 1d6 (grande) ou 1d12 (huge) para cada espaço de magia acima de 5."
     },
     "antilife-shell": {
       "name": "Casulo Antivida",
@@ -1393,7 +1393,7 @@
     },
     "circle-of-power": {
       "name": "Círculo de Poder",
-      "text": "Uma aura irradia de você em uma Emanação de 30 pés para a duração. Enquanto estiver na aura, você e seus aliados têm vantagem em testes de resistência contra feitiços e outros efeitos mágicos. Quando uma criatura afetada faz um golpe de salvação contra um feitiço ou efeito mágico que permite que um salvamento leve apenas metade do dano, não leva nenhum dano se ele tiver sucesso no salvamento."
+      "text": "Uma aura irradia de você em uma Emanação de 30 pés para a duração. Enquanto estiver na aura, você e seus aliados têm vantagem em testes de resistência contra feitiços e outros efeitos mágicos. Quando uma criatura afetada faz um golpe de salvação contra um feitiço ou efeito mágico que permite que um teste de resistência leve apenas metade do dano, não leva nenhum dano se ele tiver sucesso no teste de resistência."
     },
     "cloudkill": {
       "name": "Nuvem Mortal",
@@ -1413,7 +1413,7 @@
     },
     "conjure-elemental": {
       "name": "Conjurar Elemental",
-      "text": "Você evoca um espírito grande e intangível dos Planos Elementais que aparece em um espaço desocupado dentro do alcance, escolha o elemento do espírito, que determina seu tipo de dano: ar (Luz), terra (trovejante), fogo (Fogo), ou água (Fold).\n\nSempre que uma criatura que você pode ver entra no espaço do espírito ou começa sua volta a menos de 1,80m do espírito, você pode forçar essa criatura a fazer um teste de resistência da Destreza se o espírito não tem nenhuma criatura Restringida. Quando salvo, o alvo leva 8d8 de dano do tipo do espírito, e o alvo tem a condição de Restrição até o feitiço terminar. No início de cada uma de suas voltas, o alvo Restrited repete o salvamento. Em caso de falha, o alvo leva danos 4d8 do tipo do espírito. se passar no teste de resistência, o alvo não é retido pelo espírito.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d8 para cada espaço de magia acima de 5."
+      "text": "Você evoca um espírito grande e intangível dos Planos Elementais que aparece em um espaço desocupado dentro do alcance, escolha o elemento do espírito, que determina seu tipo de dano: ar (Luz), terra (trovejante), fogo (Fogo), ou água (Fold).\n\nSempre que uma criatura que você pode ver entra no espaço do espírito ou começa sua volta a menos de 1,80m do espírito, você pode forçar essa criatura a fazer um teste de resistência da Destreza se o espírito não tem nenhuma criatura Restringida. Quando salvo, o alvo leva 8d8 de dano do tipo do espírito, e o alvo tem a condição de Restrição até o feitiço terminar. No início de cada uma de suas voltas, o alvo Restrited repete o teste de resistência. Em caso de falha, o alvo leva danos 4d8 do tipo do espírito. se passar no teste de resistência, o alvo não é retido pelo espírito.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d8 para cada espaço de magia acima de 5."
     },
     "conjure-volley": {
       "name": "Conjurar Saraivada",
@@ -1426,7 +1426,7 @@
     },
     "contagion": {
       "name": "Contágio",
-      "text": "Seu toque inflige um contágio mágico, o alvo deve ter sucesso em uma Constituição salvando ou levar o dano necrótico 11d8 e ter a condição envenenada, e também escolher uma habilidade quando lançar o feitiço, enquanto envenenado, o alvo tem desvantagem em testes de resistência feitos com a habilidade escolhida.\n\nO alvo deve repetir o teste de resistência no final de cada uma de suas voltas até que ele tenha três sucessos ou fracassos, se o alvo tiver sucesso em três desses salvamentos, o feitiço termina no alvo, se o alvo falhar em três dos salvamentos, o feitiço dura 7 dias.\n\nSempre que o alvo envenenado recebe um efeito que acabaria com a condição envenenada, o alvo deve ter sucesso em uma defesa constitucional, ou a condição envenenada não acaba com ela."
+      "text": "Seu toque transmite um contágio mágico. O alvo deve passar em um teste de resistência de Constituição ou sofre 11d8 de dano necrótico e fica Envenenado. Ao conjurar a magia, escolha um atributo. Enquanto estiver Envenenado, o alvo tem desvantagem em testes de resistência feitos com o atributo escolhido.\n\nO alvo repete o teste de resistência no fim de cada um de seus turnos até obter três sucessos ou três falhas. Com três sucessos, a magia termina para o alvo. Com três falhas, a magia dura 7 dias.\n\nSe o alvo Envenenado receber um efeito que encerraria essa condição, ele deve passar em um teste de resistência de Constituição para que a condição termine."
     },
     "creation": {
       "name": "Criação",
@@ -1476,7 +1476,7 @@
     },
     "hold-monster": {
       "name": "Imobilizar Monstro",
-      "text": "Escolha uma criatura que você possa ver dentro do alcance... o alvo deve ter sucesso em uma jogada de salvação da Sabedoria... ou ter a condição paralisada durante a duração... no final de cada uma de suas voltas, o alvo repete o salvamento, terminando o feitiço em si mesmo em um sucesso.\n\nusando um espaço de magia de Nível Superior, você pode mirar uma criatura adicional para cada espaço de magia acima de 5."
+      "text": "Escolha uma criatura que você possa ver dentro do alcance... o alvo deve ter sucesso em um teste de resistência de Sabedoria... ou ter a condição paralisada durante a duração... no final de cada uma de suas voltas, o alvo repete o teste de resistência, terminando o feitiço em si mesmo em um sucesso.\n\nusando um espaço de magia de Nível Superior, você pode mirar uma criatura adicional para cada espaço de magia acima de 5."
     },
     "insect-plague": {
       "name": "Praga de Insetos",
@@ -1484,7 +1484,7 @@
     },
     "jallarzis-storm-of-radiance": {
       "name": "Tempestade de Radiância de Jallarzi",
-      "text": "Você solta uma tempestade de luz piscando e trovão raivoso em um raio de 10 pés, cilindro de 40 pés de altura centrado em um ponto que você pode ver dentro do alcance, enquanto nesta área, as criaturas têm as condições cegas e surdas, e eles não podem lançar feitiços com um componente verbal.\n\nQuando a tempestade aparece, cada criatura nela faz uma teste de resistência de Constituição, levando 2d10 de dano radiante e 2d10 de dano de trovão em uma economia falhada ou metade de dano em um bem sucedido. Uma criatura também faz isso salvar quando entra na área do feitiço pela primeira vez em uma curva ou termina sua volta lá. Uma criatura faz isso salvar apenas uma vez por turno.\n\n**Com um espaço de magia de círculo superior.** Os danos do Radiante e do Trovão aumentam em 1d10 para cada espaço de magia acima de 5."
+      "text": "Você solta uma tempestade de luz piscando e trovão raivoso em um raio de 10 pés, cilindro de 40 pés de altura centrado em um ponto que você pode ver dentro do alcance, enquanto nesta área, as criaturas têm as condições cegas e surdas, e eles não podem lançar feitiços com um componente verbal.\n\nQuando a tempestade aparece, cada criatura nela faz um teste de resistência de Constituição, levando 2d10 de dano radiante e 2d10 de dano de trovão em uma economia falhada ou metade de dano em um bem sucedido. Uma criatura também faz isso salvar quando entra na área do feitiço pela primeira vez em uma curva ou termina sua volta lá. Uma criatura faz isso salvar apenas uma vez por turno.\n\n**Com um espaço de magia de círculo superior.** Os danos do Radiante e do Trovão aumentam em 1d10 para cada espaço de magia acima de 5."
     },
     "legend-lore": {
       "name": "Conhecimento Lendário",
@@ -1501,7 +1501,7 @@
     },
     "modify-memory": {
       "name": "Modificar Memória",
-      "text": "Você tenta remodelar as memórias de outra criatura. Uma criatura que você pode ver dentro do alcance faz um teste de resistência da sabedoria. Se você está lutando contra a criatura, ela tem vantagem no salvamento. Em caso de falha, o alvo tem a condição de Encantada para a duração. Enquanto encantado desta forma, o alvo também tem a condição incapacitada e não sabe de seu entorno, embora possa ouvi-lo. Se for necessário algum dano ou for alvo de outro feitiço, este feitiço termina, e nenhuma memória é modificada.\n\nEnquanto esse charme dura, você pode afetar a memória do alvo de um evento que ele experimentou nas últimas 24 horas e que durou não mais do que 10 minutos. Você pode eliminar permanentemente toda memória do evento, permitir que o alvo relembre o evento com perfeita clareza, mudar sua memória dos detalhes do evento, ou criar uma memória de algum outro evento.\n\nVocê deve falar com o alvo para descrever como suas memórias são afetadas, e ele deve ser capaz de entender sua linguagem para que as memórias modificadas criem raízes. Sua mente preenche qualquer lacuna nos detalhes de sua descrição. Se o feitiço terminar antes de você terminar de descrever as memórias modificadas, a memória da criatura não será alterada. Caso contrário, as memórias modificadas tomam conta quando o feitiço termina.\n\nUma memória modificada não necessariamente afeta como uma criatura se comporta, particularmente se a memória contradiz as inclinações naturais, alinhamento ou crenças da criatura. Uma memória ilógica modificada, como uma falsa memória de quanto a criatura gostava de nadar em ácido, é descartada como um pesadelo. O DM pode considerar uma memória modificada muito sem sentido para afetar uma criatura.\n\nUm feitiço de remoção da maldição ou restauração maior lançado no alvo restaura a verdadeira memória da criatura.\n\nVocê pode alterar as memórias do alvo de um evento que ocorreu até 7 dias atrás (nível 6), 30 dias atrás (nível 7), 365 dias atrás (nível 8) ou qualquer momento no passado da criatura (nível 9)."
+      "text": "Você tenta remodelar as memórias de outra criatura. Uma criatura que você pode ver dentro do alcance faz um teste de resistência da sabedoria. Se você está lutando contra a criatura, ela tem vantagem no teste de resistência. Em caso de falha, o alvo tem a condição de Encantada para a duração. Enquanto encantado desta forma, o alvo também tem a condição incapacitada e não sabe de seu entorno, embora possa ouvi-lo. Se for necessário algum dano ou for alvo de outro feitiço, este feitiço termina, e nenhuma memória é modificada.\n\nEnquanto esse charme dura, você pode afetar a memória do alvo de um evento que ele experimentou nas últimas 24 horas e que durou não mais do que 10 minutos. Você pode eliminar permanentemente toda memória do evento, permitir que o alvo relembre o evento com perfeita clareza, mudar sua memória dos detalhes do evento, ou criar uma memória de algum outro evento.\n\nVocê deve falar com o alvo para descrever como suas memórias são afetadas, e ele deve ser capaz de entender sua linguagem para que as memórias modificadas criem raízes. Sua mente preenche qualquer lacuna nos detalhes de sua descrição. Se o feitiço terminar antes de você terminar de descrever as memórias modificadas, a memória da criatura não será alterada. Caso contrário, as memórias modificadas tomam conta quando o feitiço termina.\n\nUma memória modificada não necessariamente afeta como uma criatura se comporta, particularmente se a memória contradiz as inclinações naturais, alinhamento ou crenças da criatura. Uma memória ilógica modificada, como uma falsa memória de quanto a criatura gostava de nadar em ácido, é descartada como um pesadelo. O DM pode considerar uma memória modificada muito sem sentido para afetar uma criatura.\n\nUm feitiço de remoção da maldição ou restauração maior lançado no alvo restaura a verdadeira memória da criatura.\n\nVocê pode alterar as memórias do alvo de um evento que ocorreu até 7 dias atrás (nível 6), 30 dias atrás (nível 7), 365 dias atrás (nível 8) ou qualquer momento no passado da criatura (nível 9)."
     },
     "mordenkainens-lucubration": {
       "name": "Lucubração de Mordenkainen",
@@ -1580,7 +1580,7 @@
     },
     "telekinesis": {
       "name": "Telecinesia",
-      "text": "Você ganha a habilidade de mover ou manipular criaturas ou objetos pelo pensamento. Quando você lança o feitiço e como uma ação mágica em suas voltas posteriores antes que o feitiço termine, você pode exercer sua vontade em uma criatura ou objeto que você pode ver dentro do alcance, causando o efeito apropriado abaixo. Você pode afetar o mesmo alvo rodada após rodada ou escolher um novo a qualquer momento. Se você mudar de alvo, o alvo anterior não será mais afetado pelo feitiço.\n\nVocê pode tentar mover uma criatura enorme ou menor. O alvo deve ter sucesso em um teste de resistência de força, ou você movê-lo para 30 pés em qualquer direção dentro do alcance do feitiço. Até o fim de seu próximo turno, a criatura tem a condição de Restringido, e se você levantá-la para o ar, ela está suspensa lá. Cai no final da próxima vez, a menos que use esta opção de novo e falhe no salvamento.\n\nSe o objeto não estiver sendo usado ou transportado, você automaticamente move-o para 30 pés em qualquer direção dentro do alcance do feitiço.\n\nSe o objeto é usado ou carregado por uma criatura, essa criatura deve ter sucesso em um teste de resistência da Força, ou você puxa o objeto para longe e move-lo para 30 pés em qualquer direção dentro do alcance do feitiço.\n\nVocê pode exercer um bom controle em objetos com seu aperto telecinético, como manipular uma ferramenta simples, abrir uma porta ou um recipiente, armazenar ou recuperar um item de um recipiente aberto, ou despejar o conteúdo de um frasco."
+      "text": "Você ganha a habilidade de mover ou manipular criaturas ou objetos pelo pensamento. Quando você lança o feitiço e como uma ação mágica em suas voltas posteriores antes que o feitiço termine, você pode exercer sua vontade em uma criatura ou objeto que você pode ver dentro do alcance, causando o efeito apropriado abaixo. Você pode afetar o mesmo alvo rodada após rodada ou escolher um novo a qualquer momento. Se você mudar de alvo, o alvo anterior não será mais afetado pelo feitiço.\n\nVocê pode tentar mover uma criatura enorme ou menor. O alvo deve ter sucesso em um teste de resistência de força, ou você movê-lo para 30 pés em qualquer direção dentro do alcance do feitiço. Até o fim de seu próximo turno, a criatura tem a condição de Restringido, e se você levantá-la para o ar, ela está suspensa lá. Cai no final da próxima vez, a menos que use esta opção de novo e falhe no teste de resistência.\n\nSe o objeto não estiver sendo usado ou transportado, você automaticamente move-o para 30 pés em qualquer direção dentro do alcance do feitiço.\n\nSe o objeto é usado ou carregado por uma criatura, essa criatura deve ter sucesso em um teste de resistência da Força, ou você puxa o objeto para longe e move-lo para 30 pés em qualquer direção dentro do alcance do feitiço.\n\nVocê pode exercer um bom controle em objetos com seu aperto telecinético, como manipular uma ferramenta simples, abrir uma porta ou um recipiente, armazenar ou recuperar um item de um recipiente aberto, ou despejar o conteúdo de um frasco."
     },
     "teleportation-circle": {
       "name": "Círculo de Teletransporte",
@@ -1635,12 +1635,12 @@
     },
     "create-undead": {
       "name": "Criar Mortos-Vivos",
-      "text": "Cada um se torna um Ghoul sob seu controle (veja o Manual Monstro para o seu bloco de estatísticas).\n\nComo uma ação bônus em cada uma de suas voltas, você pode mentalmente comandar qualquer criatura que você animou com este feitiço se a criatura está a menos de 120 pés de você (se você controlar várias criaturas, você pode comandar qualquer uma delas ao mesmo tempo, dando o mesmo comando para eles). Você decide qual ação a criatura tomará e para onde ela se moverá na próxima vez, ou você pode emitir um comando geral, como para guardar um lugar em particular. Se você não emitir nenhum comando, a criatura toma a ação Dodge e se move apenas para evitar danos. Uma vez dada uma ordem, a criatura continua seguindo a ordem até que sua tarefa seja completa.\n\nA criatura está sob seu controle por 24 horas, após o que ela pára de obedecer a qualquer comando que você deu a ela. Para manter o controle da criatura por mais 24 horas, você deve lançar este feitiço na criatura antes que o período atual de 24 horas termine. Este uso do feitiço reafirma o seu controle sobre até três criaturas que você tem animado com este feitiço em vez de animar novas.\n\n**Com um espaço de magia de círculo superior.** Se você usar uma espaço de magia de Nível 7, você pode animar ou reafirmar o controle sobre quatro Ghouls. Se você usar um espaço de feitiço nível 8, você pode animar ou reafirmar o controle sobre cinco Ghouls ou dois Ghasts ou Wights. Se você usar um espaço de feitiço nível 9, você pode animar ou reafirmar o controle sobre seis Ghouls, três Ghasts ou Wights, ou duas múmias. Veja o Manual de Monstros para esses blocos de estatísticas.",
+      "text": "Cada um se torna um Ghoul sob seu controle (veja o Manual Monstro para o seu bloco de estatísticas).\n\nComo uma ação bônus em cada uma de suas voltas, você pode mentalmente comandar qualquer criatura que você animou com este feitiço se a criatura está a menos de 120 pés de você (se você controlar várias criaturas, você pode comandar qualquer uma delas ao mesmo tempo, dando o mesmo comando para eles). Você decide qual ação a criatura tomará e para onde ela se moverá na próxima vez, ou você pode emitir um comando geral, como para guardar um lugar em particular. Se você não emitir nenhum comando, a criatura toma a ação Esquivar e se move apenas para evitar danos. Uma vez dada uma ordem, a criatura continua seguindo a ordem até que sua tarefa seja completa.\n\nA criatura está sob seu controle por 24 horas, após o que ela pára de obedecer a qualquer comando que você deu a ela. Para manter o controle da criatura por mais 24 horas, você deve lançar este feitiço na criatura antes que o período atual de 24 horas termine. Este uso do feitiço reafirma o seu controle sobre até três criaturas que você tem animado com este feitiço em vez de animar novas.\n\n**Com um espaço de magia de círculo superior.** Se você usar uma espaço de magia de Nível 7, você pode animar ou reafirmar o controle sobre quatro Ghouls. Se você usar um espaço de feitiço nível 8, você pode animar ou reafirmar o controle sobre cinco Ghouls ou dois Ghasts ou Wights. Se você usar um espaço de feitiço nível 9, você pode animar ou reafirmar o controle sobre seis Ghouls, três Ghasts ou Wights, ou duas múmias. Veja o Manual de Monstros para esses blocos de estatísticas.",
       "material": "custo"
     },
     "dirge": {
       "name": "Canto Fúnebre",
-      "text": "O poder mortal enche uma Emanação de 60 pés, que vem de você durante a duração.\n\nQuando você lançar este feitiço, você pode designar criaturas para não serem afetadas por ele. Qualquer outra criatura não pode recuperar Pontos de vida enquanto estiver na Emanação. Sempre que a Emanação entra no espaço de uma criatura e sempre que uma criatura entra na Emanação ou termina a sua vez lá, a criatura faz uma teste de resistência de Constituição. Em caso de falha, a criatura leva danos necróticos 3d10 e tem a condição Prone. se passar no teste de resistência, a criatura leva metade do dano e sua velocidade é reduzida para metade. Uma criatura faz isso salvar apenas uma vez por turno.\n\nSe o feitiço for lançado como um feitiço de círculo, sua duração se torna concentração, até 10 minutos.\n\nUma criatura que falha no seu salvamento contra o efeito do feitiço também ganha 1 nível de exaustão, enquanto a criatura tem níveis de exaustão, terminando um descanso longo, não restaura pontos de vida perdidos nem reduz o nível de exaustão da criatura.\n\nQuando o feitiço é lançado, cada lançador secundário deve gastar um nível 4+, caso contrário, o feitiço falha."
+      "text": "O poder mortal enche uma Emanação de 60 pés, que vem de você durante a duração.\n\nQuando você lançar este feitiço, você pode designar criaturas para não serem afetadas por ele. Qualquer outra criatura não pode recuperar Pontos de vida enquanto estiver na Emanação. Sempre que a Emanação entra no espaço de uma criatura e sempre que uma criatura entra na Emanação ou termina a sua vez lá, a criatura faz um teste de resistência de Constituição. Em caso de falha, a criatura leva danos necróticos 3d10 e tem a condição Prone. se passar no teste de resistência, a criatura leva metade do dano e sua velocidade é reduzida para metade. Uma criatura faz isso salvar apenas uma vez por turno.\n\nSe o feitiço for lançado como um feitiço de círculo, sua duração se torna concentração, até 10 minutos.\n\nUma criatura que falha no seu teste de resistência contra o efeito do feitiço também ganha 1 nível de exaustão, enquanto a criatura tem níveis de exaustão, terminando um descanso longo, não restaura pontos de vida perdidos nem reduz o nível de exaustão da criatura.\n\nQuando o feitiço é lançado, cada lançador secundário deve gastar um nível 4+, caso contrário, o feitiço falha."
     },
     "disintegrate": {
       "name": "Desintegrar",
@@ -1658,7 +1658,7 @@
     },
     "eyebite": {
       "name": "Olhar Nefasto",
-      "text": "Uma criatura de sua escolha a menos de 60 metros de você que você possa ver deve ter sucesso em um teste de resistência da Sabedoria ou ser afetada por um dos seguintes efeitos de sua escolha durante a duração.\n\nEm cada uma de suas voltas até o fim do feitiço, você pode tomar uma ação mágica para atingir outra criatura, mas não pode atingir uma criatura novamente se tiver conseguido salvar contra este lançamento do feitiço.\n\nO alvo tem a condição de inconsciente, acorda se sofrer algum dano ou se outra criatura tomar uma ação para agitá-lo acordado.\n\nEm cada uma de suas voltas, o alvo assustado deve tomar a ação Dash e se afastar de você pela rota mais segura e mais curta disponível.\n\nO alvo tem a condição envenenada."
+      "text": "Uma criatura de sua escolha a menos de 60 metros de você que você possa ver deve ter sucesso em um teste de resistência da Sabedoria ou ser afetada por um dos seguintes efeitos de sua escolha durante a duração.\n\nEm cada uma de suas voltas até o fim do feitiço, você pode tomar uma ação mágica para atingir outra criatura, mas não pode atingir uma criatura novamente se tiver conseguido salvar contra este lançamento do feitiço.\n\nO alvo tem a condição de inconsciente, acorda se sofrer algum dano ou se outra criatura tomar uma ação para agitá-lo acordado.\n\nEm cada uma de suas voltas, o alvo assustado deve tomar a ação Disparar e se afastar de você pela rota mais segura e mais curta disponível.\n\nO alvo tem a condição envenenada."
     },
     "find-the-path": {
       "name": "Encontrar o Caminho",
@@ -1702,7 +1702,7 @@
     },
     "mass-suggestion": {
       "name": "Sugestão em Massa",
-      "text": "Você sugere um curso de atividade - descrito em não mais de 25 palavras - para doze ou menos criaturas que você pode ver dentro do alcance que pode ouvi-lo e entendê-lo. A sugestão deve parecer realizável e não envolver nada que obviamente causaria danos a qualquer um dos alvos ou seus aliados. Por exemplo, você poderia dizer, \"Caminhar até a aldeia naquela estrada, e ajudar os moradores lá colher colheitas até o pôr do sol.\" Ou você poderia dizer, \"Agora não é o momento para violência. Larguem suas armas e dancem! Pare em uma hora.\"\n\nCada alvo deve ter sucesso em uma jogada de salvação da Sabedoria ou ter a condição de Encantada para a duração ou até que você ou seus aliados deem dano ao alvo. Cada alvo encantado segue a sugestão ao máximo de sua capacidade. A atividade sugerida pode continuar por toda a duração, mas se a atividade sugerida pode ser concluída em um tempo mais curto, o feitiço termina para um alvo após completá-lo.\n\n**Com um espaço de magia de círculo superior.** A duração é maior com um espaço de magia de nível 7 (10 dias), 8 (30 dias) ou 9 (366 dias)."
+      "text": "Você sugere um curso de atividade - descrito em não mais de 25 palavras - para doze ou menos criaturas que você pode ver dentro do alcance que pode ouvi-lo e entendê-lo. A sugestão deve parecer realizável e não envolver nada que obviamente causaria danos a qualquer um dos alvos ou seus aliados. Por exemplo, você poderia dizer, \"Caminhar até a aldeia naquela estrada, e ajudar os moradores lá colher colheitas até o pôr do sol.\" Ou você poderia dizer, \"Agora não é o momento para violência. Larguem suas armas e dancem! Pare em uma hora.\"\n\nCada alvo deve ter sucesso em um teste de resistência de Sabedoria ou ter a condição de Encantada para a duração ou até que você ou seus aliados deem dano ao alvo. Cada alvo encantado segue a sugestão ao máximo de sua capacidade. A atividade sugerida pode continuar por toda a duração, mas se a atividade sugerida pode ser concluída em um tempo mais curto, o feitiço termina para um alvo após completá-lo.\n\n**Com um espaço de magia de círculo superior.** A duração é maior com um espaço de magia de nível 7 (10 dias), 8 (30 dias) ou 9 (366 dias)."
     },
     "move-earth": {
       "name": "Mover Terra",
@@ -1714,7 +1714,7 @@
     },
     "ottos-irresistible-dance": {
       "name": "Dança Irresistível de Otto",
-      "text": "Uma criatura que você pode ver dentro do alcance deve fazer um teste de resistência da Sabedoria... se passar no teste de resistência, o alvo dança cômicamente até o fim de seu próximo turno, durante a qual deve gastar todo seu movimento para dançar no lugar.\n\nEm caso de falha, o alvo tem a condição de Encantada para a duração. Enquanto Encantada, o alvo dança cômicamente, deve usar todo o seu movimento para dançar no lugar, e tem Desvantagem em Destreza salvando lances e jogadas de ataque, e outras criaturas têm vantagem em jogadas de ataque contra ele. Em cada uma de suas voltas, o alvo pode tomar uma ação para se coletar e repetir o salvamento, terminando o feitiço em si mesmo em um sucesso."
+      "text": "Uma criatura que você pode ver dentro do alcance deve fazer um teste de resistência da Sabedoria... se passar no teste de resistência, o alvo dança cômicamente até o fim de seu próximo turno, durante a qual deve gastar todo seu movimento para dançar no lugar.\n\nEm caso de falha, o alvo tem a condição de Encantada para a duração. Enquanto Encantada, o alvo dança cômicamente, deve usar todo o seu movimento para dançar no lugar, e tem Desvantagem em testes de resistência de Destreza e jogadas de ataque, e outras criaturas têm vantagem em jogadas de ataque contra ele. Em cada uma de suas voltas, o alvo pode tomar uma ação para se coletar e repetir o teste de resistência, terminando o feitiço em si mesmo em um sucesso."
     },
     "planar-ally": {
       "name": "Aliado Planar",
@@ -1761,7 +1761,7 @@
     },
     "wind-walk": {
       "name": "Caminhar no Vento",
-      "text": "Você e até dez criaturas voluntárias de sua escolha dentro do alcance assumem formas gasosas para a duração, aparecendo como ondas de nuvem. Enquanto nesta forma de nuvem, um alvo tem uma velocidade de vôo de 300 pés e pode pairar, tem imunidade à condição de Prone, e tem resistência a danos de açoitamento, perfuração e esmagamento. As únicas ações que um alvo pode tomar nesta forma são a ação Dash ou uma ação mágica para começar a reverter para sua forma normal. Reverter leva 1 minuto, durante o qual o alvo tem a condição de atordoado. Até que o feitiço termine, o alvo pode voltar à forma de nuvem, o que também requer uma ação mágica seguida de uma transformação de 1 minuto.\n\nSe um alvo está em forma de nuvem e voando quando o efeito termina, o alvo desce 60 pés por round por 1 minuto até pousar, o que acontece com segurança."
+      "text": "Você e até dez criaturas voluntárias de sua escolha dentro do alcance assumem formas gasosas para a duração, aparecendo como ondas de nuvem. Enquanto nesta forma de nuvem, um alvo tem uma velocidade de vôo de 300 pés e pode pairar, tem imunidade à condição de Prone, e tem resistência a danos de açoitamento, perfuração e esmagamento. As únicas ações que um alvo pode tomar nesta forma são a ação Disparar ou uma ação mágica para começar a reverter para sua forma normal. Reverter leva 1 minuto, durante o qual o alvo tem a condição de atordoado. Até que o feitiço termine, o alvo pode voltar à forma de nuvem, o que também requer uma ação mágica seguida de uma transformação de 1 minuto.\n\nSe um alvo está em forma de nuvem e voando quando o efeito termina, o alvo desce 60 pés por round por 1 minuto até pousar, o que acontece com segurança."
     },
     "word-of-recall": {
       "name": "Palavra de Retorno",
@@ -1769,7 +1769,7 @@
     },
     "aura-of-evasion": {
       "name": "Aura de Evasão",
-      "text": "Uma aura de alacridade irradia de você em uma Emanação de 30 pés para a duração. Enquanto estiver na aura, você e seus aliados têm vantagem em Destreza economizando. Quando uma criatura afetada é submetida a um efeito que permite que ela faça um teste de resistência de Destreza para levar apenas metade dos danos, não é necessário nenhum dano se ele tiver sucesso no salvamento e apenas metade dos danos se falhar. Uma criatura com a condição incapacitada não ganha nenhum benefício de estar na aura."
+      "text": "Uma aura de alacridade irradia de você em uma Emanação de 30 pés para a duração. Enquanto estiver na aura, você e seus aliados têm vantagem em Destreza economizando. Quando uma criatura afetada é submetida a um efeito que permite que ela faça um teste de resistência de Destreza para levar apenas metade dos danos, não é necessário nenhum dano se ele tiver sucesso no teste de resistência e apenas metade dos danos se falhar. Uma criatura com a condição incapacitada não ganha nenhum benefício de estar na aura."
     },
     "conjure-celestial": {
       "name": "Conjurar Celestial",
@@ -1828,7 +1828,7 @@
     },
     "power-word-pain": {
       "name": "Palavra de Poder: Dor",
-      "text": "Você pronuncia uma palavra de poder que inflige dor intensa a uma criatura que pode ver no alcance. Se ela tiver 100 pontos de vida ou menos, sofre 6d8 de dano de energia e fica Enfeitiçada pela duração. Caso contrário, sofre apenas os 6d8 de dano de energia.\n\nEnquanto o alvo está encantado, sua velocidade não pode ser superior a 10 pés, e tem Desvantagem nos testes D20 exceto a Constituição salvando lançamentos. Além disso, quando o alvo tenta lançar um feitiço, ele deve primeiro ter sucesso em uma teste de resistência de Constituição, ou o feitiço dissipa-se sem efeito, e a ação, ação bônus, ou reação usada para lançar é desperdiçada. Se o feitiço foi lançado com um feitiço, o buraco não é gasto.\n\nNo final de cada uma de suas voltas, o alvo encantado faz uma Constituição salvando a bola, terminando o feitiço em si mesmo em uma salvação bem sucedida."
+      "text": "Você pronuncia uma palavra de poder que inflige dor intensa a uma criatura que pode ver no alcance. Se ela tiver 100 pontos de vida ou menos, sofre 6d8 de dano de energia e fica Enfeitiçada pela duração. Caso contrário, sofre apenas os 6d8 de dano de energia.\n\nEnquanto o alvo está encantado, sua velocidade não pode ser superior a 10 pés, e tem Desvantagem nos testes D20 exceto a Constituição salvando lançamentos. Além disso, quando o alvo tenta lançar um feitiço, ele deve primeiro ter sucesso em um teste de resistência de Constituição, ou o feitiço dissipa-se sem efeito, e a ação, ação bônus, ou reação usada para lançar é desperdiçada. Se o feitiço foi lançado com um feitiço, o buraco não é gasto.\n\nNo final de cada uma de suas voltas, o alvo encantado faz uma Constituição salvando a bola, terminando o feitiço em si mesmo em uma salvação bem sucedida."
     },
     "prismatic-spray": {
       "name": "Pulverização Prismática",
@@ -1871,7 +1871,7 @@
     },
     "symbol": {
       "name": "Símbolo",
-      "text": "Você inscreve um glifo nocivo em uma superfície (como uma seção de chão ou parede) ou dentro de um objeto que pode ser fechado (como um livro ou peito). O glifo pode cobrir uma área não maior que 3 metros de diâmetro. Se você escolher um objeto, ele deve permanecer no lugar, se ele for movido a mais de 3 metros de onde você lança este feitiço, o glifo é quebrado, e o feitiço termina sem ser acionado.\n\nO glifo é quase imperceptível e requer uma verificação bem-sucedida da Sabedoria (Percepção) contra o seu feitiço salvar DC para notar.\n\nQuando você inscreve o glifo, você estabelece o gatilho e escolhe qual efeito o símbolo ursos: morte, discórdia, medo, dor, sono, ou atordoamento.\n\nVocê decide o que ativa o glifo quando lança o feitiço. Para os glifos inscritos em uma superfície, os gatilhos comuns incluem tocar ou pisar no glifo, remover outro objeto cobrindo-o, ou se aproximando dentro de uma certa distância dele. Para os glifos inscritos dentro de um objeto, gatilhos comuns incluem abrir esse objeto ou ver o glifo.\n\nVocê pode refinar o gatilho para que apenas criaturas de certos tipos o ativem (por exemplo, o glifo pode ser definido para afetar Aberrações), você também pode definir condições para criaturas que não acionam o glifo, como aqueles que dizem uma certa senha.\n\nUma vez acionado, o glifo brilha, enchendo uma esfera de 6 metros de raio com luz fraca por 10 minutos, após o que o feitiço termina. Cada criatura na Esfera quando o glifo se ativa é alvo de seu efeito, assim como uma criatura que entra na Esfera pela primeira vez em uma volta ou termina sua volta lá. Uma criatura é alvo apenas uma vez por turno.\n\nCada alvo faz uma defesa constitucional, levando dano necrótico 10d10 se falhar no teste ou metade do dano se passar no teste.\n\nCada alvo faz um teste de resistência da sabedoria, em uma salvação falhada, um alvo discute com outras criaturas por 1 minuto, durante esse tempo, é incapaz de comunicação significativa e tem desvantagem em jogadas de ataque e testes de atributo.\n\nCada alvo deve ter sucesso em uma jogada de salvação da Sabedoria ou ter a condição de medo por 1 minuto, enquanto assustado, o alvo deve se mover pelo menos 9 metros longe do glifo em cada uma de suas voltas, se puder.\n\nCada alvo deve ter sucesso em uma defesa constitucional ou ter a condição incapacitada por 1 minuto.\n\nCada alvo deve ter sucesso em uma jogada de salvação da Sabedoria ou ter a condição inconsciente por 10 minutos.\n\nCada alvo deve ter sucesso em uma jogada de salvação da Sabedoria ou ter a condição atordoada por 1 minuto.",
+      "text": "Você inscreve um glifo nocivo em uma superfície (como uma seção de chão ou parede) ou dentro de um objeto que pode ser fechado (como um livro ou peito). O glifo pode cobrir uma área não maior que 3 metros de diâmetro. Se você escolher um objeto, ele deve permanecer no lugar, se ele for movido a mais de 3 metros de onde você lança este feitiço, o glifo é quebrado, e o feitiço termina sem ser acionado.\n\nO glifo é quase imperceptível e requer uma verificação bem-sucedida da Sabedoria (Percepção) contra o seu feitiço salvar DC para notar.\n\nQuando você inscreve o glifo, você estabelece o gatilho e escolhe qual efeito o símbolo ursos: morte, discórdia, medo, dor, sono, ou atordoamento.\n\nVocê decide o que ativa o glifo quando lança o feitiço. Para os glifos inscritos em uma superfície, os gatilhos comuns incluem tocar ou pisar no glifo, remover outro objeto cobrindo-o, ou se aproximando dentro de uma certa distância dele. Para os glifos inscritos dentro de um objeto, gatilhos comuns incluem abrir esse objeto ou ver o glifo.\n\nVocê pode refinar o gatilho para que apenas criaturas de certos tipos o ativem (por exemplo, o glifo pode ser definido para afetar Aberrações), você também pode definir condições para criaturas que não acionam o glifo, como aqueles que dizem uma certa senha.\n\nUma vez acionado, o glifo brilha, enchendo uma esfera de 6 metros de raio com luz fraca por 10 minutos, após o que o feitiço termina. Cada criatura na Esfera quando o glifo se ativa é alvo de seu efeito, assim como uma criatura que entra na Esfera pela primeira vez em uma volta ou termina sua volta lá. Uma criatura é alvo apenas uma vez por turno.\n\nCada alvo faz uma defesa constitucional, levando dano necrótico 10d10 se falhar no teste ou metade do dano se passar no teste.\n\nCada alvo faz um teste de resistência da sabedoria, em uma salvação falhada, um alvo discute com outras criaturas por 1 minuto, durante esse tempo, é incapaz de comunicação significativa e tem desvantagem em jogadas de ataque e testes de atributo.\n\nCada alvo deve ter sucesso em um teste de resistência de Sabedoria ou ter a condição de medo por 1 minuto, enquanto assustado, o alvo deve se mover pelo menos 9 metros longe do glifo em cada uma de suas voltas, se puder.\n\nCada alvo deve ter sucesso em uma defesa constitucional ou ter a condição incapacitada por 1 minuto.\n\nCada alvo deve ter sucesso em um teste de resistência de Sabedoria ou ter a condição inconsciente por 10 minutos.\n\nCada alvo deve ter sucesso em um teste de resistência de Sabedoria ou ter a condição atordoada por 1 minuto.",
       "material": "consumido"
     },
     "teleport": {
@@ -1880,7 +1880,7 @@
     },
     "transfix": {
       "name": "Fascinação",
-      "text": "Uma criatura de sua escolha que você pode ver a menos de 60 metros de você deve ter sucesso em um teste de resistência Carisma ou ter a condição de Encantada para a duração.\n\nEnquanto Enfeitiçado, o alvo fica Incapacitado. Se estiver a mais de 5 pés de você, ele avança no turno dele pela rota mais direta, tentando chegar a até 5 pés. Se terminar o turno a essa distância, sofre 4d8 de dano psíquico.\n\nO alvo não evita ataques de oportunidade quando se move em sua direção, mas antes de se mover para um terreno prejudicial (como lava ou um poço), o alvo repete o salvamento, terminando o feitiço em si mesmo em um sucesso.\n\nAté que o feitiço termine, você pode tomar uma ação mágica em turnos subsequentes para atingir outra criatura, mas você não pode mirar uma criatura novamente se tiver conseguido salvar contra este lançamento do feitiço.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d8 para cada espaço de magia acima de 7."
+      "text": "Uma criatura de sua escolha que você pode ver a menos de 60 metros de você deve ter sucesso em um teste de resistência Carisma ou ter a condição de Encantada para a duração.\n\nEnquanto Enfeitiçado, o alvo fica Incapacitado. Se estiver a mais de 5 pés de você, ele avança no turno dele pela rota mais direta, tentando chegar a até 5 pés. Se terminar o turno a essa distância, sofre 4d8 de dano psíquico.\n\nO alvo não evita ataques de oportunidade quando se move em sua direção, mas antes de se mover para um terreno prejudicial (como lava ou um poço), o alvo repete o teste de resistência, terminando o feitiço em si mesmo em um sucesso.\n\nAté que o feitiço termine, você pode tomar uma ação mágica em turnos subsequentes para atingir outra criatura, mas você não pode mirar uma criatura novamente se tiver conseguido salvar contra este lançamento do feitiço.\n\n**Com um espaço de magia de círculo superior.** O dano aumenta em 1d8 para cada espaço de magia acima de 7."
     },
     "animal-shapes": {
       "name": "Formas de Animais",
@@ -1921,7 +1921,7 @@
     },
     "entrancing-mirrors": {
       "name": "Espelhos Hipnóticos",
-      "text": "Você cria dezenas de espelhos ilusórios para confundir até três criaturas de sua escolha que você pode ver dentro do alcance.\n\nCada alvo faz uma jogada de salvamento da Inteligência, em uma tentativa falhada, um alvo leva dano psíquico 7d6 e tem a condição de atordoado, enquanto o alvo é atordoado, sua velocidade é reduzida para metade, em uma tentativa de salvamento bem sucedida, um alvo leva metade do dano apenas.\n\nUm alvo atordoado repete o lançamento da inteligência salvando no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso."
+      "text": "Você cria dezenas de espelhos ilusórios para confundir até três criaturas de sua escolha que você pode ver dentro do alcance.\n\nCada alvo faz uma jogada de teste de resistência da Inteligência, em uma tentativa falhada, um alvo leva dano psíquico 7d6 e tem a condição de atordoado, enquanto o alvo é atordoado, sua velocidade é reduzida para metade, em uma tentativa de teste de resistência bem sucedida, um alvo leva metade do dano apenas.\n\nUm alvo atordoado repete o lançamento da inteligência salvando no final de cada uma de suas voltas, terminando o feitiço em si mesmo em um sucesso."
     },
     "glibness": {
       "name": "Loquacidade",
@@ -1951,7 +1951,7 @@
     },
     "lightning-ring": {
       "name": "Anel de Relâmpagos",
-      "text": "Um anel de eletricidade crepitante preenche uma Emanação de 10 pés originada de você. Sempre que a Emanação entra no espaço de uma criatura e sempre que uma criatura entra na Emanação ou termina sua vez lá, você pode forçar essa criatura a fazer uma teste de resistência de Constituição. se falhar no teste de resistência, a criatura leva 3d6 dano elétrico mais 3d6 danos trovão, e tem a condição surda por 1 minuto. se passar no teste de resistência, a criatura leva metade dos danos.\n\nComo ação Mágica enquanto a magia estiver ativa, você pode emitir uma linha de 60 pés de comprimento por 5 pés de largura em uma direção à sua escolha. Cada criatura na linha faz um teste de resistência de Destreza. Sofre 6d6 de dano elétrico se falhar ou metade se passar."
+      "text": "Um anel de eletricidade crepitante preenche uma Emanação de 10 pés originada de você. Sempre que a Emanação entra no espaço de uma criatura e sempre que uma criatura entra na Emanação ou termina sua vez lá, você pode forçar essa criatura a fazer um teste de resistência de Constituição. se falhar no teste de resistência, a criatura leva 3d6 dano elétrico mais 3d6 danos trovão, e tem a condição surda por 1 minuto. se passar no teste de resistência, a criatura leva metade dos danos.\n\nComo ação Mágica enquanto a magia estiver ativa, você pode emitir uma linha de 60 pés de comprimento por 5 pés de largura em uma direção à sua escolha. Cada criatura na linha faz um teste de resistência de Destreza. Sofre 6d6 de dano elétrico se falhar ou metade se passar."
     },
     "maze": {
       "name": "Labirinto",
@@ -2045,7 +2045,7 @@
     },
     "storm-of-vengeance": {
       "name": "Tempestade de Vingança",
-      "text": "Cada criatura sob a nuvem deve ter sucesso em uma teste de resistência de Constituição ou tomar 2d6 de danos do Trovão e ter a condição surda para a duração.\n\nNo início de cada uma de suas voltas posteriores, a tempestade produz efeitos diferentes, conforme detalhado abaixo.\n\nCada criatura e objeto sob a nuvem leva danos de ácido 4d6.\n\n**Turno 3.** Você faz cair seis raios contra seis criaturas ou objetos diferentes sob a nuvem. Cada alvo faz um teste de resistência de Destreza. Sofre 10d6 de dano elétrico se falhar ou metade se passar.\n\nCada criatura sob a nuvem leva 2d6 de danos.\n\n**Turnos 5 a 10.** Rajadas e chuva gelada castigam a área sob a nuvem. Cada criatura ali sofre 1d6 de dano de frio. Até o fim da magia, a área é Terreno Difícil e fica fortemente obscurecida, ataques à distância com armas são impossíveis e venta forte."
+      "text": "Cada criatura sob a nuvem deve ter sucesso em um teste de resistência de Constituição ou tomar 2d6 de danos do Trovão e ter a condição surda para a duração.\n\nNo início de cada uma de suas voltas posteriores, a tempestade produz efeitos diferentes, conforme detalhado abaixo.\n\nCada criatura e objeto sob a nuvem leva danos de ácido 4d6.\n\n**Turno 3.** Você faz cair seis raios contra seis criaturas ou objetos diferentes sob a nuvem. Cada alvo faz um teste de resistência de Destreza. Sofre 10d6 de dano elétrico se falhar ou metade se passar.\n\nCada criatura sob a nuvem leva 2d6 de danos.\n\n**Turnos 5 a 10.** Rajadas e chuva gelada castigam a área sob a nuvem. Cada criatura ali sofre 1d6 de dano de frio. Até o fim da magia, a área é Terreno Difícil e fica fortemente obscurecida, ataques à distância com armas são impossíveis e venta forte."
     },
     "time-stop": {
       "name": "Parar o Tempo",
@@ -2062,7 +2062,7 @@
     },
     "vision-of-elapsing-eons": {
       "name": "Visão das Eras Passadas",
-      "text": "Você engana uma criatura que vê no alcance, fazendo-a acreditar que ela e tudo ao redor estão se desintegrando com a passagem de eras. A criatura faz um teste de resistência de Inteligência. Se falhar, sofre 10d12 de dano psíquico e fica Paralisada pela duração.\n\nEnquanto paralisado, o alvo repete o salvamento no final de cada uma de suas voltas, em caso de falha, ganha 1 nível de exaustão, se passar no teste de resistência, o feitiço termina cedo, se alguém a menos de 5 pés do alvo fizer uma ação para afastá-lo da ilusão."
+      "text": "Você engana uma criatura que vê no alcance, fazendo-a acreditar que ela e tudo ao redor estão se desintegrando com a passagem de eras. A criatura faz um teste de resistência de Inteligência. Se falhar, sofre 10d12 de dano psíquico e fica Paralisada pela duração.\n\nEnquanto paralisado, o alvo repete o teste de resistência no final de cada uma de suas voltas, em caso de falha, ganha 1 nível de exaustão, se passar no teste de resistência, o feitiço termina cedo, se alguém a menos de 5 pés do alvo fizer uma ação para afastá-lo da ilusão."
     },
     "wail-of-the-banshee": {
       "name": "Lamento da Banshee",
@@ -2070,7 +2070,7 @@
     },
     "weird": {
       "name": "Pesadelo Fantasmagórico",
-      "text": "Você tenta criar terrores ilusórios na mente dos outros. Cada criatura de sua escolha em uma esfera de 30 pés centrada em um ponto dentro do alcance faz uma sabedoria salvar o lançamento. Em caso de falha, um alvo leva danos psíquicos 10d10 e tem a condição de medo para a duração. se passar no teste de resistência, um alvo leva metade dos danos.\n\nUm alvo assustado faz um golpe de salvação da Sabedoria no final de cada uma de suas voltas, em uma salvação falhada, leva danos psíquicos 5d10, em uma salvação bem sucedida, o feitiço termina nesse alvo."
+      "text": "Você tenta criar terrores ilusórios na mente dos outros. Cada criatura de sua escolha em uma esfera de 30 pés centrada em um ponto dentro do alcance faz um teste de resistência de Sabedoria. Em caso de falha, um alvo leva danos psíquicos 10d10 e tem a condição de medo para a duração. se passar no teste de resistência, um alvo leva metade dos danos.\n\nUm alvo assustado faz um golpe de salvação da Sabedoria no final de cada uma de suas voltas, em uma salvação falhada, leva danos psíquicos 5d10, em uma salvação bem sucedida, o feitiço termina nesse alvo."
     },
     "wish": {
       "name": "Desejo",
@@ -5191,7 +5191,7 @@
         },
         {
           "name": "Movimento Imprevisível",
-          "body": "Quando você lançar Iniciativa e não tiver Desvantagem nessa rolagem, você pode tomar a ação Dash como uma reação."
+          "body": "Quando você lançar Iniciativa e não tiver Desvantagem nessa rolagem, você pode tomar a ação Disparar como uma reação."
         }
       ],
       "tags": [
@@ -5233,7 +5233,7 @@
       "traits": [
         {
           "name": "Surto de Adrenalina",
-          "body": "Você pode tomar a ação Dash como uma ação bônus, quando você faz isso, você ganha um número de pontos de vida temporários iguais ao seu bônus de proficiência.\n\nVocê pode usar essa característica várias vezes igual ao seu bônus de proficiência, e você recupera todos os usos gastos quando você termina um descanso curto ou longo."
+          "body": "Você pode tomar a ação Disparar como uma ação bônus, quando você faz isso, você ganha um número de pontos de vida temporários iguais ao seu bônus de proficiência.\n\nVocê pode usar essa característica várias vezes igual ao seu bônus de proficiência, e você recupera todos os usos gastos quando você termina um descanso curto ou longo."
         },
         {
           "name": "Visão no Escuro",
@@ -5256,7 +5256,7 @@
       "traits": [
         {
           "name": "Escapar da Morte",
-          "body": "Você tem vantagem em jogos de salvamento da morte."
+          "body": "Você tem vantagem em jogos de teste de resistência da morte."
         },
         {
           "name": "Vida Duradoura",
@@ -5443,7 +5443,7 @@
         },
         {
           "name": "Implosão Distorcida",
-          "body": "Você pode liberar uma anomalia de guerra espacial. Como uma ação mágica, você se teletransporta para um espaço desocupado que você pode ver a menos de 120 pés de si mesmo. Imediatamente depois que você desaparece, cada criatura a menos de 10 metros do espaço que você deixou deve fazer uma Força de salvamento contra seu feitiço salvar DC. Em caso de falha, uma criatura leva dano 3d10 Força e é puxada diretamente para o espaço que você deixou, terminando em um espaço desocupado o mais próximo possível do seu antigo espaço. se passar no teste de resistência, a criatura leva metade dos danos.\n\nUma vez que você usa este recurso, você não pode fazer isso de novo até que você termine um descanso longo a menos que você gastar 5 pontos de magia (sem ação necessária) para restaurar o seu uso dele."
+          "body": "Você pode liberar uma anomalia de guerra espacial. Como uma ação mágica, você se teletransporta para um espaço desocupado que você pode ver a menos de 120 pés de si mesmo. Imediatamente depois que você desaparece, cada criatura a menos de 10 metros do espaço que você deixou deve fazer uma Força de teste de resistência contra seu feitiço salvar DC. Em caso de falha, uma criatura leva dano 3d10 Força e é puxada diretamente para o espaço que você deixou, terminando em um espaço desocupado o mais próximo possível do seu antigo espaço. se passar no teste de resistência, a criatura leva metade dos danos.\n\nUma vez que você usa este recurso, você não pode fazer isso de novo até que você termine um descanso longo a menos que você gastar 5 pontos de magia (sem ação necessária) para restaurar o seu uso dele."
         }
       ]
     },
@@ -6021,7 +6021,7 @@
         },
         {
           "name": "Sobrevivente",
-          "body": "Você alcança o auge da resiliência na batalha, dando-lhe esses benefícios.\n\nAlém disso, quando você joga 18-20 em uma jogada de salvação da morte, você ganha o benefício de rolar um 20 sobre ela.\n\nNo início de cada turno, você recupera Pontos de vida igual a 5 mais seu modificador de Constituição se você estiver com sangue e tiver pelo menos 1 Ponto de vida."
+          "body": "Você alcança o auge da resiliência na batalha, dando-lhe esses benefícios.\n\nAlém disso, quando você joga 18-20 em um teste de resistência contra a morte, você ganha o benefício de rolar um 20 sobre ela.\n\nNo início de cada turno, você recupera Pontos de vida igual a 5 mais seu modificador de Constituição se você estiver com sangue e tiver pelo menos 1 Ponto de vida."
         }
       ],
       "choices": [
@@ -6214,7 +6214,7 @@
       "features": [
         {
           "name": "Magia Sedutora",
-          "body": "Você sempre tem os feitiços de Charme Person e Reflexos preparados.\n\nAlém disso, imediatamente depois de lançar um feitiço de encantamento ou ilusão usando um feitiço, você pode fazer uma criatura que você pode ver a menos de 60 pés de si mesma para fazer um lançamento de sabedoria contra o seu feitiço salvar DC. Em caso de falha, o alvo tem a condição de Encantado ou Assustado (sua escolha) por 1 minuto. O alvo repete o salvamento no final de cada uma de suas voltas, terminando o efeito sobre si mesmo em um sucesso.\n\nUma vez que use esse benefício, não pode usá-lo de novo até que termine um descanso longo, também pode restaurar seu uso dele gastando um uso da sua inspiração bárdica (sem ação necessária)."
+          "body": "Você sempre tem os feitiços de Charme Person e Reflexos preparados.\n\nAlém disso, imediatamente depois de lançar um feitiço de encantamento ou ilusão usando um feitiço, você pode fazer uma criatura que você pode ver a menos de 60 pés de si mesma para fazer um lançamento de sabedoria contra o seu feitiço salvar DC. Em caso de falha, o alvo tem a condição de Encantado ou Assustado (sua escolha) por 1 minuto. O alvo repete o teste de resistência no final de cada uma de suas voltas, terminando o efeito sobre si mesmo em um sucesso.\n\nUma vez que use esse benefício, não pode usá-lo de novo até que termine um descanso longo, também pode restaurar seu uso dele gastando um uso da sua inspiração bárdica (sem ação necessária)."
         },
         {
           "name": "Manto de Inspiração",
@@ -6584,7 +6584,7 @@
         },
         {
           "name": "Mente de Ferro",
-          "body": "Você aperfeiçoou sua capacidade de resistir a poderes que alteram a mente, você ganha proficiência em sabedoria, salvando lances, se você já tem essa proficiência, você ganha proficiência em inteligência ou Carisma salva lances (sua escolha)."
+          "body": "Você aperfeiçoou sua capacidade de resistir a poderes que alteram a mente, você ganha proficiência em testes de resistência de Sabedoria, se você já tem essa proficiência, você ganha proficiência em inteligência ou Carisma salva lances (sua escolha)."
         },
         {
           "name": "Rajada do Perseguidor",
@@ -6776,7 +6776,7 @@
         },
         {
           "name": "Mente Livre",
-          "body": "Quando você usa essa telepatia, você pode simultaneamente contatar uma série de criaturas iguais ao seu modificador de Sabedoria (mínimo de um).\n\nAlém disso, você ganha proficiência na inteligência salvando lances... se você já tem essa proficiência, você ganha proficiência salvando lance com uma habilidade em que você não tem."
+          "body": "Quando você usa essa telepatia, você pode simultaneamente contatar uma série de criaturas iguais ao seu modificador de Sabedoria (mínimo de um).\n\nAlém disso, você ganha proficiência em testes de resistência de Inteligência... se você já tem essa proficiência, você ganha proficiência em testes de resistência de um atributo em que você não tem."
         },
         {
           "name": "Presciência Divina",
@@ -6958,7 +6958,7 @@
       "features": [
         {
           "name": "Ira da Natureza",
-          "body": "Como uma ação mágica, você pode gastar um de seus usos da Divindade do Canal para conjurar videiras espectrais em torno de criaturas próximas. Cada criatura de sua escolha que você pode ver dentro de 15 pés de si mesmo deve ter sucesso em um teste de resistência de força ou ter a condição de Restrição por 1 minuto. Uma criatura retida repete o salvamento no final de cada uma de suas voltas, acabando com o efeito em um sucesso."
+          "body": "Como uma ação mágica, você pode gastar um de seus usos da Divindade do Canal para conjurar videiras espectrais em torno de criaturas próximas. Cada criatura de sua escolha que você pode ver dentro de 15 pés de si mesmo deve ter sucesso em um teste de resistência de força ou ter a condição de Restrição por 1 minuto. Uma criatura retida repete o teste de resistência no final de cada uma de suas voltas, acabando com o efeito em um sucesso."
         },
         {
           "name": "Magias do Juramento dos Anciões",
@@ -6990,7 +6990,7 @@
       "features": [
         {
           "name": "Destruição Elemental",
-          "body": "Imediatamente depois de lançar o Divino Smite, você pode gastar um uso de sua Divindade do Canal e invocar um dos seguintes efeitos.\n\nA Terra se ergue em torno do alvo do seu Divino Smite, o alvo tem a condição de Resgate DC igual ao seu feitiço de salvamento DC, enquanto que o alvo tem a condição de Restrição.\n\nVocê se teletransporta para um espaço desocupado, pode ver a menos de 9 metros de si mesmo e assumir uma forma semi-incorpórea, que dura até o fim do seu próximo turno. Enquanto nesta forma, você tem resistência a golpes, perfurantes e danos, e você tem imunidade para as condições agarradas, pronas e restrições.\n\nO alvo do seu Divino Smite leva um dano extra de 2d4 e o fogo salta do alvo para outra criatura que você pode ver a menos de 9 metros de si mesmo.\n\nO alvo de seu Divino Smite e cada criatura de sua escolha em uma Emanação de 3 metros que se origina de você, faz um lançamento de força contra seu feitiço salvar DC."
+          "body": "Imediatamente depois de lançar o Divino Smite, você pode gastar um uso de sua Divindade do Canal e invocar um dos seguintes efeitos.\n\nA Terra se ergue em torno do alvo do seu Divino Smite, o alvo tem a condição de Resgate DC igual ao seu feitiço de teste de resistência DC, enquanto que o alvo tem a condição de Restrição.\n\nVocê se teletransporta para um espaço desocupado, pode ver a menos de 9 metros de si mesmo e assumir uma forma semi-incorpórea, que dura até o fim do seu próximo turno. Enquanto nesta forma, você tem resistência a golpes, perfurantes e danos, e você tem imunidade para as condições agarradas, pronas e restrições.\n\nO alvo do seu Divino Smite leva um dano extra de 2d4 e o fogo salta do alvo para outra criatura que você pode ver a menos de 9 metros de si mesmo.\n\nO alvo de seu Divino Smite e cada criatura de sua escolha em uma Emanação de 3 metros que se origina de você, faz um lançamento de força contra seu feitiço salvar DC."
         },
         {
           "name": "Magias de Gênio",
@@ -7064,7 +7064,7 @@
         },
         {
           "name": "Presença Intimidante",
-          "body": "Como uma ação bônus, você pode atacar o terror nos outros com sua presença ameaçadora e poder primordial. Quando você faz isso, cada criatura de sua escolha em uma Emanação de 30 pés originada de você deve fazer um teste de resistência da sabedoria (DC 8 mais seu modificador de força e bônus de eficiência). Em caso de falha, uma criatura tem a condição de medo por 1 minuto. No final de cada uma das voltas da criatura assustada, a criatura repete o salvamento, acabando com o efeito sobre si mesmo em um sucesso.\n\nUma vez que você use este recurso, você não pode usá-lo novamente até que você termine um descanso longo a menos que você despeje um uso de sua raiva (sem ação necessária) para restaurar seu uso dele."
+          "body": "Como uma ação bônus, você pode atacar o terror nos outros com sua presença ameaçadora e poder primordial. Quando você faz isso, cada criatura de sua escolha em uma Emanação de 30 pés originada de você deve fazer um teste de resistência da sabedoria (DC 8 mais seu modificador de força e bônus de eficiência). Em caso de falha, uma criatura tem a condição de medo por 1 minuto. No final de cada uma das voltas da criatura assustada, a criatura repete o teste de resistência, acabando com o efeito sobre si mesmo em um sucesso.\n\nUma vez que você use este recurso, você não pode usá-lo novamente até que você termine um descanso longo a menos que você despeje um uso de sua raiva (sem ação necessária) para restaurar seu uso dele."
         }
       ]
     },
@@ -7078,7 +7078,7 @@
         },
         {
           "name": "Fúria Selvagem",
-          "body": "Sua raiva entra no poder primitivo dos animais, sempre que você ativa sua raiva, você ganha uma das seguintes opções de sua escolha.\n\nEnquanto sua raiva está ativa, você tem resistência a todos os tipos de danos, exceto Força, Necrótico, Psíquico e Radiante.\n\nQuando você ativa sua raiva, você pode tomar as ações de Desengajamento e Dash como parte dessa ação bônus, enquanto sua raiva está ativa, você pode tomar uma ação bônus para tomar ambas as ações.\n\nEnquanto sua raiva está ativa, seus aliados têm vantagem em atacar qualquer inimigo seu a menos de 5 pés de você."
+          "body": "Sua raiva entra no poder primitivo dos animais, sempre que você ativa sua raiva, você ganha uma das seguintes opções de sua escolha.\n\nEnquanto sua raiva está ativa, você tem resistência a todos os tipos de danos, exceto Força, Necrótico, Psíquico e Radiante.\n\nQuando você ativa sua raiva, você pode tomar as ações de Desengajamento e Disparar como parte dessa ação bônus, enquanto sua raiva está ativa, você pode tomar uma ação bônus para tomar ambas as ações.\n\nEnquanto sua raiva está ativa, seus aliados têm vantagem em atacar qualquer inimigo seu a menos de 5 pés de você."
         },
         {
           "name": "Aspecto da Natureza",
@@ -7156,7 +7156,7 @@
         },
         {
           "name": "Lembranças dos Falecidos",
-          "body": "Os espíritos dos mortos são atraídos por você, e ecoam de suas vidas passadas magicamente manifestas como curiosidades estranhas com poder ressonante.\n\nVocê ganha duas bugigangas de alma, uma bugiganga de alma é um objeto minúsculo, o DM determina a forma da bugiganga, ou tem que rolar sobre a mesa de bugigangas no Manual do Jogador para gerar isso.\n\nUsando Trinkets de Alma. Você pode usar trinkets de alma das seguintes maneiras:\n\nQuando você lidar com danos ao ataque de Sneak na sua vez, você pode destruir uma alma trinket e usar imediatamente Wails da sepultura sem gastar um uso dessa característica.\n\nEnquanto você tem pelo menos uma bugiganga de alma, você tem vantagem em jogos de salvação da morte e a Constituição salvando lances.\n\nVocê pode tomar uma ação mágica para destruir uma alma e imediatamente lançar o feitiço de Augury, sem precisar de componentes de feitiço e usando a Constituição como modificador de feitiços. Se você conhece a criatura com a qual a bugiganga está associada, você pode perguntar ao espírito da criatura uma pergunta em vez de lançar o feitiço. Neste caso, o espírito aparece para você e responde o mais conciso possível em uma linguagem que conhecia na vida.\n\nQuando uma criatura pode ver a menos de 10 metros de você morre, você pode ter uma reação para ganhar outra trinket de alma, reivindicando uma fatia do espírito que parte da criatura.\n\nVocê pode ter no máximo duas bugigangas de cada vez, se você tentar ganhar uma bugiganga de alma enquanto no máximo, uma das suas bugigangas existentes é imediatamente destruída e substituída pela nova bugiganga, o número máximo de bugigangas de alma que você pode ter aumenta quando você atinge os níveis de Ladino 13 (três bugigangas) e 17 (quatro bugigangas).\n\nSempre que você termina um descanso longo com menos do que duas bugigangas de alma, você ganha bugigangas de alma até ter duas."
+          "body": "Os espíritos dos mortos são atraídos por você, e ecoam de suas vidas passadas magicamente manifestas como curiosidades estranhas com poder ressonante.\n\nVocê ganha duas bugigangas de alma, uma bugiganga de alma é um objeto minúsculo, o DM determina a forma da bugiganga, ou tem que rolar sobre a mesa de bugigangas no Manual do Jogador para gerar isso.\n\nUsando Trinkets de Alma. Você pode usar trinkets de alma das seguintes maneiras:\n\nQuando você lidar com danos ao ataque de Sneak na sua vez, você pode destruir uma alma trinket e usar imediatamente Wails da sepultura sem gastar um uso dessa característica.\n\nEnquanto você tem pelo menos uma bugiganga de alma, você tem vantagem em jogos de salvação da morte e testes de resistência de Constituição.\n\nVocê pode tomar uma ação mágica para destruir uma alma e imediatamente lançar o feitiço de Augury, sem precisar de componentes de feitiço e usando a Constituição como modificador de feitiços. Se você conhece a criatura com a qual a bugiganga está associada, você pode perguntar ao espírito da criatura uma pergunta em vez de lançar o feitiço. Neste caso, o espírito aparece para você e responde o mais conciso possível em uma linguagem que conhecia na vida.\n\nQuando uma criatura pode ver a menos de 10 metros de você morre, você pode ter uma reação para ganhar outra trinket de alma, reivindicando uma fatia do espírito que parte da criatura.\n\nVocê pode ter no máximo duas bugigangas de cada vez, se você tentar ganhar uma bugiganga de alma enquanto no máximo, uma das suas bugigangas existentes é imediatamente destruída e substituída pela nova bugiganga, o número máximo de bugigangas de alma que você pode ter aumenta quando você atinge os níveis de Ladino 13 (três bugigangas) e 17 (quatro bugigangas).\n\nSempre que você termina um descanso longo com menos do que duas bugigangas de alma, você ganha bugigangas de alma até ter duas."
         },
         {
           "name": "Voz da Morte",
@@ -7324,7 +7324,7 @@
         },
         {
           "name": "Dilacerar a Mente",
-          "body": "Você pode varrer suas lâminas psíquicas através da mente de uma criatura. Quando você usa suas lâminas psíquicas para lidar com danos de ataque sneak a uma criatura, você pode forçar esse alvo a fazer um teste de resistência de sabedoria (DC 8 mais seu modificador de destreza e bônus de proficiência). Se o salvamento falhar, o alvo ficará com a condição atordoada por 1 minuto. O alvo atordoado repete o salvamento no final de cada uma de suas voltas, terminando o efeito sobre si mesmo com um sucesso.\n\nUma vez que você usa este recurso, você não pode fazer isso de novo até que você termine um Longo descanso a menos que você gastar três Dados de Energia Psiônica (sem ação necessária) para restaurar o seu uso dele."
+          "body": "Você pode varrer suas lâminas psíquicas através da mente de uma criatura. Quando você usa suas lâminas psíquicas para lidar com danos de ataque sneak a uma criatura, você pode forçar esse alvo a fazer um teste de resistência de sabedoria (DC 8 mais seu modificador de destreza e bônus de proficiência). Se o teste de resistência falhar, o alvo ficará com a condição atordoada por 1 minuto. O alvo atordoado repete o teste de resistência no final de cada uma de suas voltas, terminando o efeito sobre si mesmo com um sucesso.\n\nUma vez que você usa este recurso, você não pode fazer isso de novo até que você termine um Longo descanso a menos que você gastar três Dados de Energia Psiônica (sem ação necessária) para restaurar o seu uso dele."
         }
       ]
     },
@@ -7396,11 +7396,11 @@
         },
         {
           "name": "Pedra do Transmutador",
-          "body": "Quando você terminar um Descanso Longo, você pode criar uma pedra mágica que dura até que você use este recurso novamente. A pedra é um objeto minúsculo, e você pode usá-lo como um foco de feitiços para seus feitiços mágicos. Uma criatura com a pedra em sua posse ganha proficiência na Constituição salvando lances e um dos seguintes benefícios, que você escolhe quando cria a pedra. Você pode mudar o benefício da pedra quando você lança um feitiço de Transmutação usando um feitiço.\n\nO portador ganha a Visão no Escuro com uma distância de 60 pés ou aumenta o alcance da Visão no Escuro em 60 pés.\n\nO portador ganha resistência ao ácido, frio, fogo, relâmpago, veneno, ou danos do trovão (sua escolha cada vez que você escolher este benefício).\n\nA velocidade do portador aumenta em 10 pés."
+          "body": "Quando você terminar um Descanso Longo, você pode criar uma pedra mágica que dura até que você use este recurso novamente. A pedra é um objeto minúsculo, e você pode usá-lo como um foco de feitiços para seus feitiços mágicos. Uma criatura com a pedra em sua posse ganha proficiência em testes de resistência de Constituição e um dos seguintes benefícios, que você escolhe quando cria a pedra. Você pode mudar o benefício da pedra quando você lança um feitiço de Transmutação usando um feitiço.\n\nO portador ganha a Visão no Escuro com uma distância de 60 pés ou aumenta o alcance da Visão no Escuro em 60 pés.\n\nO portador ganha resistência ao ácido, frio, fogo, relâmpago, veneno, ou danos do trovão (sua escolha cada vez que você escolher este benefício).\n\nA velocidade do portador aumenta em 10 pés."
         },
         {
           "name": "Alteração Maravilhosa",
-          "body": "Você sempre tem o feitiço Alterar-se preparado e pode lançá-lo uma vez sem gastar uma vaga de feitiço.\n\nEnquanto sob os efeitos de Alterar-se, você ganha um benefício adicional para cada uma de suas opções.\n\nEnquanto submersa, você pode tomar a ação Dash como uma ação bônus.\n\nVocê tem vantagem nos cheques de Carisma (Decepção).\n\nO dano de seu novo crescimento aumenta para 2d6 do tipo associado ao crescimento, e você também tem vantagem na Constituição economizando para manter a concentração."
+          "body": "Você sempre tem o feitiço Alterar-se preparado e pode lançá-lo uma vez sem gastar uma vaga de feitiço.\n\nEnquanto sob os efeitos de Alterar-se, você ganha um benefício adicional para cada uma de suas opções.\n\nEnquanto submersa, você pode tomar a ação Disparar como uma ação bônus.\n\nVocê tem vantagem nos cheques de Carisma (Decepção).\n\nO dano de seu novo crescimento aumenta para 2d6 do tipo associado ao crescimento, e você também tem vantagem na Constituição economizando para manter a concentração."
         },
         {
           "name": "Transmutação Potencializada",
@@ -7496,7 +7496,7 @@
               "body": "Celestial, ínfero ou morto-vivo Pequeno, neutro.\n\n**CA.** 13 + seu modificador de Carisma.\n**PV.** 4 + quatro vezes seu nível de Bruxo. Seus Dados de Vida são d6 em quantidade igual ao seu nível de Bruxo.\n**Deslocamento.** 5 pés, voo 30 pés (paira).\n\n| Atributo | Valor | Modificador | Resistência base |\n| --- | --- | --- | --- |\n| FOR | 1 | −5 | −5 |\n| DES | 14 | +2 | +2 |\n| CON | 10 | +0 | +0 |\n| INT | 15 | +2 | +2 |\n| SAB | 15 | +2 | +2 |\n| CAR | 16 | +3 | +3 |\n\n**Resistências.** Radiante (celestial), fogo (ínfero) ou necrótico (morto-vivo).\n**Imunidades.** Amedrontado, caído e enfeitiçado.\n**Sentidos.** Visão no escuro 60 pés, Percepção passiva 11.\n**Idiomas.** Fala os idiomas que você conhece.\n**ND.** Nenhum (0 XP). Usa seu bônus de proficiência.\n\n**Vínculo do Pacto.** Some seu bônus de proficiência aos testes de atributo e de resistência do vestígio.\n\n**Golpe do Vestígio.** Ataque corpo a corpo (5 pés) ou à distância (60 pés) com seu modificador de ataque mágico. Se acertar, causa 1d6 + 3 + seu modificador de Carisma de dano radiante, de fogo ou necrótico, conforme a forma.\n\n**Poder Divino (ação bônus, 1/dia).** Use o efeito correspondente à forma do vestígio.\n**Toque Curativo (celestial).** Outra criatura tocada recupera 2d8 + seu modificador de Carisma em PV e deixa de estar cega, envenenada ou surda (escolha uma condição).\n**Troca Infernal (ínfero).** Se vocês estiverem a até 60 pés um do outro, vocês se teleportam e trocam de lugar.\n**Invocação Amaldiçoada (morto-vivo).** Amaldiçoe por 1 minuto uma criatura que você veja a até 30 pés do vestígio. Ela tem desvantagem nas jogadas de ataque contra você e o vestígio."
             }
           ],
-          "body": "O vestígio se manifesta, tirando força de seu pacto. Ele usa o bloco de estatísticas Vestige Companion e é um Celestial, Demônio, ou Morto-vivo (escolha quando você ganhar esta característica). Você determina como é o vestígio, mas independentemente de sua forma, o vestígio dos ursos indica sua origem sobrenatural. Por exemplo, você pode decidir que seu vestígio é um crânio flutuante gigante gravado com sigils, um círculo de runas brilhantes, ou uma forma abstrata constantemente mudando. O vestígio é amigável para você e seus aliados e obedece aos seus comandos. Ele desaparece se você morrer.\n\nEm combate, o vestígio age durante sua vez. Ele pode se mover e usar sua reação por conta própria, mas a única ação que ele toma é a ação Dodge a menos que você tome uma ação bônus para comandá-lo para tomar uma ação em seu bloco de estatísticas ou alguma outra ação. Você também pode sacrificar um de seus ataques quando tomar a ação de ataque para comandar o vestígio para tomar a ação de ataque do Vestige. Se você tem a condição incapacitada, o vestígio age por conta própria e não se limita à ação Dodge.\n\nQuando o vestígio cai para 0 Pontos de vida, ele desaparece. Você pode passar 1 minuto realizando uma cerimônia mágica para manifestar o vestígio novamente, reaparece com seu máximo Pontos de vida em um espaço desocupado a menos de 5 pés de você. Como uma ação mágica, você pode temporariamente descartar o vestígio para uma dimensão de bolso. Como uma ação mágica enquanto é temporariamente descartada, você pode fazer o vestígio reaparecer em um espaço desocupado a menos de 10 metros de você. Sempre que o vestígio cai para 0 Pontos de vida ou desaparece na dimensão de bolso, deixa para trás em seu espaço qualquer coisa que estava vestindo ou carregando.\n\nSempre que você termina um descanso longo, você pode invocar o vestígio em uma nova forma, que aparece em um espaço desocupado a menos de 5 pés de você. você escolhe sua aparência e se é um Celestial, Demônio ou Morto-vivo."
+          "body": "O vestígio se manifesta, tirando força de seu pacto. Ele usa o bloco de estatísticas Vestige Companion e é um Celestial, Demônio, ou Morto-vivo (escolha quando você ganhar esta característica). Você determina como é o vestígio, mas independentemente de sua forma, o vestígio dos ursos indica sua origem sobrenatural. Por exemplo, você pode decidir que seu vestígio é um crânio flutuante gigante gravado com sigils, um círculo de runas brilhantes, ou uma forma abstrata constantemente mudando. O vestígio é amigável para você e seus aliados e obedece aos seus comandos. Ele desaparece se você morrer.\n\nEm combate, o vestígio age durante sua vez. Ele pode se mover e usar sua reação por conta própria, mas a única ação que ele toma é a ação Esquivar a menos que você tome uma ação bônus para comandá-lo para tomar uma ação em seu bloco de estatísticas ou alguma outra ação. Você também pode sacrificar um de seus ataques quando tomar a ação de ataque para comandar o vestígio para tomar a ação de ataque do Vestige. Se você tem a condição incapacitada, o vestígio age por conta própria e não se limita à ação Esquivar.\n\nQuando o vestígio cai para 0 Pontos de vida, ele desaparece. Você pode passar 1 minuto realizando uma cerimônia mágica para manifestar o vestígio novamente, reaparece com seu máximo Pontos de vida em um espaço desocupado a menos de 5 pés de você. Como uma ação mágica, você pode temporariamente descartar o vestígio para uma dimensão de bolso. Como uma ação mágica enquanto é temporariamente descartada, você pode fazer o vestígio reaparecer em um espaço desocupado a menos de 10 metros de você. Sempre que o vestígio cai para 0 Pontos de vida ou desaparece na dimensão de bolso, deixa para trás em seu espaço qualquer coisa que estava vestindo ou carregando.\n\nSempre que você termina um descanso longo, você pode invocar o vestígio em uma nova forma, que aparece em um espaço desocupado a menos de 5 pés de você. você escolhe sua aparência e se é um Celestial, Demônio ou Morto-vivo."
         },
         {
           "name": "Magias do Vestígio",
@@ -7928,7 +7928,7 @@
     "aberrant-dragonmark": {
       "name": "Marca Dracônica Aberrante",
       "summary": "Aberrante, força, magia aberrante, cirurgia aberrante.",
-      "text": "Quando você falha em um teste de resistência da Constituição, você pode ter uma reação para rolar 1d4 e adicionar o número rolado para o salvamento, potencialmente transformando o fracasso em um sucesso.\n\nVocê sabe que uma pode escolher entre a lista de feitiços de feiticeiro. Também, escolha um feitiço nível 1 da lista de feitiços. Você sempre tem esse feitiço preparado. Você pode lançar uma vez sem um feitiço, e você recupera a capacidade de lançar dessa forma quando você terminar um descanso curto ou longo. Você também pode lançar este feitiço usando qualquer espaço de magia que você tem. Constituição é sua atributo de conjuração para este feitiço.\n\nQuando você lançar o feitiço de nível 1 deste talento, você pode gastar um de seus Dados de Ponto de vida e rolá-lo. Se você rolar um número par, você ganha um número de Pontos Temporários iguais ao número rolado. Se você rolar um número ímpar, uma criatura a menos de 10 metros de você (não incluindo você) leva dano à força igual ao número rolado. Se nenhuma outra criatura está ao alcance, você leva o dano."
+      "text": "Quando você falha em um teste de resistência da Constituição, você pode ter uma reação para rolar 1d4 e adicionar o número rolado para o teste de resistência, potencialmente transformando o fracasso em um sucesso.\n\nVocê sabe que uma pode escolher entre a lista de feitiços de feiticeiro. Também, escolha um feitiço nível 1 da lista de feitiços. Você sempre tem esse feitiço preparado. Você pode lançar uma vez sem um feitiço, e você recupera a capacidade de lançar dessa forma quando você terminar um descanso curto ou longo. Você também pode lançar este feitiço usando qualquer espaço de magia que você tem. Constituição é sua atributo de conjuração para este feitiço.\n\nQuando você lançar o feitiço de nível 1 deste talento, você pode gastar um de seus Dados de Ponto de vida e rolá-lo. Se você rolar um número par, você ganha um número de Pontos Temporários iguais ao número rolado. Se você rolar um número ímpar, uma criatura a menos de 10 metros de você (não incluindo você) leva dano à força igual ao número rolado. Se nenhuma outra criatura está ao alcance, você leva o dano."
     },
     "ability-score-improvement": {
       "name": "Aumento no Valor de Atributo",
@@ -8093,7 +8093,7 @@
     "boon-of-looming-shadows": {
       "name": "Dádiva das Sombras Ameaçadoras",
       "summary": "A pontuação da habilidade aumenta. Alongamento sombrio dança silhueta",
-      "text": "Aumente a pontuação de uma habilidade de sua escolha em 1, para um máximo de 30.\n\nShadowy Stretch Quando você toma a ação de ataque, seu alcance para seus ataques de armas corpo a corpo aumenta em 10 pés até o fim de sua vez.\n\nVocê pode tomar a ação Dodge como uma ação bônus."
+      "text": "Aumente a pontuação de uma habilidade de sua escolha em 1, para um máximo de 30.\n\nShadowy Stretch Quando você toma a ação de ataque, seu alcance para seus ataques de armas corpo a corpo aumenta em 10 pés até o fim de sua vez.\n\nVocê pode tomar a ação Esquivar como uma ação bônus."
     },
     "boon-of-magic-school-mastery": {
       "name": "Dádiva do Domínio de uma Escola de Magia",
@@ -8177,8 +8177,8 @@
     },
     "charger": {
       "name": "Carregador",
-      "summary": "Aumente a pontuação da habilidade. Melhore o Dash.",
-      "text": "Aumente sua pontuação de força ou destreza em 1, para um máximo de 20.\n\nQuando você toma a ação do Dash, sua velocidade aumenta em 10 pés por essa ação.\n\nSe você se mover pelo menos 10 pés em linha reta em direção a um alvo imediatamente antes de atingi-lo com uma jogada de ataque como parte da ação de ataque, escolha um dos seguintes efeitos: ganhar um bônus 1d8 para a rolagem de dano do ataque, ou empurrar o alvo para 10 pés de distância se não for mais do que um tamanho maior do que você. Você pode usar este benefício apenas uma vez em cada um dos seus turnos."
+      "summary": "Aumente a pontuação da habilidade. Melhore o Disparar.",
+      "text": "Aumente sua pontuação de força ou destreza em 1, para um máximo de 20.\n\nQuando você toma a ação Disparar, sua velocidade aumenta em 10 pés por essa ação.\n\nSe você se mover pelo menos 10 pés em linha reta em direção a um alvo imediatamente antes de atingi-lo com uma jogada de ataque como parte da ação de ataque, escolha um dos seguintes efeitos: ganhar um bônus 1d8 para a rolagem de dano do ataque, ou empurrar o alvo para 10 pés de distância se não for mais do que um tamanho maior do que você. Você pode usar este benefício apenas uma vez em cada um dos seus turnos."
     },
     "chef": {
       "name": "Chef",
@@ -8223,7 +8223,7 @@
     "cult-of-the-dragon-initiate": {
       "name": "Iniciado do Culto do Dragão",
       "summary": "\"A Língua do Dragão\" \"O Terror do Dragão\" \"Inspirado pelo Medo\"",
-      "text": "Se você já conhece Draconic quando você seleciona esse feito, você aprende uma língua de sua escolha nas tabelas de idiomas no Manual do Jogador ou no capítulo 2 deste livro.\n\nVocê pode tomar uma ação mágica para incutir terror em uma criatura que você pode ver a menos de 10 metros de si mesmo. O alvo deve ter sucesso em um teste de resistência da Sabedoria (DC 8 mais seu modificador de Sabedoria e Bônus de Proficiência) ou ter a condição de medo até o fim de sua próxima vez. Se o alvo tiver sucesso no salvamento ou quando o efeito terminar para um alvo, o alvo ficará imune a esse efeito por 24 horas.\n\nQuando você faz uma criatura ter a condição de medo e você é a fonte do seu medo, você pode ganhar inspiração heroica se você não tiver, e quando você usar esse benefício, você não pode usá-lo novamente até que você termine um descanso curto ou longo."
+      "text": "Se você já conhece Draconic quando você seleciona esse feito, você aprende uma língua de sua escolha nas tabelas de idiomas no Manual do Jogador ou no capítulo 2 deste livro.\n\nVocê pode tomar uma ação mágica para incutir terror em uma criatura que você pode ver a menos de 10 metros de si mesmo. O alvo deve ter sucesso em um teste de resistência da Sabedoria (DC 8 mais seu modificador de Sabedoria e Bônus de Proficiência) ou ter a condição de medo até o fim de sua próxima vez. Se o alvo tiver sucesso no teste de resistência ou quando o efeito terminar para um alvo, o alvo ficará imune a esse efeito por 24 horas.\n\nQuando você faz uma criatura ter a condição de medo e você é a fonte do seu medo, você pode ganhar inspiração heroica se você não tiver, e quando você usar esse benefício, você não pode usá-lo novamente até que você termine um descanso curto ou longo."
     },
     "defense": {
       "name": "Defesa",
@@ -8263,7 +8263,7 @@
     "durable": {
       "name": "Durável",
       "summary": "A pontuação da habilidade aumenta · Define a morte · Recuperação rápida",
-      "text": "Aumente a pontuação da sua Constituição em 1, para um máximo de 20.\n\nVocê tem vantagem em jogos de salvamento da morte.\n\nComo uma ação bônus, você pode gastar um de seus Dados Ponto de vida, rolar o dado, e recuperar um número de Pontos Hit igual à rolagem."
+      "text": "Aumente a pontuação da sua Constituição em 1, para um máximo de 20.\n\nVocê tem vantagem em jogos de teste de resistência da morte.\n\nComo uma ação bônus, você pode gastar um de seus Dados Ponto de vida, rolar o dado, e recuperar um número de Pontos Hit igual à rolagem."
     },
     "echoing-soul": {
       "name": "Alma Ecoadora",
@@ -8318,7 +8318,7 @@
     "fey-sentinel": {
       "name": "Sentinela Feérica",
       "summary": "Aumente a pontuação da habilidade. Alvo em desvanecimento. Desvio feérico. Raizes da natureza.",
-      "text": "Aumente a pontuação de sua habilidade. Aumente sua inteligência, sabedoria ou Carisma em 1, para um máximo de 20.\n\nQuando um inimigo sente falta de você com uma jogada de ataque, você pode ter uma reação para ganhar a condição invisível até o início de seu próximo turno ou até imediatamente depois de fazer uma jogada de ataque, dano de negócio, ou lançar um feitiço.\n\nQuando você toma a ação Dash, você pode esquecer o movimento extra para se teletransportar para um espaço desocupado que você pode ver dentro de uma distância igual a metade da sua velocidade.\n\nVocê sempre tem o feitiço Entangle preparado, você pode lançá-lo uma vez sem um feitiço, e recuperar a capacidade de lançá-lo dessa forma quando você terminar um Descanso Longo, você também pode lançá-lo usando qualquer feitiço que você tem, a atributo de conjuração é a habilidade aumentada por este feito.\n\nQuando você atinge o nível 5 do personagem, você também sempre tem o feitiço de crescimento da planta preparado e pode lançá-lo da mesma forma."
+      "text": "Aumente a pontuação de sua habilidade. Aumente sua inteligência, sabedoria ou Carisma em 1, para um máximo de 20.\n\nQuando um inimigo sente falta de você com uma jogada de ataque, você pode ter uma reação para ganhar a condição invisível até o início de seu próximo turno ou até imediatamente depois de fazer uma jogada de ataque, dano de negócio, ou lançar um feitiço.\n\nQuando você toma a ação Disparar, você pode esquecer o movimento extra para se teletransportar para um espaço desocupado que você pode ver dentro de uma distância igual a metade da sua velocidade.\n\nVocê sempre tem o feitiço Entangle preparado, você pode lançá-lo uma vez sem um feitiço, e recuperar a capacidade de lançá-lo dessa forma quando você terminar um Descanso Longo, você também pode lançá-lo usando qualquer feitiço que você tem, a atributo de conjuração é a habilidade aumentada por este feito.\n\nQuando você atinge o nível 5 do personagem, você também sempre tem o feitiço de crescimento da planta preparado e pode lançá-lo da mesma forma."
     },
     "fey-touched": {
       "name": "Tocado pelas Fadas",
@@ -8783,12 +8783,12 @@
     "speedy": {
       "name": "Veloz",
       "summary": "Aumento da pontuação de habilidade Aumentar a velocidade Aumentar a velocidade Deslize o terreno difícil Movimento ágil",
-      "text": "Aumente sua pontuação de Dexteridade ou Constituição em 1, para um máximo de 20.\n\nSua velocidade aumenta em 10 pés.\n\nQuando você toma a ação Dash em sua vez, o Terreno Difícil não lhe custa movimento extra para o resto da volta.\n\nMovimento Ágil. Ataques de oportunidade têm desvantagem contra você."
+      "text": "Aumente sua pontuação de Dexteridade ou Constituição em 1, para um máximo de 20.\n\nSua velocidade aumenta em 10 pés.\n\nQuando você toma a ação Disparar em sua vez, o Terreno Difícil não lhe custa movimento extra para o resto da volta.\n\nMovimento Ágil. Ataques de oportunidade têm desvantagem contra você."
     },
     "spell-resistant": {
       "name": "Resistente à Feitiçaria",
       "summary": "A pontuação da habilidade aumenta a resistência mágica, resistente à magia.",
-      "text": "Aumente sua pontuação de Dexteridade ou Constituição em 1, para um máximo de 20.\n\nResiliência Mágica Você tem resistência a um dos seguintes tipos de danos (escolha quando você ganhar este feito): Necrótico, Psíquico, Radiante, ou Trovão.\n\nQuando você falha em um golpe de salvação contra um feitiço ou efeito mágico, você pode rolar 1d6 e adicionar o número rolado ao total do salvamento, potencialmente transformando o fracasso em um sucesso. Você pode usar esse benefício várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo."
+      "text": "Aumente sua pontuação de Dexteridade ou Constituição em 1, para um máximo de 20.\n\nResiliência Mágica Você tem resistência a um dos seguintes tipos de danos (escolha quando você ganhar este feito): Necrótico, Psíquico, Radiante, ou Trovão.\n\nQuando você falha em um golpe de salvação contra um feitiço ou efeito mágico, você pode rolar 1d6 e adicionar o número rolado ao total do teste de resistência, potencialmente transformando o fracasso em um sucesso. Você pode usar esse benefício várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo."
     },
     "spell-sniper": {
       "name": "Atirador de Magias",
@@ -8823,7 +8823,7 @@
     "symbiotic-being": {
       "name": "Ser Simbiótico",
       "summary": "Existência entrelaçada Segunda Mente Simbiose Mantida Agenda Simbiótica",
-      "text": "Um segundo ser reside dentro do seu corpo, oferecendo conhecimento e assistência enquanto amplia sua própria agenda.\n\nO simbionte não pode ser alvo, se você morrer, o simbionte também revive.\n\nVocê ganha proficiência em uma das seguintes habilidades: Arcana, Decepção, História, Intimidação, Insight, Investigação, Natureza, Religião, Percepção, ou Persuasão.\n\nQuando você falhar em um teste de resistência, você pode pegar uma reação e gastar um de seus Dados de Hit.\n\nVocê pode usar esse recurso várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo.\n\nImediatamente após fazer um teste D20 e rodar um 1 no d20, seu simbionte tenta afirmar controle. Faça um teste de resistência do Carisma (DC 13 mais seu Bônus de Proficiência). Em caso de falha, você tem a condição Encantada por 1d12 horas. Enquanto Encantada, você deve tentar seguir as ordens do simbionte e seguir seus objetivos, como determinado pelo DM. Sempre que você sofrer danos, você pode repetir este salvamento, terminando o efeito em um sucesso.\n\nA critério do DM, você pode fazer esse teste de resistência sempre que agir contra a agenda do simbionte."
+      "text": "Um segundo ser reside dentro do seu corpo, oferecendo conhecimento e assistência enquanto amplia sua própria agenda.\n\nO simbionte não pode ser alvo, se você morrer, o simbionte também revive.\n\nVocê ganha proficiência em uma das seguintes habilidades: Arcana, Decepção, História, Intimidação, Insight, Investigação, Natureza, Religião, Percepção, ou Persuasão.\n\nQuando você falhar em um teste de resistência, você pode pegar uma reação e gastar um de seus Dados de Hit.\n\nVocê pode usar esse recurso várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo.\n\nImediatamente após fazer um teste D20 e rodar um 1 no d20, seu simbionte tenta afirmar controle. Faça um teste de resistência do Carisma (DC 13 mais seu Bônus de Proficiência). Em caso de falha, você tem a condição Encantada por 1d12 horas. Enquanto Encantada, você deve tentar seguir as ordens do simbionte e seguir seus objetivos, como determinado pelo DM. Sempre que você sofrer danos, você pode repetir este teste de resistência, terminando o efeito em um sucesso.\n\nA critério do DM, você pode fazer esse teste de resistência sempre que agir contra a agenda do simbionte."
     },
     "tactical-combatant": {
       "name": "Combatente Tático",
@@ -8873,7 +8873,7 @@
     "transmuted-anatomy": {
       "name": "Anatomia Transmutada",
       "summary": "Anatomia Resiliente",
-      "text": "Sua velocidade aumenta em 5 pés.\n\nVocê tem vantagem em economizar contra efeitos que o obrigariam a mudar de forma contra sua vontade. Além disso, quando você falha em um teste de resistência da Constituição, você pode ter uma reação para rolar 1d4 e adicionar o número rolado para o salvamento, potencialmente transformando o fracasso em um sucesso. Você pode usar esse benefício várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo."
+      "text": "Sua velocidade aumenta em 5 pés.\n\nVocê tem vantagem em economizar contra efeitos que o obrigariam a mudar de forma contra sua vontade. Além disso, quando você falha em um teste de resistência da Constituição, você pode ter uma reação para rolar 1d4 e adicionar o número rolado para o teste de resistência, potencialmente transformando o fracasso em um sucesso. Você pode usar esse benefício várias vezes igual ao seu Bônus de Proficiência, e você recupera todos os usos gastos quando você termina um descanso longo."
     },
     "treacherous-allure": {
       "name": "Atração traiçoeira",
@@ -8908,12 +8908,12 @@
     "vampires-plaything": {
       "name": "Brinquedo de Vampiro",
       "summary": "Decantação · Retirada oportuna · Conexão vampírica",
-      "text": "Quando você termina um descanso longo, você pode criar uma poção de cura ou uma antitoxina, desde que você tenha um frasco vazio ou um frasco.\n\nVocê pode fazer uma ação bônus para tomar a ação Dash ou a ação de desengajamento, você pode usar esse benefício várias vezes igual ao seu bônus de proficiência, e você recupera todos os usos gastos quando terminar um descanso longo.\n\nO DM determina o destino de seu antigo mestre vampiro, enquanto você e seu antigo mestre vampiro estão no mesmo plano de existência, o vampiro pode se comunicar com você telepaticamente, e você pode escolher permitir que o vampiro perceba através de seus sentidos."
+      "text": "Quando você termina um descanso longo, você pode criar uma poção de cura ou uma antitoxina, desde que você tenha um frasco vazio ou um frasco.\n\nVocê pode fazer uma ação bônus para tomar a ação Disparar ou a ação de desengajamento, você pode usar esse benefício várias vezes igual ao seu bônus de proficiência, e você recupera todos os usos gastos quando terminar um descanso longo.\n\nO DM determina o destino de seu antigo mestre vampiro, enquanto você e seu antigo mestre vampiro estão no mesmo plano de existência, o vampiro pode se comunicar com você telepaticamente, e você pode escolher permitir que o vampiro perceba através de seus sentidos."
     },
     "war-caster": {
       "name": "Conjurador de Guerra",
       "summary": "A pontuação da habilidade aumenta a concentração, o feitiço reativo, os componentes somáticos.",
-      "text": "Aumente a pontuação de sua habilidade. Aumente sua inteligência, sabedoria ou Carisma em 1, para um máximo de 20.\n\nVocê tem vantagem na Constituição salvando lances que você faz para manter a concentração.\n\nQuando uma criatura provoca um ataque de oportunidade de você deixando seu alcance, você pode fazer uma reação para lançar um feitiço na criatura em vez de fazer um ataque de oportunidade.\n\nVocê pode executar os componentes somáticos de feitiços mesmo quando você tem armas ou um escudo em uma ou ambas as mãos."
+      "text": "Aumente a pontuação de sua habilidade. Aumente sua inteligência, sabedoria ou Carisma em 1, para um máximo de 20.\n\nVocê tem vantagem em testes de resistência de Constituição que você faz para manter a concentração.\n\nQuando uma criatura provoca um ataque de oportunidade de você deixando seu alcance, você pode fazer uma reação para lançar um feitiço na criatura em vez de fazer um ataque de oportunidade.\n\nVocê pode executar os componentes somáticos de feitiços mesmo quando você tem armas ou um escudo em uma ou ambas as mãos."
     },
     "warlike-familiar": {
       "name": "Familiar Guerreiro",
@@ -8923,7 +8923,7 @@
     "watchers": {
       "name": "Observadores",
       "summary": "Olhos emprestados, suspeita aumentada, observadores incessantes.",
-      "text": "Algo não natural está sempre observando você, tomando a forma de vermes correndo e outras criaturas assustadoras.\n\nVocê sempre tem o Sentido da Fera e Fala com os Animais, feitiços preparados, você pode lançar cada feitiço sem um feitiço, e você deve terminar um Longo Descanso antes que você possa jogá-lo desta forma novamente, você também pode lançar esses feitiços usando feitiços que você tem do nível apropriado.\n\nSempre que você toma a ação de busca, você pode rolar 1d4 e adicionar o número rodado para qualquer teste de atributo feita como parte dessa ação.\n\nVocê tem desvantagem em salvar jogadas feitas contra o feitiço Scriking.\n\nAlém disso, imediatamente após fazer um teste D20 e rolar um 1 no d20, a paranóia ameaça te dominar. Faça um teste de resistência da sabedoria (DC 13 mais seu bônus de eficiência). Em caso de falha, você tem Desvantagem nos testes D20 por 1 minuto. Você pode repetir o salvamento no final de cada uma de suas voltas, terminando o efeito mais cedo em um sucesso."
+      "text": "Algo não natural está sempre observando você, tomando a forma de vermes correndo e outras criaturas assustadoras.\n\nVocê sempre tem o Sentido da Fera e Fala com os Animais, feitiços preparados, você pode lançar cada feitiço sem um feitiço, e você deve terminar um Longo Descanso antes que você possa jogá-lo desta forma novamente, você também pode lançar esses feitiços usando feitiços que você tem do nível apropriado.\n\nSempre que você toma a ação de busca, você pode rolar 1d4 e adicionar o número rodado para qualquer teste de atributo feita como parte dessa ação.\n\nVocê tem desvantagem em salvar jogadas feitas contra o feitiço Scriking.\n\nAlém disso, imediatamente após fazer um teste D20 e rolar um 1 no d20, a paranóia ameaça te dominar. Faça um teste de resistência da sabedoria (DC 13 mais seu bônus de eficiência). Em caso de falha, você tem Desvantagem nos testes D20 por 1 minuto. Você pode repetir o teste de resistência no final de cada uma de suas voltas, terminando o efeito mais cedo em um sucesso."
     },
     "weapon-master": {
       "name": "Mestre da Arma",

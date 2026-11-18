@@ -1145,9 +1145,11 @@ function compendiumArticle(id) {
     <nav class="flex flex-wrap gap-2" aria-label="Navegação do verbete">${back}${parent ? `<a class="button secondary icon-label" href="${compendiumHref('classes', parent.id)}">${catalogEmblem('classes', parent)}${escape(displayName(parent))}</a>` : ''}</nav>
     <header class="wiki-article-header${isBackground ? ' wiki-background-header' : ''}">
       ${motif ? `<span class="wiki-banner-emblem" aria-hidden="true">${gameIcon(motif)}</span>` : ''}
-      ${isSpell ? `<p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}${escape(spellSubtitle(entry))}</p>` : ''}
-      <h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
-      ${isSpell ? '' : `<p class="muted">${[catalogCategory === 'feats' && featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
+      ${isSpell ? `
+        <span class="wiki-spell-emblem">${catalogEmblem(catalogCategory, entry)}</span>
+        <h2><span class="wiki-spell-name">${escape(displayName(entry))}</span></h2>
+        <p class="wiki-spell-school icon-label">${Object.hasOwn(spellSchools, entry.school) ? gameIcon(schoolEmblem(entry.school)) : ''}<span>${escape(spellSubtitle(entry))}</span></p>` : `<h2 class="icon-label">${catalogEmblem(catalogCategory, entry)}<span>${escape(displayName(entry))}</span></h2>
+      <p class="muted">${[catalogCategory === 'feats' && featCategories[entry.category], entry.source].filter(Boolean).map(escape).join(' · ')}</p>`}
     </header>
     ${isSpell ? spellDescription(entry, { glossary: true, editorial: true }) : isReference
       ? `<section class="wiki-reference-body">${entryDescription(entry, true, true, ruleReference)}</section>`
@@ -1342,7 +1344,7 @@ function publicFeatureSource(entry) {
   };
 }
 
-function details(entry, glossary = false, full = false) {
+function details(entry, glossary = true, full = false) {
   const inSheet = publicSheet || main.classList.contains('session-screen');
   const origin = inSheet ? publicFeatureSource(entry) : undefined;
   const feat = inSheet && entry.category && catalog.byFeat.get(entry.id);
@@ -3312,8 +3314,8 @@ function optionDetails(option, wiki = false, characterArticle = false) {
   const grantedFeat = option.feat && typeof option.feat === 'object' ? option.feat : undefined;
   const entry = grantedFeat ?? (style || option);
   const description = grantedFeat
-    ? entryDescription(option, true, wiki) + entryDescription(entry, true, wiki)
-    : entryDescription(entry, true, wiki);
+    ? entryDescription(option, true, true) + entryDescription(entry, true, true)
+    : entryDescription(entry, true, true);
   const features = [...(entry.traits ?? []), ...(entry.features ?? [])].sort(
     (a, b) => (a.level ?? 0) - (b.level ?? 0)
   );
@@ -3408,23 +3410,23 @@ function optionDetails(option, wiki = false, characterArticle = false) {
     ${backgroundFeats.length ? `<section class="benefits"><h4>Talentos do antecedente</h4>
       ${backgroundFeats.map(({ feat, note }) => `<details class="entry background-feat"${catalogTheme('feats', feat)}>
         <summary><strong class="icon-label">${catalogEmblem('feats', feat)}${escape(displayName(feat))}${note ? ` · ${escape(classLabel(note))}` : ''}</strong></summary>
-        ${entryDescription(feat, true, wiki)}</details>`).join('')}
+        ${entryDescription(feat, true, true)}</details>`).join('')}
     </section>` : ''}
     ${backgroundFeatChoices.map(({ count, options }) => `<section class="benefits">
       <h4>Talentos à escolha (${escape(count)})</h4>
-      ${options.map((feat) => details(feat, wiki, true)).join('')}
+      ${options.map((feat) => details(feat, true, true)).join('')}
     </section>`).join('')}
-    ${referenceDetails(entry, wiki)}
+    ${referenceDetails(entry, true)}
     ${wiki ? wikiBenefits(entry) : fixedSpells.length ? `<p><strong>Magias concedidas.</strong> ${escape(fixedSpells.join(' · '))}</p>` : ''}
-    ${features.length ? `<section class="benefits"><${wiki ? 'h3' : 'h4'}>Características e habilidades</${wiki ? 'h3' : 'h4'}>${features.map((feature) => details(feature, wiki)).join('')}</section>` : ''}
-    ${entry.sections?.length ? `<section class="benefits"><${wiki ? 'h3' : 'h4'}>Referências</${wiki ? 'h3' : 'h4'}>${entry.sections.map((section) => details(section, wiki)).join('')}</section>` : ''}
+    ${features.length ? `<section class="benefits"><${wiki ? 'h3' : 'h4'}>Características e habilidades</${wiki ? 'h3' : 'h4'}>${features.map((feature) => details(feature)).join('')}</section>` : ''}
+    ${entry.sections?.length ? `<section class="benefits"><${wiki ? 'h3' : 'h4'}>Referências</${wiki ? 'h3' : 'h4'}>${entry.sections.map((section) => details(section)).join('')}</section>` : ''}
     ${choices
       .map(
         (
           choice
         ) => `<section class="benefits"><${wiki ? 'h3' : 'h4'}>${escape(displayName(choice))}</${wiki ? 'h3' : 'h4'}>
       ${wiki && (choice.translation?.prompt || choice.prompt) ? `<p class="muted">${escape(choice.translation?.prompt ?? choice.prompt)}</p>` : ''}
-      <div class="feature-references">${choice.options.map((option) => details(option, wiki)).join('\n')}</div></section>`
+      <div class="feature-references">${choice.options.map((option) => details(option)).join('\n')}</div></section>`
       )
       .join('')}
     ${spell ? spellCard(spell) : ''}

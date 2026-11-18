@@ -20,8 +20,9 @@ export function formatDescription(value, glossary = false, referenceLink) {
       if (index % 2 === 0) return render(part);
       const [id, label = id] = part.slice(2, -2).split('|');
       const reference = referenceLink?.(id, label);
+      const term = glossary && reference ? glossaryIndex(label) : -1;
       return reference
-        ? `<a class="rules-reference-link" href="${escapeHtml(reference.href)}">${gameIcon(reference.icon)}<span>${escapeHtml(label)}</span></a>`
+        ? `<a class="rules-reference-link" href="${escapeHtml(reference.href)}"${term < 0 ? '' : ` data-glossary="${term}"`}>${gameIcon(reference.icon)}<span>${escapeHtml(label)}</span></a>`
         : render(label);
     })
     .join('');
@@ -332,7 +333,7 @@ export function spellRolls(spell, characterLevel, slotLevel = spell.level) {
   return rolls;
 }
 
-export function spellDescription(spell, { glossary = false, editorial = false } = {}) {
+export function spellDescription(spell, { glossary = true, editorial = false } = {}) {
   const effects = spellEffects(spell);
   const fields = [
     ['Fonte', spell.publication],
@@ -359,7 +360,7 @@ export function spellDescription(spell, { glossary = false, editorial = false } 
   const effectMarkup = shownEffects.length ? `<dl class="wiki-spell-effects">${shownEffects.map(([label, value]) =>
     `<div data-effect="${label}"><dt>${label}</dt><dd>${label === 'Dano' ? spellDamageMarkup(value) : escapeHtml(value)}</dd></div>`
   ).join('')}</dl>` : '';
-  const damageTags = glossary ? spellDamageTypes(spell).map((type) => damageTag(type)).join(' ') : '';
+  const damageTags = editorial ? spellDamageTypes(spell).map((type) => damageTag(type)).join(' ') : '';
   const description = formatRulesDescription(spell.translation?.text ?? spell.text, glossary, spell.translation?.text ? 'pt-BR' : 'en');
   return `<div class="spell-description">
     <dl class="spell-facts">${fields
@@ -454,9 +455,11 @@ function spellDamageMarkup(value) {
 export function spellTheme(spell, rainbow = false) {
   const school = Object.hasOwn(spellSchools, spell.school) ? spell.school : '';
   const types = rainbow ? spellDamageTypes(spell) : [];
-  const spectrum = types.length > 1
-    ? ` style="--spell-spectrum:linear-gradient(105deg,${types.map((type) => `var(--spell-damage-${type})`).join(',')})"`
+  const colors = types.map((type) => `var(--spell-damage-${type})`);
+  const gradient = colors.length > 1
+    ? `;--spell-spectrum:linear-gradient(105deg,${colors.join(',')})`
     : '';
+  const spectrum = colors.length ? ` style="--spell-heading-ink:${colors[0]}${gradient}"` : '';
   return ` data-spell-school="${school}"${spectrum}`;
 }
 
@@ -480,4 +483,4 @@ export function spellCard(spell, actions = '') {
     ${actions}
     ${spellDescription(spell)}</details>`;
 }
-import { annotateTerms } from './glossary.js';
+import { annotateTerms, glossaryIndex } from './glossary.js';

@@ -1,7 +1,7 @@
 const terms = [
   [
     'Amedrontado',
-    'amedrontad[oa]s?|assustad[oa]s?|condição (?:de )?medo|frightened',
+    'amedrontad[oa]s?|assustad[oa]s?|amedrontar|condiç(?:ão|ões) (?:d[eo] )?medo|frightened',
     'Você tem desvantagem em testes de atributo e jogadas de ataque enquanto vê a fonte do medo. Você não pode se aproximar dela voluntariamente.',
   ],
   [
@@ -26,7 +26,7 @@ const terms = [
   ],
   [
     'Enfeitiçado',
-    'enfeitiçad[oa]s?|encantad[oa]s?(?= condição)|charmed',
+    'enfeitiçad[oa]s?|encantad[oa]s?(?= condição)|(?<=condição )encantad[oa]s?|charmed',
     'Você não pode atacar quem o enfeitiçou nem tê-lo como alvo de habilidades ou efeitos mágicos que causem dano. Essa criatura tem vantagem em testes de atributo para interagir socialmente com você.',
   ],
   [
@@ -106,6 +106,14 @@ const matchers = new RegExp(
   `(?<![\\p{L}\\p{N}])(?:${terms.map(([, pattern]) => `(${pattern})`).join('|')})(?![\\p{L}\\p{N}])`,
   'giu'
 );
+
+export function glossaryIndex(label) {
+  const text = label.trim();
+  const canonical = glossary.findIndex(({ name }) => name.toLowerCase() === text.toLowerCase());
+  if (canonical !== -1) return canonical;
+  const match = text.matchAll(matchers).next().value;
+  return match?.[0] === text ? match.slice(1).findIndex(Boolean) : -1;
+}
 
 export function annotateTerms(value, escape) {
   let end = 0;
